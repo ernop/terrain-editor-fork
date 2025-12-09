@@ -431,28 +431,28 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			end
 			
 		elseif brushShape == BrushShape.Spikepad then
-			-- Spikepad: flat base with sharp spikes pointing up
-			-- Base is at the bottom, spikes grow upward
+			-- Spikepad: flat base with 5x5 grid of cone spikes pointing up
 			local normX = cellVectorX / radiusX  -- -1 to 1 across width
 			local normZ = cellVectorZ / radiusZ  -- -1 to 1 across depth
 			local normY = (cellVectorY + radiusY) / (2 * radiusY)  -- 0 at bottom, 1 at top
 			
 			-- Check if within the XZ bounds
 			if math.abs(normX) <= 1 and math.abs(normZ) <= 1 and normY >= 0 and normY <= 1 then
-				-- Spike grid: create a 3x3 pattern of spikes
-				local spikeSpacingX = 2 / 3  -- Spacing between spike centers in normalized coords
-				local spikeSpacingZ = 2 / 3
+				-- 5x5 grid of cone spikes
+				local gridSize = 5
+				local spikeSpacing = 2 / gridSize  -- Spacing between spike centers in normalized coords
 				
 				-- Find distance to nearest spike center
-				local spikeX = math.floor((normX + 1) / spikeSpacingX + 0.5) * spikeSpacingX - 1
-				local spikeZ = math.floor((normZ + 1) / spikeSpacingZ + 0.5) * spikeSpacingZ - 1
+				local spikeX = math.floor((normX + 1) / spikeSpacing + 0.5) * spikeSpacing - 1
+				local spikeZ = math.floor((normZ + 1) / spikeSpacing + 0.5) * spikeSpacing - 1
 				
-				-- Clamp spike centers to valid range
-				spikeX = math.max(-0.67, math.min(0.67, spikeX))
-				spikeZ = math.max(-0.67, math.min(0.67, spikeZ))
+				-- Clamp spike centers to valid range (centers at -0.8, -0.4, 0, 0.4, 0.8)
+				local maxCenter = 1 - spikeSpacing / 2
+				spikeX = math.max(-maxCenter, math.min(maxCenter, spikeX))
+				spikeZ = math.max(-maxCenter, math.min(maxCenter, spikeZ))
 				
 				local distToSpike = math.sqrt((normX - spikeX)^2 + (normZ - spikeZ)^2)
-				local spikeRadius = 0.25  -- How wide each spike is at base
+				local spikeRadius = spikeSpacing * 0.45  -- Cone base radius relative to spacing
 				
 				-- Base layer (thin platform at bottom)
 				local baseHeight = 0.15  -- Bottom 15% is solid base
@@ -462,13 +462,13 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 					magnitudePercent = 1
 					brushOccupancy = 1
 				elseif distToSpike <= spikeRadius then
-					-- Inside a spike cone
-					-- Spike tapers from full at base to point at top
+					-- Inside a cone spike
+					-- Cone tapers from full at base to point at top
 					local spikeProgress = (normY - baseHeight) / (1 - baseHeight)  -- 0 at base, 1 at tip
-					local maxRadiusAtHeight = spikeRadius * (1 - spikeProgress)  -- Cone tapers
+					local maxRadiusAtHeight = spikeRadius * (1 - spikeProgress)  -- Cone tapers linearly
 					
 					if distToSpike <= maxRadiusAtHeight then
-						-- Inside the spike at this height
+						-- Inside the cone at this height
 						local sharpness = 1 - (distToSpike / maxRadiusAtHeight)  -- 1 at center, 0 at edge
 						magnitudePercent = sharpness
 						brushOccupancy = math.max(0.01, sharpness)
@@ -477,7 +477,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 						magnitudePercent = 0
 					end
 				else
-					-- Outside spikes and above base
+					-- Outside cones and above base
 					brushOccupancy = 0
 					magnitudePercent = 0
 				end

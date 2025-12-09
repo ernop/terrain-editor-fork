@@ -30,7 +30,7 @@ local originalJumpPower = 50
 -- Constants
 local FLY_SPEED = 160
 local HYPERSPEED_MULTIPLIER = 4
-local SUPER_JUMP_POWER = 150
+local SUPER_JUMP_POWER = 100
 local TELEPORT_HOLD_TIME = 1
 local DIG_RADIUS = 8
 
@@ -91,21 +91,21 @@ local function createUI()
 	screenGui.ResetOnSpawn = false
 	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	screenGui.Parent = player:WaitForChild("PlayerGui")
-	
+
 	-- Terrain detector panel (compact)
 	local terrainDetector = Instance.new("Frame")
 	terrainDetector.Name = "TerrainDetector"
 	terrainDetector.Size = UDim2.new(0, 140, 0, 40)
-	terrainDetector.Position = UDim2.new(1, -156, 1, -280)  -- Above powers container
+	terrainDetector.Position = UDim2.new(1, -156, 1, -280) -- Above powers container
 	terrainDetector.BackgroundColor3 = Color3.fromRGB(15, 18, 22)
 	terrainDetector.BackgroundTransparency = 0.2
 	terrainDetector.BorderSizePixel = 0
 	terrainDetector.Parent = screenGui
-	
+
 	local detectorCorner = Instance.new("UICorner")
 	detectorCorner.CornerRadius = UDim.new(0, 6)
 	detectorCorner.Parent = terrainDetector
-	
+
 	-- Material color swatch
 	local swatch = Instance.new("Frame")
 	swatch.Name = "Swatch"
@@ -114,11 +114,11 @@ local function createUI()
 	swatch.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 	swatch.BorderSizePixel = 0
 	swatch.Parent = terrainDetector
-	
+
 	local swatchCorner = Instance.new("UICorner")
 	swatchCorner.CornerRadius = UDim.new(0, 4)
 	swatchCorner.Parent = swatch
-	
+
 	-- Material name
 	local materialLabel = Instance.new("TextLabel")
 	materialLabel.Name = "MaterialLabel"
@@ -131,21 +131,21 @@ local function createUI()
 	materialLabel.Font = Enum.Font.GothamBold
 	materialLabel.TextXAlignment = Enum.TextXAlignment.Left
 	materialLabel.Parent = terrainDetector
-	
+
 	-- Powers container (simplified horizontal strip)
 	local container = Instance.new("Frame")
 	container.Name = "PowersContainer"
-	container.Size = UDim2.new(0, 140, 0, 210)  -- Taller for bigger buttons
+	container.Size = UDim2.new(0, 140, 0, 210) -- Taller for bigger buttons
 	container.Position = UDim2.new(1, -156, 1, -222)
 	container.BackgroundColor3 = Color3.fromRGB(15, 18, 22)
 	container.BackgroundTransparency = 0.2
 	container.BorderSizePixel = 0
 	container.Parent = screenGui
-	
+
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = container
-	
+
 	-- Button list
 	local buttonList = Instance.new("Frame")
 	buttonList.Name = "ButtonList"
@@ -153,12 +153,12 @@ local function createUI()
 	buttonList.Position = UDim2.new(0, 6, 0, 6)
 	buttonList.BackgroundTransparency = 1
 	buttonList.Parent = container
-	
+
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 4)
 	layout.Parent = buttonList
-	
+
 	-- Teleport countdown overlay
 	local countdownFrame = Instance.new("Frame")
 	countdownFrame.Name = "CountdownFrame"
@@ -169,11 +169,11 @@ local function createUI()
 	countdownFrame.BorderSizePixel = 0
 	countdownFrame.Visible = false
 	countdownFrame.Parent = screenGui
-	
+
 	local countdownCorner = Instance.new("UICorner")
 	countdownCorner.CornerRadius = UDim.new(0, 60)
 	countdownCorner.Parent = countdownFrame
-	
+
 	local countdownLabel = Instance.new("TextLabel")
 	countdownLabel.Name = "CountdownLabel"
 	countdownLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -183,12 +183,12 @@ local function createUI()
 	countdownLabel.TextSize = 56
 	countdownLabel.Font = Enum.Font.GothamBlack
 	countdownLabel.Parent = countdownFrame
-	
+
 	local countdownRing = Instance.new("UIStroke")
 	countdownRing.Color = Color3.fromRGB(180, 100, 255)
 	countdownRing.Thickness = 4
 	countdownRing.Parent = countdownFrame
-	
+
 	return screenGui, buttonList, swatch, materialLabel, countdownFrame, countdownLabel
 end
 
@@ -196,18 +196,18 @@ end
 local function createPowerButton(parent, config, index)
 	local button = Instance.new("TextButton")
 	button.Name = config.key .. "Button"
-	button.Size = UDim2.new(1, 0, 0, 36)  -- Taller buttons
+	button.Size = UDim2.new(1, 0, 0, 36) -- Taller buttons
 	button.BackgroundColor3 = Color3.fromRGB(30, 34, 40)
 	button.BorderSizePixel = 0
 	button.LayoutOrder = index
 	button.AutoButtonColor = false
 	button.Text = ""
 	button.Parent = parent
-	
+
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = button
-	
+
 	-- Color bar (thicker when on)
 	local bar = Instance.new("Frame")
 	bar.Name = "Bar"
@@ -217,11 +217,11 @@ local function createPowerButton(parent, config, index)
 	bar.BackgroundTransparency = 0.5
 	bar.BorderSizePixel = 0
 	bar.Parent = button
-	
+
 	local barCorner = Instance.new("UICorner")
 	barCorner.CornerRadius = UDim.new(0, 2)
 	barCorner.Parent = bar
-	
+
 	-- Hotkey indicator (shows the shortcut key)
 	local hotkeyLabel = Instance.new("TextLabel")
 	hotkeyLabel.Name = "Hotkey"
@@ -229,16 +229,16 @@ local function createPowerButton(parent, config, index)
 	hotkeyLabel.Position = UDim2.new(0, 14, 0.5, -10)
 	hotkeyLabel.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
 	hotkeyLabel.BackgroundTransparency = 0.5
-	hotkeyLabel.Text = config.label:sub(1, 1)  -- First letter
+	hotkeyLabel.Text = config.label:sub(1, 1) -- First letter
 	hotkeyLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 	hotkeyLabel.TextSize = 14
 	hotkeyLabel.Font = Enum.Font.GothamBlack
 	hotkeyLabel.Parent = button
-	
+
 	local hotkeyCorner = Instance.new("UICorner")
 	hotkeyCorner.CornerRadius = UDim.new(0, 4)
 	hotkeyCorner.Parent = hotkeyLabel
-	
+
 	-- Main label (bigger text)
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -247,11 +247,11 @@ local function createPowerButton(parent, config, index)
 	label.BackgroundTransparency = 1
 	label.Text = config.label
 	label.TextColor3 = Color3.fromRGB(200, 200, 200)
-	label.TextSize = 18  -- Bigger text
+	label.TextSize = 18 -- Bigger text
 	label.Font = Enum.Font.GothamBlack
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = button
-	
+
 	-- Status indicator (larger, more visible)
 	local dot = Instance.new("Frame")
 	dot.Name = "Dot"
@@ -260,11 +260,11 @@ local function createPowerButton(parent, config, index)
 	dot.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
 	dot.BorderSizePixel = 0
 	dot.Parent = button
-	
+
 	local dotCorner = Instance.new("UICorner")
 	dotCorner.CornerRadius = UDim.new(1, 0)
 	dotCorner.Parent = dot
-	
+
 	return button, bar, dot, config.color, label, hotkeyLabel
 end
 
@@ -499,7 +499,7 @@ end
 local function createProjectile(startPos, targetPos, weaponDef)
 	local direction = (targetPos - startPos).Unit
 	local distance = math.min((targetPos - startPos).Magnitude, 150)
-	
+
 	if weaponDef.projectileType == "ball" or weaponDef.projectileType == "fireball" then
 		-- Single projectile ball
 		local ball = Instance.new("Part")
@@ -511,7 +511,7 @@ local function createProjectile(startPos, targetPos, weaponDef)
 		ball.CanCollide = false
 		ball.Position = startPos
 		ball.Parent = workspace
-		
+
 		-- Trail
 		local attachment0 = Instance.new("Attachment", ball)
 		local attachment1 = Instance.new("Attachment", ball)
@@ -522,17 +522,19 @@ local function createProjectile(startPos, targetPos, weaponDef)
 		trail.Color = ColorSequence.new(weaponDef.trailColor)
 		trail.Lifetime = 0.3
 		trail.Parent = ball
-		
+
 		-- Velocity
 		local velocity = Instance.new("BodyVelocity")
 		velocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 		velocity.Velocity = direction * 120
 		velocity.Parent = ball
-		
+
 		-- Hit detection
 		ball.Touched:Connect(function(hit)
-			if hit:IsDescendantOf(player.Character) then return end
-			
+			if hit:IsDescendantOf(player.Character) then
+				return
+			end
+
 			-- Explosion effect
 			local explosion = Instance.new("Part")
 			explosion.Shape = Enum.PartType.Ball
@@ -543,23 +545,26 @@ local function createProjectile(startPos, targetPos, weaponDef)
 			explosion.CanCollide = false
 			explosion.Position = ball.Position
 			explosion.Parent = workspace
-			
+
 			TweenService:Create(explosion, TweenInfo.new(0.3), {
 				Size = Vector3.new(8, 8, 8),
-				Transparency = 1
+				Transparency = 1,
 			}):Play()
-			
+
 			damageInRadius(ball.Position, 8, weaponDef.damage, player)
 			playSound(142082166, 0.4, 0.8)
-			
-			task.delay(0.3, function() explosion:Destroy() end)
+
+			task.delay(0.3, function()
+				explosion:Destroy()
+			end)
 			ball:Destroy()
 		end)
-		
-		task.delay(3, function() 
-			if ball.Parent then ball:Destroy() end 
+
+		task.delay(3, function()
+			if ball.Parent then
+				ball:Destroy()
+			end
 		end)
-		
 	elseif weaponDef.projectileType == "beam" then
 		-- Beam/ray effect
 		local beam = Instance.new("Part")
@@ -568,34 +573,31 @@ local function createProjectile(startPos, targetPos, weaponDef)
 		beam.Material = Enum.Material.Neon
 		beam.Anchored = true
 		beam.CanCollide = false
-		beam.CFrame = CFrame.lookAt(startPos, targetPos) * CFrame.new(0, 0, -distance/2)
+		beam.CFrame = CFrame.lookAt(startPos, targetPos) * CFrame.new(0, 0, -distance / 2)
 		beam.Parent = workspace
-		
+
 		-- Damage along beam
 		local steps = math.ceil(distance / 4)
 		for i = 0, steps do
 			local checkPos = startPos + direction * (i * 4)
 			damageInRadius(checkPos, 3, weaponDef.damage / steps, player)
 		end
-		
+
 		-- Fade out
 		TweenService:Create(beam, TweenInfo.new(0.2), {
 			Transparency = 1,
-			Size = Vector3.new(0.1, 0.1, distance)
+			Size = Vector3.new(0.1, 0.1, distance),
 		}):Play()
-		
-		task.delay(0.2, function() beam:Destroy() end)
-		
+
+		task.delay(0.2, function()
+			beam:Destroy()
+		end)
 	elseif weaponDef.projectileType == "shards" then
 		-- Multiple small projectiles
 		for i = 1, 5 do
-			local spread = Vector3.new(
-				math.random() - 0.5,
-				math.random() - 0.5,
-				math.random() - 0.5
-			) * 0.3
+			local spread = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * 0.3
 			local shardDir = (direction + spread).Unit
-			
+
 			local shard = Instance.new("Part")
 			shard.Size = Vector3.new(0.3, 0.3, 1.2)
 			shard.Color = weaponDef.color
@@ -604,23 +606,26 @@ local function createProjectile(startPos, targetPos, weaponDef)
 			shard.CanCollide = false
 			shard.CFrame = CFrame.lookAt(startPos, startPos + shardDir)
 			shard.Parent = workspace
-			
+
 			local velocity = Instance.new("BodyVelocity")
 			velocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 			velocity.Velocity = shardDir * 100
 			velocity.Parent = shard
-			
+
 			shard.Touched:Connect(function(hit)
-				if hit:IsDescendantOf(player.Character) then return end
+				if hit:IsDescendantOf(player.Character) then
+					return
+				end
 				damageInRadius(shard.Position, 3, weaponDef.damage / 5, player)
 				shard:Destroy()
 			end)
-			
-			task.delay(2, function() 
-				if shard.Parent then shard:Destroy() end 
+
+			task.delay(2, function()
+				if shard.Parent then
+					shard:Destroy()
+				end
 			end)
 		end
-		
 	elseif weaponDef.projectileType == "spray" then
 		-- Particle spray effect
 		local emitter = Instance.new("Part")
@@ -630,30 +635,31 @@ local function createProjectile(startPos, targetPos, weaponDef)
 		emitter.CanCollide = false
 		emitter.Position = startPos
 		emitter.Parent = workspace
-		
+
 		local particles = Instance.new("ParticleEmitter")
 		particles.Color = ColorSequence.new(weaponDef.color)
 		particles.Size = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(1, 0.2)
+			NumberSequenceKeypoint.new(1, 0.2),
 		})
 		particles.Lifetime = NumberRange.new(0.5, 0.8)
 		particles.Rate = 0
 		particles.Speed = NumberRange.new(60, 80)
 		particles.SpreadAngle = Vector2.new(15, 15)
 		particles.Parent = emitter
-		
+
 		emitter.CFrame = CFrame.lookAt(startPos, targetPos)
 		particles:Emit(30)
-		
+
 		-- Damage in cone
 		for i = 1, 5 do
 			local checkPos = startPos + direction * (i * 8)
 			damageInRadius(checkPos, 4, weaponDef.damage / 5, player)
 		end
-		
-		task.delay(1, function() emitter:Destroy() end)
-		
+
+		task.delay(1, function()
+			emitter:Destroy()
+		end)
 	elseif weaponDef.projectileType == "stream" then
 		-- Continuous stream
 		for i = 1, 8 do
@@ -668,24 +674,27 @@ local function createProjectile(startPos, targetPos, weaponDef)
 				drop.CanCollide = false
 				drop.Position = startPos + direction * (i * 2)
 				drop.Parent = workspace
-				
+
 				local velocity = Instance.new("BodyVelocity")
 				velocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 				velocity.Velocity = direction * 80
 				velocity.Parent = drop
-				
+
 				drop.Touched:Connect(function(hit)
-					if hit:IsDescendantOf(player.Character) then return end
+					if hit:IsDescendantOf(player.Character) then
+						return
+					end
 					damageInRadius(drop.Position, 3, weaponDef.damage / 8, player)
 					drop:Destroy()
 				end)
-				
-				task.delay(1.5, function() 
-					if drop.Parent then drop:Destroy() end 
+
+				task.delay(1.5, function()
+					if drop.Parent then
+						drop:Destroy()
+					end
 				end)
 			end)
 		end
-		
 	elseif weaponDef.projectileType == "wave" then
 		-- Expanding wave effect
 		local wave = Instance.new("Part")
@@ -698,15 +707,15 @@ local function createProjectile(startPos, targetPos, weaponDef)
 		wave.CanCollide = false
 		wave.CFrame = CFrame.new(startPos) * CFrame.Angles(0, 0, math.rad(90))
 		wave.Parent = workspace
-		
+
 		-- Expand and move forward
 		local endPos = startPos + direction * 40
 		TweenService:Create(wave, TweenInfo.new(0.5), {
 			Size = Vector3.new(0.5, 20, 20),
 			CFrame = CFrame.new(endPos) * CFrame.Angles(0, 0, math.rad(90)),
-			Transparency = 1
+			Transparency = 1,
 		}):Play()
-		
+
 		-- Damage along path
 		task.spawn(function()
 			for i = 1, 10 do
@@ -715,9 +724,10 @@ local function createProjectile(startPos, targetPos, weaponDef)
 				damageInRadius(checkPos, 6, weaponDef.damage / 10, player)
 			end
 		end)
-		
-		task.delay(0.5, function() wave:Destroy() end)
-		
+
+		task.delay(0.5, function()
+			wave:Destroy()
+		end)
 	elseif weaponDef.projectileType == "spike" then
 		-- Ice spike that shoots forward
 		local spike = Instance.new("Part")
@@ -728,15 +738,17 @@ local function createProjectile(startPos, targetPos, weaponDef)
 		spike.CanCollide = false
 		spike.CFrame = CFrame.lookAt(startPos, targetPos)
 		spike.Parent = workspace
-		
+
 		local velocity = Instance.new("BodyVelocity")
 		velocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 		velocity.Velocity = direction * 90
 		velocity.Parent = spike
-		
+
 		spike.Touched:Connect(function(hit)
-			if hit:IsDescendantOf(player.Character) then return end
-			
+			if hit:IsDescendantOf(player.Character) then
+				return
+			end
+
 			-- Freeze effect
 			local freeze = Instance.new("Part")
 			freeze.Shape = Enum.PartType.Ball
@@ -748,57 +760,64 @@ local function createProjectile(startPos, targetPos, weaponDef)
 			freeze.CanCollide = false
 			freeze.Position = spike.Position
 			freeze.Parent = workspace
-			
+
 			TweenService:Create(freeze, TweenInfo.new(0.4), {
 				Size = Vector3.new(6, 6, 6),
-				Transparency = 1
+				Transparency = 1,
 			}):Play()
-			
+
 			damageInRadius(spike.Position, 5, weaponDef.damage, player)
-			
-			task.delay(0.4, function() freeze:Destroy() end)
+
+			task.delay(0.4, function()
+				freeze:Destroy()
+			end)
 			spike:Destroy()
 		end)
-		
-		task.delay(2.5, function() 
-			if spike.Parent then spike:Destroy() end 
+
+		task.delay(2.5, function()
+			if spike.Parent then
+				spike:Destroy()
+			end
 		end)
 	end
 end
 
 -- Update weapon appearance based on terrain
 local function updateWeaponAppearance()
-	if not terrainTool then return end
-	
+	if not terrainTool then
+		return
+	end
+
 	local weaponDef = TERRAIN_WEAPONS[currentWeaponMaterial] or TERRAIN_WEAPONS[Enum.Material.Grass]
 	local handle = terrainTool:FindFirstChild("Handle")
 	local orb = terrainTool:FindFirstChild("Orb")
-	
+
 	if handle then
 		handle.Color = weaponDef.color
 	end
 	if orb then
 		orb.Color = weaponDef.color
 	end
-	
+
 	terrainTool.Name = weaponDef.name
 end
 
 -- Give player terrain weapon
 local function giveWeapon()
 	local char = getCharacter()
-	
+
 	-- Remove old weapon if exists
-	local existing = player.Backpack:FindFirstChild("TerrainWeapon") or 
-					 (char and char:FindFirstChild("TerrainWeapon"))
-	if existing then existing:Destroy() end
-	
+	local existing = player.Backpack:FindFirstChild("TerrainWeapon") or (char and char:FindFirstChild("TerrainWeapon"))
+	if existing then
+		existing:Destroy()
+	end
+
 	local tool = Instance.new("Tool")
 	tool.Name = "Thorn Whip"
 	tool.Grip = CFrame.new(0, 0, -1)
 	tool.Parent = player.Backpack
 	terrainTool = tool
-	
+
 	-- Staff handle
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
@@ -806,7 +825,7 @@ local function giveWeapon()
 	handle.Color = Color3.fromRGB(80, 60, 40)
 	handle.Material = Enum.Material.Wood
 	handle.Parent = tool
-	
+
 	-- Glowing orb at top
 	local orb = Instance.new("Part")
 	orb.Name = "Orb"
@@ -816,26 +835,28 @@ local function giveWeapon()
 	orb.Material = Enum.Material.Neon
 	orb.CanCollide = false
 	orb.Parent = tool
-	
+
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = handle
 	weld.Part1 = orb
 	weld.Parent = orb
 	orb.CFrame = handle.CFrame * CFrame.new(0, 0, -2.2)
-	
+
 	-- Attack on activation
 	tool.Activated:Connect(function()
 		local weaponDef = TERRAIN_WEAPONS[currentWeaponMaterial] or TERRAIN_WEAPONS[Enum.Material.Grass]
 		local rootPart = getRootPart()
-		if not rootPart then return end
-		
+		if not rootPart then
+			return
+		end
+
 		local startPos = rootPart.Position + Vector3.new(0, 1, 0) + rootPart.CFrame.LookVector * 2
 		local targetPos = mouse.Hit.Position
-		
+
 		playSound(weaponDef.sound, 0.5, 1)
 		createProjectile(startPos, targetPos, weaponDef)
 	end)
-	
+
 	updateWeaponAppearance()
 end
 
@@ -845,29 +866,33 @@ local function toggleFly()
 	powers.fly = not powers.fly
 	local humanoid = getHumanoid()
 	local rootPart = getRootPart()
-	
-	if not humanoid or not rootPart then return powers.fly end
-	
+
+	if not humanoid or not rootPart then
+		return powers.fly
+	end
+
 	if powers.fly then
 		flyBodyVelocity = Instance.new("BodyVelocity")
 		flyBodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 		flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
 		flyBodyVelocity.Parent = rootPart
-		
+
 		flyBodyGyro = Instance.new("BodyGyro")
 		flyBodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
 		flyBodyGyro.P = 10000
 		flyBodyGyro.D = 500
 		flyBodyGyro.Parent = rootPart
-		
+
 		humanoid.PlatformStand = true
-		
+
 		flyConnection = RunService.RenderStepped:Connect(function()
-			if not powers.fly or not flyBodyVelocity or not flyBodyGyro then return end
-			
+			if not powers.fly or not flyBodyVelocity or not flyBodyGyro then
+				return
+			end
+
 			local camera = workspace.CurrentCamera
 			local moveDirection = Vector3.new(0, 0, 0)
-			
+
 			if UserInputService:IsKeyDown(Enum.KeyCode.W) then
 				moveDirection = moveDirection + camera.CFrame.LookVector
 			end
@@ -886,11 +911,11 @@ local function toggleFly()
 			if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.Q) then
 				moveDirection = moveDirection - Vector3.new(0, 1, 0)
 			end
-			
+
 			if moveDirection.Magnitude > 0 then
 				moveDirection = moveDirection.Unit * FLY_SPEED
 			end
-			
+
 			flyBodyVelocity.Velocity = moveDirection
 			flyBodyGyro.CFrame = camera.CFrame
 		end)
@@ -909,7 +934,7 @@ local function toggleFly()
 		end
 		humanoid.PlatformStand = false
 	end
-	
+
 	return powers.fly
 end
 
@@ -917,16 +942,18 @@ end
 local function toggleHyperspeed()
 	powers.hyperspeed = not powers.hyperspeed
 	local humanoid = getHumanoid()
-	
-	if not humanoid then return powers.hyperspeed end
-	
+
+	if not humanoid then
+		return powers.hyperspeed
+	end
+
 	if powers.hyperspeed then
 		originalWalkSpeed = humanoid.WalkSpeed
 		humanoid.WalkSpeed = originalWalkSpeed * HYPERSPEED_MULTIPLIER
 	else
 		humanoid.WalkSpeed = originalWalkSpeed
 	end
-	
+
 	return powers.hyperspeed
 end
 
@@ -934,9 +961,11 @@ end
 local function toggleSuperJump()
 	powers.superJump = not powers.superJump
 	local humanoid = getHumanoid()
-	
-	if not humanoid then return powers.superJump end
-	
+
+	if not humanoid then
+		return powers.superJump
+	end
+
 	if powers.superJump then
 		originalJumpPower = humanoid.JumpPower
 		humanoid.JumpPower = SUPER_JUMP_POWER
@@ -944,7 +973,7 @@ local function toggleSuperJump()
 	else
 		humanoid.JumpPower = originalJumpPower
 	end
-	
+
 	return powers.superJump
 end
 
@@ -959,11 +988,13 @@ local function startTeleportCountdown(countdownFrame, countdownLabel)
 	teleportStartTime = tick()
 	teleportTarget = mouse.Hit
 	countdownFrame.Visible = true
-	
+
 	-- Flash the countdown frame to indicate start
 	countdownFrame.BackgroundTransparency = 0.3
-	task.delay(0.1, function() countdownFrame.BackgroundTransparency = 0.5 end)
-	
+	task.delay(0.1, function()
+		countdownFrame.BackgroundTransparency = 0.5
+	end)
+
 	countdownConnection = RunService.Heartbeat:Connect(function()
 		if not teleportHolding then
 			countdownFrame.Visible = false
@@ -973,27 +1004,27 @@ local function startTeleportCountdown(countdownFrame, countdownLabel)
 			end
 			return
 		end
-		
+
 		local elapsed = tick() - teleportStartTime
 		local remaining = math.ceil(TELEPORT_HOLD_TIME - elapsed)
-		
+
 		countdownLabel.Text = tostring(math.max(0, remaining))
-		
+
 		-- Progress ring effect with pulsing
 		local progress = elapsed / TELEPORT_HOLD_TIME
 		countdownFrame.Rotation = progress * 360
-		
+
 		-- Pulsing flash effect instead of sound
 		local pulse = math.sin(elapsed * 10) * 0.1
 		countdownFrame.BackgroundTransparency = 0.4 + pulse
-		
+
 		if elapsed >= TELEPORT_HOLD_TIME then
 			-- Teleport!
 			teleportHolding = false
 			countdownFrame.Visible = false
 			countdownConnection:Disconnect()
 			countdownConnection = nil
-			
+
 			local rootPart = getRootPart()
 			if rootPart and teleportTarget then
 				-- Big flash effect (no sound)
@@ -1006,28 +1037,32 @@ local function startTeleportCountdown(countdownFrame, countdownLabel)
 				flash.CanCollide = false
 				flash.Position = rootPart.Position
 				flash.Parent = workspace
-				
+
 				TweenService:Create(flash, TweenInfo.new(0.3), {
 					Size = Vector3.new(10, 10, 10),
-					Transparency = 1
+					Transparency = 1,
 				}):Play()
-				task.delay(0.3, function() flash:Destroy() end)
-				
+				task.delay(0.3, function()
+					flash:Destroy()
+				end)
+
 				-- Teleport
 				rootPart.CFrame = CFrame.new(teleportTarget.Position + Vector3.new(0, 3, 0))
-				
+
 				-- Arrival effect
 				local arrive = flash:Clone()
 				arrive.Position = rootPart.Position
 				arrive.Size = Vector3.new(10, 10, 10)
 				arrive.Transparency = 0.5
 				arrive.Parent = workspace
-				
+
 				TweenService:Create(arrive, TweenInfo.new(0.3), {
 					Size = Vector3.new(2, 2, 2),
-					Transparency = 1
+					Transparency = 1,
 				}):Play()
-				task.delay(0.3, function() arrive:Destroy() end)
+				task.delay(0.3, function()
+					arrive:Destroy()
+				end)
 			end
 		end
 	end)
@@ -1043,26 +1078,28 @@ local terrain = workspace:FindFirstChildOfClass("Terrain")
 
 local function toggleDig()
 	powers.dig = not powers.dig
-	
+
 	if powers.dig then
 		digConnection = mouse.Button1Down:Connect(function()
-			if not powers.dig or not terrain then return end
-			
+			if not powers.dig or not terrain then
+				return
+			end
+
 			local hit = mouse.Hit
 			if hit then
 				local pos = hit.Position
-				
+
 				-- Dig a sphere out of terrain
 				local region = Region3.new(
 					pos - Vector3.new(DIG_RADIUS, DIG_RADIUS, DIG_RADIUS),
 					pos + Vector3.new(DIG_RADIUS, DIG_RADIUS, DIG_RADIUS)
 				)
-				
+
 				terrain:FillBall(pos, DIG_RADIUS, Enum.Material.Air)
-				
+
 				-- Dig sound
 				playSound(1369158539, 0.5, 0.8)
-				
+
 				-- Dust effect
 				local dust = Instance.new("Part")
 				dust.Size = Vector3.new(1, 1, 1)
@@ -1071,21 +1108,23 @@ local function toggleDig()
 				dust.CanCollide = false
 				dust.Position = pos
 				dust.Parent = workspace
-				
+
 				local particles = Instance.new("ParticleEmitter")
 				particles.Color = ColorSequence.new(Color3.fromRGB(139, 105, 73))
 				particles.Size = NumberSequence.new({
 					NumberSequenceKeypoint.new(0, 2),
-					NumberSequenceKeypoint.new(1, 0)
+					NumberSequenceKeypoint.new(1, 0),
 				})
 				particles.Lifetime = NumberRange.new(0.5, 1)
 				particles.Rate = 0
 				particles.Speed = NumberRange.new(10, 20)
 				particles.SpreadAngle = Vector2.new(180, 180)
 				particles.Parent = dust
-				
+
 				particles:Emit(30)
-				task.delay(1.5, function() dust:Destroy() end)
+				task.delay(1.5, function()
+					dust:Destroy()
+				end)
 			end
 		end)
 	else
@@ -1094,7 +1133,7 @@ local function toggleDig()
 			digConnection = nil
 		end
 	end
-	
+
 	return powers.dig
 end
 
@@ -1103,14 +1142,14 @@ local function onCharacterAdded(character)
 	powers.fly = false
 	powers.hyperspeed = false
 	powers.superJump = false
-	
+
 	if flyConnection then
 		flyConnection:Disconnect()
 		flyConnection = nil
 	end
 	flyBodyVelocity = nil
 	flyBodyGyro = nil
-	
+
 	-- Give weapon on spawn
 	task.delay(0.5, giveWeapon)
 end
@@ -1125,37 +1164,39 @@ local lastMaterial = nil
 
 local function updateTerrainDetector()
 	local rootPart = getRootPart()
-	if not rootPart or not terrain then return end
-	
+	if not rootPart or not terrain then
+		return
+	end
+
 	local rayOrigin = rootPart.Position
 	local rayDirection = Vector3.new(0, -10, 0)
-	
+
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Include
-	rayParams.FilterDescendantsInstances = {terrain}
-	
+	rayParams.FilterDescendantsInstances = { terrain }
+
 	local result = workspace:Raycast(rayOrigin, rayDirection, rayParams)
-	
+
 	local detectedMaterial = Enum.Material.Air
-	
+
 	if result and result.Instance == terrain then
 		detectedMaterial = result.Material
 	end
-	
+
 	if detectedMaterial ~= lastMaterial then
 		lastMaterial = detectedMaterial
-		
+
 		local info = MATERIAL_COLORS[detectedMaterial]
 		if info then
 			materialLabel.Text = info.name
 			TweenService:Create(swatch, TweenInfo.new(0.2), {
-				BackgroundColor3 = info.color
+				BackgroundColor3 = info.color,
 			}):Play()
 		else
 			materialLabel.Text = tostring(detectedMaterial.Name)
 			swatch.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 		end
-		
+
 		-- Only update weapon for non-Air terrain (keep last solid terrain weapon)
 		if detectedMaterial ~= Enum.Material.Air then
 			currentWeaponMaterial = detectedMaterial
@@ -1173,53 +1214,60 @@ local powerActions = {
 	fly = toggleFly,
 	hyperspeed = toggleHyperspeed,
 	superJump = toggleSuperJump,
-	teleport = function() return powers.teleport end, -- Handled separately
+	teleport = function()
+		return powers.teleport
+	end, -- Handled separately
 	dig = toggleDig,
 }
 
 -- Function to update button visual state
 local function updateButtonVisual(refs, isActive)
 	local button, bar, dot, color, label, hotkeyLabel = refs.button, refs.bar, refs.dot, refs.color, refs.label, refs.hotkeyLabel
-	
+
 	-- Animate bar (thicker and brighter when on)
 	TweenService:Create(bar, TweenInfo.new(0.15), {
 		BackgroundTransparency = isActive and 0 or 0.5,
-		Size = isActive and UDim2.new(0, 6, 1, -8) or UDim2.new(0, 4, 1, -8)
+		Size = isActive and UDim2.new(0, 6, 1, -8) or UDim2.new(0, 4, 1, -8),
 	}):Play()
-	
+
 	-- Animate dot (glowing when on)
 	TweenService:Create(dot, TweenInfo.new(0.15), {
 		BackgroundColor3 = isActive and color or Color3.fromRGB(50, 55, 65),
 		Size = isActive and UDim2.new(0, 14, 0, 14) or UDim2.new(0, 12, 0, 12),
-		Position = isActive and UDim2.new(1, -21, 0.5, -7) or UDim2.new(1, -20, 0.5, -6)
+		Position = isActive and UDim2.new(1, -21, 0.5, -7) or UDim2.new(1, -20, 0.5, -6),
 	}):Play()
-	
+
 	-- Animate label (brighter when on)
 	TweenService:Create(label, TweenInfo.new(0.15), {
 		TextColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200),
-		TextSize = isActive and 20 or 18
+		TextSize = isActive and 20 or 18,
 	}):Play()
-	
+
 	-- Animate hotkey (highlighted when on)
 	TweenService:Create(hotkeyLabel, TweenInfo.new(0.15), {
 		BackgroundColor3 = isActive and color or Color3.fromRGB(50, 55, 65),
 		TextColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180),
-		BackgroundTransparency = isActive and 0 or 0.5
+		BackgroundTransparency = isActive and 0 or 0.5,
 	}):Play()
-	
+
 	-- Animate button background
 	TweenService:Create(button, TweenInfo.new(0.15), {
-		BackgroundColor3 = isActive and Color3.fromRGB(40, 50, 60) or Color3.fromRGB(30, 34, 40)
+		BackgroundColor3 = isActive and Color3.fromRGB(40, 50, 60) or Color3.fromRGB(30, 34, 40),
 	}):Play()
 end
 
 for i, config in ipairs(BUTTON_CONFIGS) do
 	local button, bar, dot, color, label, hotkeyLabel = createPowerButton(buttonList, config, i)
-	buttonRefs[config.key] = { 
-		button = button, bar = bar, dot = dot, color = color, 
-		label = label, hotkeyLabel = hotkeyLabel, config = config 
+	buttonRefs[config.key] = {
+		button = button,
+		bar = bar,
+		dot = dot,
+		color = color,
+		label = label,
+		hotkeyLabel = hotkeyLabel,
+		config = config,
 	}
-	
+
 	if config.key == "teleport" then
 		-- Teleport needs special handling - hold to activate
 		button.MouseButton1Down:Connect(function()
@@ -1227,11 +1275,11 @@ for i, config in ipairs(BUTTON_CONFIGS) do
 				startTeleportCountdown(countdownFrame, countdownLabel)
 			end
 		end)
-		
+
 		button.MouseButton1Up:Connect(function()
 			cancelTeleport()
 		end)
-		
+
 		-- Toggle teleport mode
 		button.MouseButton1Click:Connect(function()
 			powers.teleport = not powers.teleport
@@ -1243,20 +1291,20 @@ for i, config in ipairs(BUTTON_CONFIGS) do
 			updateButtonVisual(buttonRefs[config.key], isActive)
 		end)
 	end
-	
+
 	-- Hover (only if not active)
 	button.MouseEnter:Connect(function()
 		if not powers[config.key] then
 			TweenService:Create(button, TweenInfo.new(0.1), {
-				BackgroundColor3 = Color3.fromRGB(40, 45, 55)
+				BackgroundColor3 = Color3.fromRGB(40, 45, 55),
 			}):Play()
 		end
 	end)
-	
+
 	button.MouseLeave:Connect(function()
 		if not powers[config.key] then
 			TweenService:Create(button, TweenInfo.new(0.1), {
-				BackgroundColor3 = Color3.fromRGB(30, 34, 40)
+				BackgroundColor3 = Color3.fromRGB(30, 34, 40),
 			}):Play()
 		end
 		cancelTeleport() -- Cancel if mouse leaves button
@@ -1265,12 +1313,14 @@ end
 
 -- Keyboard shortcuts (F=Fly, S=Speed, J=Jump, W=Warp, D=Dig)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	
+	if gameProcessed then
+		return
+	end
+
 	for _, config in ipairs(BUTTON_CONFIGS) do
 		if input.KeyCode == config.hotkey then
 			local refs = buttonRefs[config.key]
-			
+
 			if config.key == "teleport" then
 				-- Toggle teleport mode
 				powers.teleport = not powers.teleport
@@ -1286,7 +1336,9 @@ end)
 
 -- Middle-click for teleport when enabled
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
+	if gameProcessed then
+		return
+	end
 	if input.UserInputType == Enum.UserInputType.MouseButton3 then
 		if powers.teleport then
 			startTeleportCountdown(countdownFrame, countdownLabel)
@@ -1307,24 +1359,24 @@ local function turnOffAllPowers()
 		toggleFly()
 		updateButtonVisual(buttonRefs.fly, false)
 	end
-	
+
 	-- Turn off speed
 	if powers.hyperspeed then
 		toggleHyperspeed()
 		updateButtonVisual(buttonRefs.hyperspeed, false)
 	end
-	
+
 	-- Turn off jump
 	if powers.superJump then
 		toggleSuperJump()
 		updateButtonVisual(buttonRefs.superJump, false)
 	end
-	
+
 	-- Turn off teleport
 	powers.teleport = false
 	cancelTeleport()
 	updateButtonVisual(buttonRefs.teleport, false)
-	
+
 	-- Turn off dig
 	if powers.dig then
 		toggleDig()
@@ -1333,8 +1385,10 @@ local function turnOffAllPowers()
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	
+	if gameProcessed then
+		return
+	end
+
 	-- Q turns off all powers only when NOT flying (since Q is used for descend while flying)
 	if input.KeyCode == Enum.KeyCode.Q and not powers.fly then
 		turnOffAllPowers()

@@ -51,7 +51,7 @@ local function loadPlugin()
 	moduleClone.Parent = ServerStorage
 
 	-- Create the dock widget
-	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, true, false, 400, 500, 300, 300)
+	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, true, false, 520, 500, 500, 300)
 	currentGui = plugin:CreateDockWidgetPluginGui("TerrainEditorForkDev", widgetInfo)
 	currentGui.Title = "Terrain Editor (Fork) - LIVE DEV"
 

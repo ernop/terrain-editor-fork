@@ -352,6 +352,29 @@ local function performOperation(terrain, opSet)
 					end
 				elseif tool == ToolId.Smooth then
 					SculptOperations.smooth(sculptSettings)
+				elseif tool == ToolId.Noise then
+					-- Pass world coordinates for noise sampling
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.noiseScale = opSet.noiseScale
+					sculptSettings.noiseIntensity = opSet.noiseIntensity
+					sculptSettings.noiseSeed = opSet.noiseSeed
+					SculptOperations.noise(sculptSettings)
+				elseif tool == ToolId.Terrace then
+					-- Pass world Y coordinate and terrace parameters
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.stepHeight = opSet.stepHeight
+					sculptSettings.stepSharpness = opSet.stepSharpness
+					SculptOperations.terrace(sculptSettings)
+				elseif tool == ToolId.Cliff then
+					-- Pass cell offset from center and cliff parameters
+					sculptSettings.cellVectorX = cellVectorX
+					sculptSettings.cellVectorZ = cellVectorZ
+					sculptSettings.cliffAngle = opSet.cliffAngle
+					sculptSettings.cliffDirectionX = opSet.cliffDirectionX
+					sculptSettings.cliffDirectionZ = opSet.cliffDirectionZ
+					SculptOperations.cliff(sculptSettings)
 				end
 			end
 		end

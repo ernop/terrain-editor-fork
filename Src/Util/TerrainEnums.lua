@@ -33,6 +33,9 @@ TerrainEnums.ToolId = {
 	Erode = "Erode",
 	Smooth = "Smooth",
 	Flatten = "Flatten",
+	Noise = "Noise",
+	Terrace = "Terrace",
+	Cliff = "Cliff",
 
 	Paint = "Paint",
 	Bridge = "Bridge",
