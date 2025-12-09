@@ -17,6 +17,17 @@
                     "$path": "Src"
                 }
             }
+        },
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "$ignoreUnknownInstances": true,
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "$ignoreUnknownInstances": true,
+                "WalkSpeed68": {
+                    "$path": "WalkSpeed68.client.lua"
+                }
+            }
         }
     }
 }

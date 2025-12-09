@@ -5,6 +5,13 @@
 		}
 	],
 	"settings": {
-		"editor.suggest.showStatusBar": false
+		"editor.suggest.showStatusBar": false,
+		"luau-lsp.platform": "roblox",
+		"luau-lsp.ignoreGlobs": [
+			"**/_Index/**"
+		],
+		"luau-lsp.sourcemap.autogenerate": true,
+		"luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
+		"luau-lsp.sourcemap.rojoPath": "C:\\Users\\ernie\\.aftman\\bin\\rojo.exe"
 	}
 }

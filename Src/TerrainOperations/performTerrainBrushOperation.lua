@@ -53,15 +53,15 @@ dict opSet =
 local function performOperation(terrain, opSet)
 	local tool = opSet.currentTool
 	local brushShape = opSet.brushShape
-	
+
 	-- Support both new per-axis sizing and legacy uniform sizing
 	local sizeX = (opSet.cursorSizeX or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
 	local sizeY = (opSet.cursorSizeY or opSet.cursorHeight or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
 	local sizeZ = (opSet.cursorSizeZ or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
-	
+
 	-- For legacy code compatibility
 	local selectionSize = opSet.cursorSizeX or opSet.cursorSize
-	
+
 	-- Half-sizes (radii) for each axis
 	local radiusX = sizeX * 0.5
 	local radiusY = sizeY * 0.5
@@ -76,7 +76,7 @@ local function performOperation(terrain, opSet)
 	local targetMaterial = opSet.target
 
 	local ignoreWater = opSet.ignoreWater
-	
+
 	-- Get brush rotation (default to identity if not provided)
 	local brushRotation = opSet.brushRotation or CFrame.new()
 	local hasRotation = brushRotation ~= CFrame.new()
@@ -88,15 +88,17 @@ local function performOperation(terrain, opSet)
 	-- Use the max of all radii to ensure we capture the full rotated brush
 	local maxRadius = math.max(radiusX, radiusY, radiusZ)
 	local boundsRadius = hasRotation and maxRadius or nil
-	
+
 	local minBounds = Vector3.new(
 		OperationHelper.clampDownToVoxel(centerPoint.x - (boundsRadius or radiusX)),
 		OperationHelper.clampDownToVoxel(centerPoint.y - (boundsRadius or radiusY)),
-		OperationHelper.clampDownToVoxel(centerPoint.z - (boundsRadius or radiusZ)))
+		OperationHelper.clampDownToVoxel(centerPoint.z - (boundsRadius or radiusZ))
+	)
 	local maxBounds = Vector3.new(
 		OperationHelper.clampUpToVoxel(centerPoint.x + (boundsRadius or radiusX)),
 		OperationHelper.clampUpToVoxel(centerPoint.y + (boundsRadius or radiusY)),
-		OperationHelper.clampUpToVoxel(centerPoint.z + (boundsRadius or radiusZ)))
+		OperationHelper.clampUpToVoxel(centerPoint.z + (boundsRadius or radiusZ))
+	)
 
 	-- LastUsedModificationMethod is a Roblox-internal property, skip it
 	-- (Original code tried to set terrain.LastUsedModificationMethod here)
@@ -132,13 +134,23 @@ local function performOperation(terrain, opSet)
 			-- Apply rotation to the cylinder CFrame
 			terrain:FillCylinder(fillCFrame, sizeY, radiusX, desiredMaterial)
 			return
+		elseif brushShape == BrushShape.Wedge then
+			-- FillWedge: supports rotation via CFrame
+			terrain:FillWedge(fillCFrame, Vector3.new(sizeX, sizeY, sizeZ), desiredMaterial)
+			return
 		end
 
-		-- For non-uniform ellipsoids or rotated spheres, fall through to voxel-by-voxel processing
+		-- Shapes that need per-voxel processing:
+		-- - Non-uniform/rotated spheres (ellipsoids)
+		-- - CornerWedge (no native API)
+		-- - Dome (half-sphere, no native API)
 		if brushShape == BrushShape.Sphere and (not isUniformSize or hasRotation) then
 			-- Fall through to main loop for ellipsoid/rotated sphere
+		elseif brushShape == BrushShape.CornerWedge or brushShape == BrushShape.Dome then
+			-- Fall through to main loop for custom shapes
 		else
-			assert(false, "Invalid brush shape in performTerrainBrushOperation quick path")
+			-- Unknown shape
+			warn("Unknown brush shape in performTerrainBrushOperation: " .. tostring(brushShape))
 			return
 		end
 	end
@@ -154,14 +166,14 @@ local function performOperation(terrain, opSet)
 	local writeMaterials, writeOccupancies = terrain:ReadVoxels(region, Constants.VOXEL_RESOLUTION)
 
 	if tool == ToolId.Flatten then
-		smartColumnSculptBrush(opSet, minBounds, maxBounds,
-			readMaterials, readOccupancies, writeMaterials, writeOccupancies)
+		smartColumnSculptBrush(opSet, minBounds, maxBounds, readMaterials, readOccupancies, writeMaterials, writeOccupancies)
 		terrain:WriteVoxels(region, Constants.VOXEL_RESOLUTION, writeMaterials, writeOccupancies)
 		return
-	elseif selectionSize > USE_LARGE_BRUSH_MIN_SIZE
-		and (tool == ToolId.Grow or tool == ToolId.Erode or tool == ToolId.Flatten or tool == ToolId.Smooth) then
-		smartLargeSculptBrush(opSet, minBounds, maxBounds,
-			readMaterials, readOccupancies, writeMaterials, writeOccupancies)
+	elseif
+		selectionSize > USE_LARGE_BRUSH_MIN_SIZE
+		and (tool == ToolId.Grow or tool == ToolId.Erode or tool == ToolId.Flatten or tool == ToolId.Smooth)
+	then
+		smartLargeSculptBrush(opSet, minBounds, maxBounds, readMaterials, readOccupancies, writeMaterials, writeOccupancies)
 		terrain:WriteVoxels(region, Constants.VOXEL_RESOLUTION, writeMaterials, writeOccupancies)
 		return
 	end
@@ -240,9 +252,17 @@ local function performOperation(terrain, opSet)
 
 				-- Use per-axis radii and rotation for brush power calculation
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-					cellVectorX, cellVectorY, cellVectorZ,
-					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, not (tool == ToolId.Smooth), brushRotation)
+					cellVectorX,
+					cellVectorY,
+					cellVectorZ,
+					radiusX,
+					radiusY,
+					radiusZ,
+					brushShape,
+					selectionSize,
+					not (tool == ToolId.Smooth),
+					brushRotation
+				)
 
 				local cellOccupancy = occupancy
 				local cellMaterial = readMaterials[voxelX][voxelY][voxelZ]
@@ -270,14 +290,19 @@ local function performOperation(terrain, opSet)
 					if brushOccupancy >= 0.5 and cellMaterial == materialAir then
 						local targetMaterial = desiredMaterial
 						if autoMaterial then
-							targetMaterial = OperationHelper.getMaterialForAutoMaterial(readMaterials,
-								voxelX, voxelY, voxelZ,
-								sizeX, sizeY, sizeZ,
-								cellMaterial)
+							targetMaterial = OperationHelper.getMaterialForAutoMaterial(
+								readMaterials,
+								voxelX,
+								voxelY,
+								voxelZ,
+								sizeX,
+								sizeY,
+								sizeZ,
+								cellMaterial
+							)
 						end
 						writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 					end
-
 				elseif tool == ToolId.Subtract then
 					if cellMaterial ~= materialAir then
 						local desiredOccupancy = 1 - brushOccupancy
@@ -290,37 +315,30 @@ local function performOperation(terrain, opSet)
 							end
 						end
 					end
-
 				elseif tool == ToolId.Grow then
 					SculptOperations.grow(sculptSettings)
-
 				elseif tool == ToolId.Erode then
 					SculptOperations.erode(sculptSettings)
-
 				elseif tool == ToolId.Flatten then
 					sculptSettings.maxOccupancy = math.abs(planeDifference)
 					if planeDifference > Constants.FLATTEN_PLANE_TOLERANCE and flattenMode ~= FlattenMode.Grow then
 						SculptOperations.erode(sculptSettings)
-
 					elseif planeDifference < -Constants.FLATTEN_PLANE_TOLERANCE and flattenMode ~= FlattenMode.Erode then
 						SculptOperations.grow(sculptSettings)
 					end
-
 				elseif tool == ToolId.Paint then
 					if brushOccupancy > 0 and cellOccupancy > 0 then
 						writeMaterials[voxelX][voxelY][voxelZ] = desiredMaterial
 					end
-
 				elseif tool == ToolId.Replace then
 					--Using cellMaterial and cellOccupancy creates quirky behaviour with Air Material
 					local rawMaterial = readMaterials[voxelX][voxelY][voxelZ]
 					if brushOccupancy > 0 and rawMaterial == sourceMaterial then
-					    writeMaterials[voxelX][voxelY][voxelZ]  = targetMaterial
-					    if rawMaterial == materialAir then
-					        writeOccupancies[voxelX][voxelY][voxelZ]  = brushOccupancy
-					    end
+						writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
+						if rawMaterial == materialAir then
+							writeOccupancies[voxelX][voxelY][voxelZ] = brushOccupancy
+						end
 					end
-
 				elseif tool == ToolId.Smooth then
 					SculptOperations.smooth(sculptSettings)
 				end

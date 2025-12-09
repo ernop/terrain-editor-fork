@@ -1,0 +1,13 @@
+std = "roblox"
+
+[lints]
+unused_variable = "allow"
+if_same_then_else = "allow"
+empty_if = "allow"
+multiple_statements = "allow"
+
+[config]
+
+exclude=[
+]
+

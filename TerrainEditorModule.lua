@@ -3,7 +3,7 @@
 -- TerrainEditorFork - Module Version for Live Development
 -- This module is loaded by the loader plugin for hot-reloading
 
-local VERSION = "0.0.00000024"
+local VERSION = "0.0.00000030"
 local DEBUG = false
 
 local TerrainEditorModule = {}
@@ -58,6 +58,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		[BrushShape.Sphere] = false, -- Sphere looks the same from all angles
 		[BrushShape.Cube] = true,
 		[BrushShape.Cylinder] = true,
+		[BrushShape.Wedge] = true,
+		[BrushShape.CornerWedge] = true,
+		[BrushShape.Dome] = false, -- Dome is symmetric around Y axis
 	}
 
 	local ShapeSizingMode = {
@@ -65,6 +68,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		[BrushShape.Sphere] = "uniform",
 		[BrushShape.Cube] = "box",
 		[BrushShape.Cylinder] = "cylinder", -- X=Z (radius), Y (height)
+		[BrushShape.Wedge] = "box", -- Full X, Y, Z control
+		[BrushShape.CornerWedge] = "box", -- Full X, Y, Z control
+		[BrushShape.Dome] = "cylinder", -- Radius (X=Z) + Height (Y)
 	}
 
 	-- Mouse state
@@ -73,14 +79,18 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local lastBrushPosition: Vector3? = nil
 
 	-- Brush visualization
-	local brushPart: Part? = nil
+	local brushPart: BasePart? = nil -- Can be Part, WedgePart, or CornerWedgePart
 	local planePart: Part? = nil -- Visual indicator for locked plane
-	
+
 	-- 3D Handles for rotation and sizing
 	local rotationHandles: ArcHandles? = nil
 	local sizeHandles: Handles? = nil
 	local isHandleDragging: boolean = false -- Prevent brush painting while dragging handles
-	
+
+	-- Brush lock mode (for interacting with handles)
+	local brushLocked: boolean = false
+	local lockedBrushPosition: Vector3? = nil
+
 	-- Forward declarations for handle functions (defined later, after brush viz)
 	local updateHandlesAdornee
 	local hideHandles
@@ -89,8 +99,6 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Config panels (will be populated later)
 	local configPanels: { [string]: Frame } = {}
 	local updateConfigPanelVisibility: (() -> ())? = nil
-	local updateSizeSliderVisibility: (() -> ())? = nil -- Forward declaration
-	local updateRotationPanelVisibility: (() -> ())? = nil -- Forward declaration
 
 	-- ============================================================================
 	-- Tool Config Definitions
@@ -100,8 +108,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local ToolConfigs = {
 		[ToolId.Add] = {
 			"brushShape",
-			"brushSize",
-			"brushRotation",
+			"handleHint",
 			"strength",
 			"pivot",
 			"planeLock",
@@ -110,19 +117,17 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		},
 		[ToolId.Subtract] = {
 			"brushShape",
-			"brushSize",
-			"brushRotation",
+			"handleHint",
 			"strength",
 			"pivot",
 			"planeLock",
 			"ignoreWater",
 		},
-		[ToolId.Grow] = { "brushShape", "brushSize", "brushRotation", "strength", "pivot", "planeLock", "ignoreWater" },
-		[ToolId.Erode] = { "brushShape", "brushSize", "brushRotation", "strength", "pivot", "planeLock", "ignoreWater" },
+		[ToolId.Grow] = { "brushShape", "handleHint", "strength", "pivot", "planeLock", "ignoreWater" },
+		[ToolId.Erode] = { "brushShape", "handleHint", "strength", "pivot", "planeLock", "ignoreWater" },
 		[ToolId.Smooth] = {
 			"brushShape",
-			"brushSize",
-			"brushRotation",
+			"handleHint",
 			"strength",
 			"pivot",
 			"planeLock",
@@ -130,15 +135,14 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		},
 		[ToolId.Flatten] = {
 			"brushShape",
-			"brushSize",
-			"brushRotation",
+			"handleHint",
 			"strength",
 			"pivot",
 			"planeLock",
 			"ignoreWater",
 			"flattenMode",
 		},
-		[ToolId.Paint] = { "brushShape", "brushSize", "brushRotation", "strength", "material", "autoMaterial" },
+		[ToolId.Paint] = { "brushShape", "handleHint", "strength", "material", "autoMaterial" },
 	}
 
 	-- ============================================================================
@@ -173,13 +177,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		return label
 	end
 
-	local function createButton(
-		parent: Frame,
-		text: string,
-		position: UDim2,
-		size: UDim2,
-		callback: () -> ()
-	): TextButton
+	local function createButton(parent: Frame, text: string, position: UDim2, size: UDim2, callback: () -> ()): TextButton
 		local button = Instance.new("TextButton")
 		button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		button.BorderSizePixel = 0
@@ -215,8 +213,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		container.Size = UDim2.new(1, 0, 0, 75)
 		container.Parent = parent
 
-		local labelText =
-			createLabel(container, label .. ": " .. tostring(initial), UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0, 18))
+		local labelText = createLabel(container, label .. ": " .. tostring(initial), UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0, 18))
 
 		-- Slider track area
 		local sliderArea = Instance.new("Frame")
@@ -328,8 +325,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		-- Click on track to set value (single click, no drag)
 		sliderBg.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				local relativeX =
-					math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+				local relativeX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
 				local value = min + relativeX * (max - min)
 				setValue(value)
 			end
@@ -399,7 +395,22 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			brushPart:Destroy()
 		end
 
-		brushPart = Instance.new("Part")
+		-- Create appropriate part type based on shape
+		if brushShape == BrushShape.Wedge then
+			brushPart = Instance.new("WedgePart")
+		elseif brushShape == BrushShape.CornerWedge then
+			brushPart = Instance.new("CornerWedgePart")
+		else
+			brushPart = Instance.new("Part")
+			if brushShape == BrushShape.Sphere or brushShape == BrushShape.Dome then
+				brushPart.Shape = Enum.PartType.Ball
+			elseif brushShape == BrushShape.Cube then
+				brushPart.Shape = Enum.PartType.Block
+			elseif brushShape == BrushShape.Cylinder then
+				brushPart.Shape = Enum.PartType.Cylinder
+			end
+		end
+
 		brushPart.Name = "TerrainBrushVisualization"
 		brushPart.Anchored = true
 		brushPart.CanCollide = false
@@ -409,14 +420,6 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		brushPart.Transparency = 0.7
 		brushPart.Material = Enum.Material.Neon
 		brushPart.Color = Color3.fromRGB(0, 162, 255)
-
-		if brushShape == BrushShape.Sphere then
-			brushPart.Shape = Enum.PartType.Ball
-		elseif brushShape == BrushShape.Cube then
-			brushPart.Shape = Enum.PartType.Block
-		elseif brushShape == BrushShape.Cylinder then
-			brushPart.Shape = Enum.PartType.Cylinder
-		end
 
 		brushPart.Parent = workspace
 	end
@@ -436,6 +439,13 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			-- brushStrength ranges 0.01-1.0, transparency ranges 0.85 (weak) to 0.35 (strong)
 			brushPart.Transparency = 0.85 - (brushStrength * 0.5)
 
+			-- Change color when locked (orange = locked, blue = normal)
+			if brushLocked then
+				brushPart.Color = Color3.fromRGB(255, 170, 0) -- Orange when locked
+			else
+				brushPart.Color = Color3.fromRGB(0, 162, 255) -- Blue when normal
+			end
+
 			-- Base CFrame at position
 			local baseCFrame = CFrame.new(position)
 
@@ -446,17 +456,14 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			end
 
 			if brushShape == BrushShape.Sphere then
-				brushPart.Shape = Enum.PartType.Ball
 				-- Sphere uses uniform size (X for all dimensions)
 				brushPart.Size = Vector3.new(sizeX, sizeX, sizeX)
 				brushPart.CFrame = finalCFrame
 			elseif brushShape == BrushShape.Cube then
-				brushPart.Shape = Enum.PartType.Block
 				-- Cube uses all three dimensions
 				brushPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
 				brushPart.CFrame = finalCFrame
-			else			if brushShape == BrushShape.Cylinder then
-				brushPart.Shape = Enum.PartType.Cylinder
+			elseif brushShape == BrushShape.Cylinder then
 				-- Cylinder: Part cylinder has height along X axis, so we rotate 90° to make it vertical
 				-- Size = (height, diameter, diameter) after rotation becomes (diameter, height, diameter)
 				-- X and Z are the radius (use sizeX), Y is the height (use sizeY)
@@ -464,10 +471,23 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				-- Apply base rotation to make cylinder vertical, then user rotation
 				finalCFrame = baseCFrame * brushRotation * CFrame.Angles(0, 0, math.rad(90))
 				brushPart.CFrame = finalCFrame
+			elseif brushShape == BrushShape.Wedge then
+				-- Wedge: slope goes from bottom-back to top-front
+				brushPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
+				brushPart.CFrame = finalCFrame
+			elseif brushShape == BrushShape.CornerWedge then
+				-- CornerWedge: triangular corner piece
+				brushPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
+				brushPart.CFrame = finalCFrame
+			elseif brushShape == BrushShape.Dome then
+				-- Dome: half-sphere, uses radius (X=Z) for width, Y for height
+				-- Visualized as a ball (actual dome effect is in the brush operation)
+				brushPart.Size = Vector3.new(sizeX, sizeY, sizeX)
+				brushPart.CFrame = finalCFrame
 			end
-			
-			-- Update 3D handles to follow the brush (temporarily disabled)
-			-- updateHandlesAdornee()
+
+			-- Update 3D handles to follow the brush
+			updateHandlesAdornee()
 		end
 	end
 
@@ -476,7 +496,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			brushPart:Destroy()
 			brushPart = nil
 		end
-		-- hideHandles() -- temporarily disabled
+		hideHandles()
 	end
 
 	-- ============================================================================
@@ -621,9 +641,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		isHandleDragging = false
 	end
 
-	-- Create handles at startup (temporarily disabled for debugging)
-	-- createRotationHandles()
-	-- createSizeHandles()
+	-- Create handles at startup
+	createRotationHandles()
+	createSizeHandles()
 
 	-- ============================================================================
 	-- Plane Visualization
@@ -691,8 +711,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		raycastParams.FilterDescendantsInstances = { brushPart, planePart }
 
 		-- Check if plane lock should constrain cursor position
-		local usePlaneLock = (planeLockMode == PlaneLockType.Manual)
-			or (planeLockMode == PlaneLockType.Auto and autoPlaneActive)
+		local usePlaneLock = (planeLockMode == PlaneLockType.Manual) or (planeLockMode == PlaneLockType.Auto and autoPlaneActive)
 
 		if usePlaneLock then
 			-- When plane locked, cursor slides along the plane
@@ -754,8 +773,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	end
 
 	local function performBrushOperation(position: Vector3)
-		local usePlaneLock = (planeLockMode == PlaneLockType.Manual)
-			or (planeLockMode == PlaneLockType.Auto and autoPlaneActive)
+		local usePlaneLock = (planeLockMode == PlaneLockType.Manual) or (planeLockMode == PlaneLockType.Auto and autoPlaneActive)
 		local planePoint = usePlaneLock and Vector3.new(position.X, planePositionY, position.Z) or position
 		local planeNormal = Vector3.new(0, 1, 0)
 
@@ -822,8 +840,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		ChangeHistoryService:SetWaypoint("TerrainEdit_Start")
 
 		brushConnection = RunService.Heartbeat:Connect(function()
-			-- Don't paint if mouse isn't down, no tool selected, or dragging handles
-			if not isMouseDown or currentTool == ToolId.None or isHandleDragging then
+			-- Don't paint if mouse isn't down, no tool selected, dragging handles, or brush is locked
+			if not isMouseDown or currentTool == ToolId.None or isHandleDragging or brushLocked then
 				return
 			end
 
@@ -955,6 +973,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		{ id = BrushShape.Sphere, name = "Sphere" },
 		{ id = BrushShape.Cube, name = "Cube" },
 		{ id = BrushShape.Cylinder, name = "Cylinder" },
+		{ id = BrushShape.Wedge, name = "Wedge" },
+		{ id = BrushShape.CornerWedge, name = "Corner" },
+		{ id = BrushShape.Dome, name = "Dome" },
 	}
 	local shapeButtons = {}
 
@@ -979,13 +1000,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			function()
 				brushShape = shapeInfo.id
 				updateShapeButtons()
-				-- Update size sliders visibility for new shape
-				if updateSizeSliderVisibility then
-					updateSizeSliderVisibility()
-				end
-				-- Update rotation panel visibility for new shape
-				if updateRotationPanelVisibility then
-					updateRotationPanelVisibility()
+				-- Recreate brush visualization for the new shape
+				if brushPart then
+					createBrushVisualization()
 				end
 			end
 		)
@@ -995,238 +1012,83 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 
 	configPanels["brushShape"] = shapePanel
 
-	-- Brush Size Panel (with X, Y, Z sliders)
-	local sizePanel = createConfigPanel("brushSize")
-	local sizeHeader = createHeader(sizePanel, "Brush Size", UDim2.new(0, 0, 0, 0))
-	sizeHeader.LayoutOrder = 1
+	-- Handle Hint Panel - prominent instruction to press R
+	local handleHintPanel = createConfigPanel("handleHint")
 
-	-- Forward declare the set functions so they can reference each other
-	local setSizeXValue: (number) -> ()
-	local setSizeYValue: (number) -> ()
-	local setSizeZValue: (number) -> ()
+	-- Container for the hint (centered)
+	local hintContainer = Instance.new("Frame")
+	hintContainer.BackgroundTransparency = 1
+	hintContainer.Size = UDim2.new(1, 0, 0, 0)
+	hintContainer.AutomaticSize = Enum.AutomaticSize.Y
+	hintContainer.LayoutOrder = 1
+	hintContainer.Parent = handleHintPanel
 
-	-- Size X slider (also acts as "uniform" size for Sphere, or "radius" for Cylinder)
-	local sizeXLabel, sizeXSliderContainer, setSizeXValueInternal = createSlider(
-		sizePanel,
-		"X",
-		Constants.MIN_BRUSH_SIZE,
-		Constants.MAX_BRUSH_SIZE,
-		brushSizeX,
-		function(value)
-			brushSizeX = value
-			-- For uniform shapes, sync all dimensions
-			local sizingMode = ShapeSizingMode[brushShape] or "uniform"
-			if sizingMode == "uniform" then
-				brushSizeY = value
-				brushSizeZ = value
-				setSizeYValue(value)
-				setSizeZValue(value)
-			elseif sizingMode == "cylinder" then
-				-- Cylinder: X and Z are linked (radius)
-				brushSizeZ = value
-				setSizeZValue(value)
-			end
-		end
-	)
-	sizeXSliderContainer.LayoutOrder = 2
-	setSizeXValue = setSizeXValueInternal
+	local hintLayout = Instance.new("UIListLayout")
+	hintLayout.FillDirection = Enum.FillDirection.Horizontal
+	hintLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	hintLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	hintLayout.Padding = UDim.new(0, 8)
+	hintLayout.Parent = hintContainer
 
-	-- Size Y slider (height)
-	local sizeYLabel, sizeYSliderContainer, setSizeYValueInternal = createSlider(
-		sizePanel,
-		"Y",
-		Constants.MIN_BRUSH_SIZE,
-		Constants.MAX_BRUSH_SIZE,
-		brushSizeY,
-		function(value)
-			brushSizeY = value
-			-- For uniform shapes, sync all dimensions
-			local sizingMode = ShapeSizingMode[brushShape] or "uniform"
-			if sizingMode == "uniform" then
-				brushSizeX = value
-				brushSizeZ = value
-				setSizeXValue(value)
-				setSizeZValue(value)
-			end
-		end
-	)
-	sizeYSliderContainer.LayoutOrder = 3
-	setSizeYValue = setSizeYValueInternal
+	-- "Press" text
+	local pressLabel = Instance.new("TextLabel")
+	pressLabel.BackgroundTransparency = 1
+	pressLabel.Size = UDim2.new(0, 0, 0, 32)
+	pressLabel.AutomaticSize = Enum.AutomaticSize.X
+	pressLabel.Font = Enum.Font.GothamMedium
+	pressLabel.TextSize = 15
+	pressLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	pressLabel.Text = "Press"
+	pressLabel.LayoutOrder = 1
+	pressLabel.Parent = hintContainer
 
-	-- Size Z slider (depth)
-	local sizeZLabel, sizeZSliderContainer, setSizeZValueInternal = createSlider(
-		sizePanel,
-		"Z",
-		Constants.MIN_BRUSH_SIZE,
-		Constants.MAX_BRUSH_SIZE,
-		brushSizeZ,
-		function(value)
-			brushSizeZ = value
-			-- For uniform shapes, sync all dimensions
-			local sizingMode = ShapeSizingMode[brushShape] or "uniform"
-			if sizingMode == "uniform" then
-				brushSizeX = value
-				brushSizeY = value
-				setSizeXValue(value)
-				setSizeYValue(value)
-			elseif sizingMode == "cylinder" then
-				-- Cylinder: X and Z are linked (radius)
-				brushSizeX = value
-				setSizeXValue(value)
-			end
-		end
-	)
-	sizeZSliderContainer.LayoutOrder = 4
-	setSizeZValue = setSizeZValueInternal
+	-- Big "R" key badge
+	local keyBadge = Instance.new("Frame")
+	keyBadge.BackgroundColor3 = Color3.fromRGB(80, 120, 200)
+	keyBadge.Size = UDim2.new(0, 36, 0, 32)
+	keyBadge.LayoutOrder = 2
+	keyBadge.Parent = hintContainer
 
-	-- Function to update slider visibility/labels based on shape
-	updateSizeSliderVisibility = function()
-		local sizingMode = ShapeSizingMode[brushShape] or "uniform"
+	local keyBadgeCorner = Instance.new("UICorner")
+	keyBadgeCorner.CornerRadius = UDim.new(0, 6)
+	keyBadgeCorner.Parent = keyBadge
 
-		if sizingMode == "uniform" then
-			-- Sphere: Show only one slider labeled "Size"
-			sizeXLabel.Text = "Size"
-			sizeXSliderContainer.Visible = true
-			sizeYSliderContainer.Visible = false
-			sizeZSliderContainer.Visible = false
-		elseif sizingMode == "cylinder" then
-			-- Cylinder: Show Radius (X) and Height (Y)
-			sizeXLabel.Text = "Radius"
-			sizeYLabel.Text = "Height"
-			sizeXSliderContainer.Visible = true
-			sizeYSliderContainer.Visible = true
-			sizeZSliderContainer.Visible = false
-		else -- "box"
-			-- Cube: Show all three as X, Y, Z
-			sizeXLabel.Text = "X"
-			sizeYLabel.Text = "Y"
-			sizeZLabel.Text = "Z"
-			sizeXSliderContainer.Visible = true
-			sizeYSliderContainer.Visible = true
-			sizeZSliderContainer.Visible = true
-		end
-	end
+	local keyLabel = Instance.new("TextLabel")
+	keyLabel.BackgroundTransparency = 1
+	keyLabel.Size = UDim2.new(1, 0, 1, 0)
+	keyLabel.Font = Enum.Font.GothamBlack
+	keyLabel.TextSize = 20
+	keyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	keyLabel.Text = "R"
+	keyLabel.Parent = keyBadge
 
-	-- Initialize visibility for default shape
-	updateSizeSliderVisibility()
+	-- "to lock brush" text
+	local toLockLabel = Instance.new("TextLabel")
+	toLockLabel.BackgroundTransparency = 1
+	toLockLabel.Size = UDim2.new(0, 0, 0, 32)
+	toLockLabel.AutomaticSize = Enum.AutomaticSize.X
+	toLockLabel.Font = Enum.Font.GothamMedium
+	toLockLabel.TextSize = 15
+	toLockLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	toLockLabel.Text = "to lock brush"
+	toLockLabel.LayoutOrder = 3
+	toLockLabel.Parent = hintContainer
 
-	-- Legacy function for scroll wheel (adjusts X, which propagates to others as needed)
-	local function setSizeValue(value: number)
-		setSizeXValue(value)
-		brushSizeX = value
-		local sizingMode = ShapeSizingMode[brushShape] or "uniform"
-		if sizingMode == "uniform" then
-			brushSizeY = value
-			brushSizeZ = value
-			setSizeYValue(value)
-			setSizeZValue(value)
-		elseif sizingMode == "cylinder" then
-			brushSizeZ = value
-			setSizeZValue(value)
-		end
-	end
+	-- Subtext explaining what happens
+	local subtextLabel = Instance.new("TextLabel")
+	subtextLabel.BackgroundTransparency = 1
+	subtextLabel.Size = UDim2.new(1, 0, 0, 0)
+	subtextLabel.AutomaticSize = Enum.AutomaticSize.Y
+	subtextLabel.Font = Enum.Font.Gotham
+	subtextLabel.TextSize = 13
+	subtextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	subtextLabel.TextWrapped = true
+	subtextLabel.TextXAlignment = Enum.TextXAlignment.Center
+	subtextLabel.Text = "Then drag handles to resize and rotate"
+	subtextLabel.LayoutOrder = 2
+	subtextLabel.Parent = handleHintPanel
 
-	configPanels["brushSize"] = sizePanel
-
-	-- Brush Rotation Panel
-	local rotationPanel = createConfigPanel("brushRotation")
-	local rotationHeader = createHeader(rotationPanel, "Brush Rotation", UDim2.new(0, 0, 0, 0))
-	rotationHeader.LayoutOrder = 1
-
-	-- Store rotation as Euler angles (degrees) for easier UI
-	local rotationX = 0
-	local rotationY = 0
-	local rotationZ = 0
-
-	local function updateBrushRotationFromEuler()
-		brushRotation = CFrame.Angles(math.rad(rotationX), math.rad(rotationY), math.rad(rotationZ))
-	end
-
-	-- Rotation X slider (Pitch)
-	local rotXLabel, rotXSliderContainer, setRotXValue = createSlider(
-		rotationPanel,
-		"Pitch",
-		-180,
-		180,
-		rotationX,
-		function(value)
-			rotationX = value
-			updateBrushRotationFromEuler()
-		end
-	)
-	rotXSliderContainer.LayoutOrder = 2
-
-	-- Rotation Y slider (Yaw)
-	local rotYLabel, rotYSliderContainer, setRotYValue = createSlider(
-		rotationPanel,
-		"Yaw",
-		-180,
-		180,
-		rotationY,
-		function(value)
-			rotationY = value
-			updateBrushRotationFromEuler()
-		end
-	)
-	rotYSliderContainer.LayoutOrder = 3
-
-	-- Rotation Z slider (Roll)
-	local rotZLabel, rotZSliderContainer, setRotZValue = createSlider(
-		rotationPanel,
-		"Roll",
-		-180,
-		180,
-		rotationZ,
-		function(value)
-			rotationZ = value
-			updateBrushRotationFromEuler()
-		end
-	)
-	rotZSliderContainer.LayoutOrder = 4
-
-	-- Reset rotation button (auto-sized)
-	local resetRotationBtn = Instance.new("TextButton")
-	resetRotationBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	resetRotationBtn.BorderSizePixel = 0
-	resetRotationBtn.Size = UDim2.new(0, 0, 0, 28)
-	resetRotationBtn.AutomaticSize = Enum.AutomaticSize.X
-	resetRotationBtn.Font = Enum.Font.GothamMedium
-	resetRotationBtn.TextSize = 13
-	resetRotationBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	resetRotationBtn.Text = "Reset Rotation"
-	resetRotationBtn.AutoButtonColor = true
-	resetRotationBtn.Parent = rotationPanel
-
-	local resetBtnCorner = Instance.new("UICorner")
-	resetBtnCorner.CornerRadius = UDim.new(0, 4)
-	resetBtnCorner.Parent = resetRotationBtn
-
-	local resetBtnPadding = Instance.new("UIPadding")
-	resetBtnPadding.PaddingLeft = UDim.new(0, 12)
-	resetBtnPadding.PaddingRight = UDim.new(0, 12)
-	resetBtnPadding.Parent = resetRotationBtn
-
-	resetRotationBtn.MouseButton1Click:Connect(function()
-		rotationX = 0
-		rotationY = 0
-		rotationZ = 0
-		setRotXValue(0)
-		setRotYValue(0)
-		setRotZValue(0)
-		brushRotation = CFrame.new()
-	end)
-	resetRotationBtn.LayoutOrder = 5
-
-	-- Function to show/hide rotation panel based on shape
-	updateRotationPanelVisibility = function()
-		local supportsRotation = ShapeSupportsRotation[brushShape]
-		rotationPanel.Visible = supportsRotation
-	end
-
-	-- Initialize visibility
-	updateRotationPanelVisibility()
-
-	configPanels["brushRotation"] = rotationPanel
+	configPanels["handleHint"] = handleHintPanel
 
 	-- Strength Panel
 	local strengthPanel = createConfigPanel("strength")
@@ -1673,8 +1535,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Set layout order for panels
 	local panelOrder = {
 		"brushShape",
-		"brushSize",
-		"brushRotation",
+		"handleHint",
 		"strength",
 		"pivot",
 		"planeLock",
@@ -1803,10 +1664,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end
 
 		local scrollUp = input.Position.Z > 0
-		local ctrlHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-			or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
-		local shiftHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
-			or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+		local ctrlHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+		local shiftHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
 
 		if shiftHeld then
 			-- Shift+Scroll: Adjust SIZE (uses X dimension as the primary size)
@@ -1814,7 +1673,15 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			local increment = brushSizeX < 10 and 1 or (brushSizeX < 30 and 2 or 4)
 			local delta = scrollUp and increment or -increment
 			local newSize = math.clamp(brushSizeX + delta, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-			setSizeValue(newSize)
+			-- Set all size dimensions based on shape's sizing mode
+			brushSizeX = newSize
+			local sizingMode = ShapeSizingMode[brushShape] or "uniform"
+			if sizingMode == "uniform" then
+				brushSizeY = newSize
+				brushSizeZ = newSize
+			elseif sizingMode == "cylinder" then
+				brushSizeZ = newSize
+			end
 		elseif ctrlHeld then
 			-- Ctrl+Scroll: Adjust STRENGTH
 			local delta = scrollUp and 10 or -10
@@ -1823,18 +1690,55 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end
 	end))
 
+	-- 'R' key to toggle brush lock mode (for interacting with rotation/size handles)
+	addConnection(UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+
+		if input.KeyCode == Enum.KeyCode.R then
+			-- Only toggle when a tool is active
+			if currentTool == ToolId.None then
+				return
+			end
+
+			brushLocked = not brushLocked
+
+			if brushLocked then
+				print("[TerrainEditor] Brush LOCKED - drag handles to rotate/resize, press R to unlock")
+			else
+				print("[TerrainEditor] Brush UNLOCKED - brush follows mouse")
+			end
+
+			-- Force update visualization to show color change
+			if lockedBrushPosition then
+				updateBrushVisualization(lockedBrushPosition)
+			end
+		end
+	end))
+
 	-- Render visualization
 	renderConnection = RunService.RenderStepped:Connect(function()
 		if currentTool ~= ToolId.None and parentGui.Enabled then
 			local hitPosition = getTerrainHit()
-			if hitPosition then
-				updateBrushVisualization(hitPosition)
+
+			-- Determine which position to use for brush visualization
+			local brushPosition = hitPosition
+			if brushLocked and lockedBrushPosition then
+				-- When locked, keep brush at locked position
+				brushPosition = lockedBrushPosition
+			elseif hitPosition then
+				-- Store current position (for when we lock)
+				lockedBrushPosition = hitPosition
+			end
+
+			if brushPosition then
+				updateBrushVisualization(brushPosition)
 
 				-- Show plane visualization when plane lock is active
-				local showPlane = (planeLockMode == PlaneLockType.Manual)
-					or (planeLockMode == PlaneLockType.Auto and autoPlaneActive)
+				local showPlane = (planeLockMode == PlaneLockType.Manual) or (planeLockMode == PlaneLockType.Auto and autoPlaneActive)
 				if showPlane then
-					updatePlaneVisualization(hitPosition.X, hitPosition.Z)
+					updatePlaneVisualization(brushPosition.X, brushPosition.Z)
 				else
 					hidePlaneVisualization()
 				end
@@ -1880,9 +1784,12 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		if brushConnection then
 			brushConnection:Disconnect()
 		end
+		if renderConnection then
+			renderConnection:Disconnect()
+		end
 		hideBrushVisualization()
 		hidePlaneVisualization()
-		-- destroyHandles() -- Clean up 3D handles (temporarily disabled)
+		destroyHandles() -- Clean up 3D handles
 		pluginInstance:Deactivate()
 	end
 end

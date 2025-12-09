@@ -1,5 +1,12 @@
 # Brush System Analysis & Expansion Options
 
+> **Update (Dec 2024):** Multi-axis sizing and brush rotation have been implemented!
+> See [brush-sizing-rotation-plan.md](brush-sizing-rotation-plan.md) for details.
+> - Press **R** to lock brush, then drag handles to rotate/resize
+> - Cube supports full X/Y/Z sizing
+> - Cylinder supports Radius + Height
+> - ArcHandles for rotation, Handles for resizing
+
 ## Current Architecture
 
 ### Brush Shapes Defined

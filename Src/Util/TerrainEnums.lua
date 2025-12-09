@@ -73,6 +73,9 @@ TerrainEnums.BrushShape = {
 	Sphere = "Sphere",
 	Cube = "Cube",
 	Cylinder = "Cylinder",
+	Wedge = "Wedge",
+	CornerWedge = "CornerWedge",
+	Dome = "Dome",
 }
 
 TerrainEnums.Biome = {
