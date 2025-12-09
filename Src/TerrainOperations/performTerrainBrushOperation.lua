@@ -1,3 +1,5 @@
+--!strict
+
 local Plugin = script.Parent.Parent.Parent
 
 local Constants = require(Plugin.Src.Util.Constants)
@@ -375,6 +377,40 @@ local function performOperation(terrain, opSet)
 					sculptSettings.cliffDirectionX = opSet.cliffDirectionX
 					sculptSettings.cliffDirectionZ = opSet.cliffDirectionZ
 					SculptOperations.cliff(sculptSettings)
+				elseif tool == ToolId.Path then
+					-- Pass cell offset, world position, and path parameters
+					sculptSettings.cellVectorX = cellVectorX
+					sculptSettings.cellVectorZ = cellVectorZ
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.centerY = centerPoint.Y
+					sculptSettings.pathDirectionX = opSet.pathDirectionX
+					sculptSettings.pathDirectionZ = opSet.pathDirectionZ
+					sculptSettings.pathDepth = opSet.pathDepth
+					sculptSettings.pathProfile = opSet.pathProfile
+					-- pathWidth is the half-width (radius) of the path in studs
+					sculptSettings.pathWidth = radiusX
+					SculptOperations.path(sculptSettings)
+				elseif tool == ToolId.Clone then
+					-- Pass clone source buffer and centers
+					if opSet.cloneSourceBuffer and opSet.cloneSourceCenter then
+						sculptSettings.sourceBuffer = opSet.cloneSourceBuffer
+						sculptSettings.sourceCenterX = opSet.cloneSourceCenter.X
+						sculptSettings.sourceCenterY = opSet.cloneSourceCenter.Y
+						sculptSettings.sourceCenterZ = opSet.cloneSourceCenter.Z
+						-- Target center is the current voxel position in the region
+						sculptSettings.targetCenterX = voxelX
+						sculptSettings.targetCenterY = voxelY
+						sculptSettings.targetCenterZ = voxelZ
+						SculptOperations.clone(sculptSettings)
+					end
+				elseif tool == ToolId.Blobify then
+					-- Pass cell offset and blob parameters
+					sculptSettings.cellVectorX = cellVectorX
+					sculptSettings.cellVectorY = cellVectorY
+					sculptSettings.cellVectorZ = cellVectorZ
+					sculptSettings.blobIntensity = opSet.blobIntensity
+					sculptSettings.blobSmoothness = opSet.blobSmoothness
+					SculptOperations.blobify(sculptSettings)
 				end
 			end
 		end

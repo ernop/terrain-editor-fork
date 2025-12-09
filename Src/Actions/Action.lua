@@ -1,3 +1,5 @@
+--!strict
+
 --[[
 	A helper function to define a Rodux action creator with an associated name.
 
@@ -63,6 +65,6 @@ return function(name, fn)
 			result.type = name
 
 			return result
-		end
+		end,
 	})
 end

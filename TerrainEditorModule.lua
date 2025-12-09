@@ -3,12 +3,12 @@
 -- TerrainEditorFork - Module Version for Live Development
 -- This module is loaded by the loader plugin for hot-reloading
 
-local VERSION = "0.0.00000044"
-local DEBUG = false
+local VERSION = "0.0.00000046"
+local _DEBUG = false
 
 local TerrainEditorModule = {}
 
-function TerrainEditorModule.init(pluginInstance, parentGui)
+function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- script is the TerrainEditorFork module in ServerStorage
 	-- Src and Packages are children of script (synced by Rojo)
 	local Src = script.Src
@@ -22,13 +22,15 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Load utilities
 	local TerrainEnums = require(Src.Util.TerrainEnums)
 	local Constants = require(Src.Util.Constants)
-	local UIHelpers = require(Src.Util.UIHelpers)
-	local BrushData = require(Src.Util.BrushData)
+	local UIHelpers = require(Src.Util.UIHelpers) :: any
+	local BrushData = require(Src.Util.BrushData) :: any
+	local BridgePathGenerator = require(Src.Util.BridgePathGenerator) :: any
 	local ToolId = TerrainEnums.ToolId
 	local BrushShape = TerrainEnums.BrushShape
 	local PivotType = TerrainEnums.PivotType
 	local FlattenMode = TerrainEnums.FlattenMode
 	local PlaneLockType = TerrainEnums.PlaneLockType
+	local SpinMode = TerrainEnums.SpinMode
 
 	-- Load terrain operations
 	local performTerrainBrushOperation = require(Src.TerrainOperations.performTerrainBrushOperation)
@@ -53,7 +55,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		planeLockMode = PlaneLockType.Off,
 		planePositionY = Constants.INITIAL_PLANE_POSITION_Y,
 		autoPlaneActive = false,
-		spinEnabled = false,
+		spinMode = SpinMode.Off,
 		spinAngle = 0,
 		hollowEnabled = false,
 		wallThickness = 0.2,
@@ -65,6 +67,15 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		cliffAngle = 90,
 		cliffDirectionX = 1,
 		cliffDirectionZ = 0,
+		pathDepth = 6,
+		pathProfile = "U",
+		pathDirectionX = 0,
+		pathDirectionZ = 1,
+		cloneSourceBuffer = nil :: { [number]: { [number]: { [number]: { occupancy: number, material: Enum.Material } } } }?,
+		cloneSourceCenter = nil :: Vector3?,
+		blobIntensity = 0.5,
+		blobSmoothness = 0.7,
+		brushRate = "normal", -- Brush rate preset: "no_repeat", "on_move_only", "very_slow", "slow", "normal", "fast"
 		lastMouseWorldPos = nil :: Vector3?,
 		lastBrushTime = 0,
 		lastBrushPosition = nil :: Vector3?,
@@ -82,8 +93,11 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		bridgePreviewParts = {} :: { BasePart },
 		bridgeWidth = 4,
 		bridgeVariant = "Arc",
+		bridgeCurves = {} :: { { type: string, amplitude: number, frequency: number, phase: number, offset: Vector3 } },
+		bridgeEditMode = false,
+		bridgeSelectedConnection = nil :: number?,
+		bridgeMeanderComplexity = 5,
 	}
-	local BRUSH_COOLDOWN = 0.05
 	local mouse = pluginInstance:GetMouse()
 
 	-- Forward declarations for handle functions (defined later, after brush viz)
@@ -173,15 +187,16 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			S.brushPart = Instance.new("CornerWedgePart")
 		else
 			S.brushPart = Instance.new("Part")
+			local part = S.brushPart :: Part
 			if S.brushShape == BrushShape.Sphere or S.brushShape == BrushShape.Dome then
-				S.brushPart.Shape = Enum.PartType.Ball
+				part.Shape = Enum.PartType.Ball
 			elseif
 				S.brushShape == BrushShape.Cube
 				or S.brushShape == BrushShape.Grid
 				or S.brushShape == BrushShape.ZigZag
 				or S.brushShape == BrushShape.Spinner
 			then
-				S.brushPart.Shape = Enum.PartType.Block
+				part.Shape = Enum.PartType.Block
 			elseif
 				S.brushShape == BrushShape.Cylinder
 				or S.brushShape == BrushShape.Stick
@@ -189,20 +204,67 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				or S.brushShape == BrushShape.Ring
 				or S.brushShape == BrushShape.Sheet
 			then
-				S.brushPart.Shape = Enum.PartType.Cylinder
+				part.Shape = Enum.PartType.Cylinder
 			end
 		end
 
-		S.brushPart.Name = "TerrainBrushVisualization"
-		S.brushPart.Anchored = true
-		S.brushPart.CanCollide = false
-		S.brushPart.CanQuery = false
-		S.brushPart.CanTouch = false
-		S.brushPart.CastShadow = false
-		S.brushPart.Transparency = 0.7
-		S.brushPart.Material = Enum.Material.Neon
-		S.brushPart.Color = Color3.fromRGB(0, 162, 255)
-		S.brushPart.Parent = workspace
+		if S.brushPart then
+			S.brushPart.Name = "TerrainBrushVisualization"
+			S.brushPart.Anchored = true
+			S.brushPart.CanCollide = false
+			S.brushPart.CanQuery = false
+			S.brushPart.CanTouch = false
+			S.brushPart.CastShadow = false
+			S.brushPart.Transparency = 0.7
+			S.brushPart.Material = Enum.Material.Neon
+			S.brushPart.Color = Color3.fromRGB(0, 162, 255)
+			S.brushPart.Parent = workspace
+		end
+	end
+
+	-- Calculate spin rotation based on mode
+	local function calculateSpinRotation(spinMode: string, spinAngle: number): CFrame
+		if spinMode == SpinMode.Off then
+			return CFrame.new()
+		elseif spinMode == SpinMode.Full3D then
+			-- Original 3D rotation: all axes with different speeds
+			return CFrame.Angles(spinAngle * 0.7, spinAngle, spinAngle * 0.3)
+		elseif spinMode == SpinMode.XZ then
+			-- Horizontal plane rotation only (around Y axis)
+			return CFrame.Angles(0, spinAngle, 0)
+		elseif spinMode == SpinMode.Y then
+			-- Vertical axis rotation only (around Y axis, same as XZ but clearer name)
+			return CFrame.Angles(0, spinAngle, 0)
+		elseif spinMode == SpinMode.Fast3D then
+			-- Faster 3D rotation (2x speed)
+			return CFrame.Angles(spinAngle * 1.4, spinAngle * 2, spinAngle * 0.6)
+		elseif spinMode == SpinMode.XZFast then
+			-- Fast horizontal rotation (2x speed)
+			return CFrame.Angles(0, spinAngle * 2, 0)
+		else
+			return CFrame.new()
+		end
+	end
+
+	-- Update spin angle based on mode and speed
+	local function updateSpinAngle(spinMode: string, currentAngle: number, deltaTime: number): number
+		if spinMode == SpinMode.Off then
+			return currentAngle
+		elseif spinMode == SpinMode.Full3D then
+			-- Original speed: 0.05 per frame (visualization), 0.1 per operation
+			return currentAngle + 0.05
+		elseif spinMode == SpinMode.XZ or spinMode == SpinMode.Y then
+			-- Same speed as Full3D for consistency
+			return currentAngle + 0.05
+		elseif spinMode == SpinMode.Fast3D then
+			-- 2x speed
+			return currentAngle + 0.1
+		elseif spinMode == SpinMode.XZFast then
+			-- 2x speed
+			return currentAngle + 0.1
+		else
+			return currentAngle
+		end
 	end
 
 	local function updateBrushVisualization(position: Vector3)
@@ -225,16 +287,16 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 
 			local baseCFrame = CFrame.new(position)
 
-			if S.spinEnabled and not S.brushLocked then
-				S.spinAngle = S.spinAngle + 0.05
+			if S.spinMode ~= SpinMode.Off and not S.brushLocked then
+				S.spinAngle = updateSpinAngle(S.spinMode, S.spinAngle, 0)
 			end
 
 			local finalCFrame = baseCFrame
 			if BrushData.ShapeSupportsRotation[S.brushShape] then
 				finalCFrame = baseCFrame * S.brushRotation
 			end
-			if S.spinEnabled then
-				local spinCFrame = CFrame.Angles(S.spinAngle * 0.7, S.spinAngle, S.spinAngle * 0.3)
+			if S.spinMode ~= SpinMode.Off then
+				local spinCFrame = calculateSpinRotation(S.spinMode, S.spinAngle)
 				finalCFrame = finalCFrame * spinCFrame
 			end
 
@@ -245,8 +307,12 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				S.brushPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
 				S.brushPart.CFrame = finalCFrame
 			elseif S.brushShape == BrushShape.Cylinder then
+				-- Roblox PartType.Cylinder has height along Y axis
+				-- FillCylinder also uses Y axis as height direction
+				-- Size: (height, radius, radius) = (sizeY, sizeX, sizeX)
 				S.brushPart.Size = Vector3.new(sizeY, sizeX, sizeX)
-				finalCFrame = baseCFrame * S.brushRotation * CFrame.Angles(0, 0, math.rad(90))
+				-- Use the same finalCFrame as other shapes to ensure rotation handles match
+				-- Both visualization and operation use Y as height, so no extra rotation needed
 				S.brushPart.CFrame = finalCFrame
 			elseif S.brushShape == BrushShape.Wedge then
 				S.brushPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
@@ -420,18 +486,19 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			S.rotationHandles:Destroy()
 		end
 		S.rotationHandles = Instance.new("ArcHandles")
-		S.rotationHandles.Name = "BrushRotationHandles"
-		S.rotationHandles.Color3 = Color3.fromRGB(255, 170, 0)
-		S.rotationHandles.Visible = false
-		S.rotationHandles.Parent = CoreGui
-		S.rotationHandles.MouseButton1Down:Connect(function()
+		local handles = S.rotationHandles :: ArcHandles
+		handles.Name = "BrushRotationHandles"
+		handles.Color3 = Color3.fromRGB(255, 170, 0)
+		handles.Visible = false
+		handles.Parent = CoreGui
+		handles.MouseButton1Down:Connect(function()
 			S.isHandleDragging = true
 			dragStartRotation = S.brushRotation
 		end)
-		S.rotationHandles.MouseButton1Up:Connect(function()
+		handles.MouseButton1Up:Connect(function()
 			S.isHandleDragging = false
 		end)
-		S.rotationHandles.MouseDrag:Connect(function(axis, relativeAngle, deltaRadius)
+		handles.MouseDrag:Connect(function(axis, relativeAngle, deltaRadius)
 			local rotationAxis
 			if axis == Enum.Axis.X then
 				rotationAxis = Vector3.new(1, 0, 0)
@@ -449,24 +516,28 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			S.sizeHandles:Destroy()
 		end
 		S.sizeHandles = Instance.new("Handles")
-		S.sizeHandles.Name = "BrushSizeHandles"
-		S.sizeHandles.Color3 = Color3.fromRGB(0, 200, 255)
-		S.sizeHandles.Style = Enum.HandlesStyle.Resize
-		S.sizeHandles.Visible = false
-		S.sizeHandles.Parent = CoreGui
+		local handles = S.sizeHandles :: Handles
+		handles.Name = "BrushSizeHandles"
+		handles.Color3 = Color3.fromRGB(0, 200, 255)
+		handles.Style = Enum.HandlesStyle.Resize
+		handles.Visible = false
+		handles.Parent = CoreGui
 		local dragStartSizeX = S.brushSizeX
 		local dragStartSizeY = S.brushSizeY
 		local dragStartSizeZ = S.brushSizeZ
-		S.sizeHandles.MouseButton1Down:Connect(function()
+		handles.MouseButton1Down:Connect(function()
 			S.isHandleDragging = true
 			dragStartSizeX = S.brushSizeX
 			dragStartSizeY = S.brushSizeY
 			dragStartSizeZ = S.brushSizeZ
 		end)
-		S.sizeHandles.MouseButton1Up:Connect(function()
+		handles.MouseButton1Up:Connect(function()
 			S.isHandleDragging = false
 		end)
-		S.sizeHandles.MouseDrag:Connect(function(face, distance)
+		handles.MouseDrag:Connect(function(face, distance)
+			if not S.isHandleDragging then
+				return
+			end
 			local deltaVoxels = distance / Constants.VOXEL_RESOLUTION
 			local sizingMode = BrushData.ShapeSizingMode[S.brushShape] or "uniform"
 			if sizingMode == "uniform" then
@@ -474,23 +545,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				S.brushSizeX = newSize
 				S.brushSizeY = newSize
 				S.brushSizeZ = newSize
-			elseif sizingMode == "cylinder" then
-				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
-					S.brushSizeY = math.clamp(dragStartSizeY + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-				else
-					local newRadius = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-					S.brushSizeX = newRadius
-					S.brushSizeZ = newRadius
-				end
-			elseif sizingMode == "torus" then
-				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
-					S.brushSizeY = math.clamp(dragStartSizeY + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-				else
-					local newRadius = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-					S.brushSizeX = newRadius
-					S.brushSizeZ = newRadius
-				end
 			else
+				-- "box" mode: independent X, Y, Z sizing
 				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
 					S.brushSizeX = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
 				elseif face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then
@@ -551,18 +607,19 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			S.planePart:Destroy()
 		end
 		S.planePart = Instance.new("Part")
-		S.planePart.Name = "TerrainPlaneLockVisualization"
-		S.planePart.Anchored = true
-		S.planePart.CanCollide = false
-		S.planePart.CanQuery = false
-		S.planePart.CanTouch = false
-		S.planePart.CastShadow = false
-		S.planePart.Shape = Enum.PartType.Cylinder
-		S.planePart.Size = Vector3.new(0.5, PLANE_SIZE, PLANE_SIZE)
-		S.planePart.Transparency = 0.85
-		S.planePart.Material = Enum.Material.Neon
-		S.planePart.Color = Color3.fromRGB(0, 200, 100)
-		S.planePart.Parent = workspace
+		local part = S.planePart :: Part
+		part.Name = "TerrainPlaneLockVisualization"
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.CastShadow = false
+		part.Shape = Enum.PartType.Cylinder
+		part.Size = Vector3.new(0.5, PLANE_SIZE, PLANE_SIZE)
+		part.Transparency = 0.85
+		part.Material = Enum.Material.Neon
+		part.Color = Color3.fromRGB(0, 200, 100)
+		part.Parent = workspace
 	end
 
 	local function updatePlaneVisualization(centerX: number, centerZ: number)
@@ -588,7 +645,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local function intersectPlane(ray: any): Vector3?
 		if ray.Direction.Y ~= 0 then
 			local t = (S.planePositionY - ray.Origin.Y) / ray.Direction.Y
-			if t > 0 and t < 1000 then
+			if t > 0 and t < 10000 then
 				return ray.Origin + ray.Direction * t
 			end
 		end
@@ -599,7 +656,14 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		local ray = workspace.CurrentCamera:ScreenPointToRay(mouse.X, mouse.Y)
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-		raycastParams.FilterDescendantsInstances = { S.brushPart, S.planePart }
+		local filterInstances: { Instance } = {}
+		if S.brushPart then
+			table.insert(filterInstances, S.brushPart)
+		end
+		if S.planePart then
+			table.insert(filterInstances, S.planePart)
+		end
+		raycastParams.FilterDescendantsInstances = filterInstances
 		local usePlaneLock = (S.planeLockMode == PlaneLockType.Manual) or (S.planeLockMode == PlaneLockType.Auto and S.autoPlaneActive)
 		if usePlaneLock then
 			local planeHit = intersectPlane(ray)
@@ -607,7 +671,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				return planeHit
 			end
 		end
-		local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+		local result = workspace:Raycast(ray.Origin, ray.Direction * 10000, raycastParams)
 		if result and result.Instance == S.terrain then
 			return result.Position
 		end
@@ -616,7 +680,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end
 		if ray.Direction.Y ~= 0 then
 			local t = -ray.Origin.Y / ray.Direction.Y
-			if t > 0 and t < 1000 then
+			if t > 0 and t < 10000 then
 				return ray.Origin + ray.Direction * t
 			end
 		end
@@ -630,14 +694,21 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		local ray = workspace.CurrentCamera:ScreenPointToRay(mouse.X, mouse.Y)
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-		raycastParams.FilterDescendantsInstances = { S.brushPart, S.planePart }
-		local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+		local filterInstances: { Instance } = {}
+		if S.brushPart then
+			table.insert(filterInstances, S.brushPart)
+		end
+		if S.planePart then
+			table.insert(filterInstances, S.planePart)
+		end
+		raycastParams.FilterDescendantsInstances = filterInstances
+		local result = workspace:Raycast(ray.Origin, ray.Direction * 10000, raycastParams)
 		if result then
 			return result.Position
 		end
 		if ray.Direction.Y ~= 0 then
 			local t = -ray.Origin.Y / ray.Direction.Y
-			if t > 0 and t < 1000 then
+			if t > 0 and t < 10000 then
 				return ray.Origin + ray.Direction * t
 			end
 		end
@@ -655,18 +726,20 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		if sizingMode == "uniform" then
 			actualSizeY = S.brushSizeX
 			actualSizeZ = S.brushSizeX
-		elseif sizingMode == "cylinder" then
-			actualSizeZ = S.brushSizeX
-		elseif sizingMode == "torus" then
-			actualSizeZ = S.brushSizeX
 		end
+		-- For "box" mode, use the actual stored values (no modification needed)
 		local effectiveRotation = S.brushRotation
 		if not BrushData.ShapeSupportsRotation[S.brushShape] then
 			effectiveRotation = CFrame.new()
 		end
-		if S.spinEnabled then
-			S.spinAngle = S.spinAngle + 0.1
-			local spinCFrame = CFrame.Angles(S.spinAngle * 0.7, S.spinAngle, S.spinAngle * 0.3)
+		if S.spinMode ~= SpinMode.Off then
+			-- For operations, use faster update (0.1 instead of 0.05)
+			local operationSpeed = 1
+			if S.spinMode == SpinMode.Fast3D or S.spinMode == SpinMode.XZFast then
+				operationSpeed = 2
+			end
+			S.spinAngle = S.spinAngle + (0.1 * operationSpeed)
+			local spinCFrame = calculateSpinRotation(S.spinMode, S.spinAngle)
 			effectiveRotation = effectiveRotation * spinCFrame
 		end
 		local opSet = {
@@ -699,6 +772,17 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			cliffAngle = S.cliffAngle,
 			cliffDirectionX = S.cliffDirectionX,
 			cliffDirectionZ = S.cliffDirectionZ,
+			-- Path tool parameters
+			pathDepth = S.pathDepth,
+			pathProfile = S.pathProfile,
+			pathDirectionX = S.pathDirectionX,
+			pathDirectionZ = S.pathDirectionZ,
+			-- Clone tool parameters
+			cloneSourceBuffer = S.cloneSourceBuffer,
+			cloneSourceCenter = S.cloneSourceCenter,
+			-- Blobify tool parameters
+			blobIntensity = S.blobIntensity,
+			blobSmoothness = S.blobSmoothness,
 		}
 		local success, err = pcall(function()
 			performTerrainBrushOperation(S.terrain, opSet)
@@ -717,20 +801,91 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			if not S.isMouseDown or S.currentTool == ToolId.None or S.isHandleDragging or S.brushLocked then
 				return
 			end
-			local now = tick()
-			if now - S.lastBrushTime < BRUSH_COOLDOWN then
+
+			local hitPosition = getTerrainHit()
+			if not hitPosition then
 				return
 			end
-			S.lastBrushTime = now
-			local hitPosition = getTerrainHit()
-			if hitPosition then
-				if S.currentTool == ToolId.Cliff and S.lastMouseWorldPos then
+
+			local shouldActivate = false
+			local mouseMoved = false
+
+			-- Check if mouse has moved significantly since last brush operation
+			-- Use a larger threshold to prevent excessive activations from tiny movements
+			-- One voxel = 4 studs, so 4 studs is a reasonable minimum movement
+			local MOVEMENT_THRESHOLD = 4 -- studs
+			if S.lastBrushPosition then
+				local moveDistance = (hitPosition - S.lastBrushPosition).Magnitude
+				if moveDistance > MOVEMENT_THRESHOLD then
+					mouseMoved = true
+				end
+			end
+
+			local now = tick()
+			local timeSinceLastActivation = now - S.lastBrushTime
+
+			-- Handle "no_repeat" mode - only activate once per mouse down, never again until mouse is released
+			if S.brushRate == "no_repeat" then
+				if S.lastBrushTime == 0 then
+					-- First activation on mouse down
+					shouldActivate = true
+					S.lastBrushTime = now
+				else
+					-- Already activated once, don't repeat even if mouse moved
+					shouldActivate = false
+				end
+			elseif S.brushRate == "on_move_only" then
+				-- Paint style: activate once on click, then only reactivate when mouse moves significantly
+				if S.lastBrushTime == 0 then
+					-- First activation on mouse down
+					shouldActivate = true
+					S.lastBrushTime = now
+				else
+					-- Only reactivate if mouse moved significantly
+					shouldActivate = mouseMoved
+					if mouseMoved then
+						S.lastBrushTime = now
+					end
+				end
+			else
+				-- Repeat mode: activate on timer OR mouse movement (but movement also needs minimum time)
+				local rateMap = {
+					very_slow = 1000, -- 1 second between activations
+					slow = 500,       -- 0.5 seconds
+					normal = 200,     -- 0.2 seconds
+					fast = 100,       -- 0.1 seconds
+				}
+				local brushCooldownMs = rateMap[S.brushRate] or 100
+				local brushCooldown = brushCooldownMs / 1000 -- Convert milliseconds to seconds
+				
+				-- Minimum time between activations, even for movement (prevents excessive activations)
+				local minCooldown = 0.05 -- 50ms minimum between any activations
+				
+				if mouseMoved and timeSinceLastActivation >= minCooldown then
+					-- Mouse moved significantly AND enough time has passed
+					shouldActivate = true
+					S.lastBrushTime = now
+				elseif timeSinceLastActivation >= brushCooldown then
+					-- Timer cooldown has passed
+					shouldActivate = true
+					S.lastBrushTime = now
+				end
+			end
+
+			if shouldActivate then
+				-- Track mouse direction for Cliff and Path tools
+				if (S.currentTool == ToolId.Cliff or S.currentTool == ToolId.Path) and S.lastMouseWorldPos then
 					local delta = hitPosition - S.lastMouseWorldPos
 					local horizDelta = Vector3.new(delta.X, 0, delta.Z)
 					if horizDelta.Magnitude > 0.5 then
 						local dir = horizDelta.Unit
-						S.cliffDirectionX = dir.X
-						S.cliffDirectionZ = dir.Z
+						if S.currentTool == ToolId.Cliff then
+							S.cliffDirectionX = dir.X
+							S.cliffDirectionZ = dir.Z
+						elseif S.currentTool == ToolId.Path then
+							S.pathDirectionX = dir.X
+							S.pathDirectionZ = dir.Z
+						end
 					end
 				end
 				S.lastMouseWorldPos = hitPosition
@@ -747,6 +902,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end
 		ChangeHistoryService:SetWaypoint("TerrainEdit_End")
 		S.lastBrushPosition = nil
+		S.lastBrushTime = 0 -- Reset for "no_repeat" mode
 	end
 
 	-- ============================================================================
@@ -779,20 +935,20 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 10)
 	padding.PaddingRight = UDim.new(0, 18)
-	padding.PaddingTop = UDim.new(0, 10)
+	padding.PaddingTop = UDim.new(0, 8)
 	padding.Parent = mainFrame
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
 	title.Position = UDim2.new(0, 0, 0, 0)
-	title.Size = UDim2.new(1, 0, 0, 24)
+	title.Size = UDim2.new(1, 0, 0, 22)
 	title.Font = Enum.Font.GothamBold
-	title.TextSize = 16
+	title.TextSize = 15
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
 	title.Text = "🌋 Terrain Editor Fork v" .. VERSION
 	title.Parent = mainFrame
 
-	UIHelpers.createHeader(mainFrame, "Sculpt Tools", UDim2.new(0, 0, 0, 40))
+	UIHelpers.createHeader(mainFrame, "Tools", UDim2.new(0, 0, 0, 35))
 
 	local sculptTools = {
 		{ id = ToolId.Add, name = "Add", row = 0, col = 0 },
@@ -803,10 +959,16 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		{ id = ToolId.Flatten, name = "Flatten", row = 1, col = 2 },
 		{ id = ToolId.Noise, name = "Noise", row = 2, col = 0 },
 		{ id = ToolId.Terrace, name = "Terrace", row = 2, col = 1 },
+		{ id = ToolId.Cliff, name = "Cliff", row = 2, col = 2 },
+		{ id = ToolId.Path, name = "Path", row = 3, col = 0 },
+		{ id = ToolId.Clone, name = "Clone", row = 3, col = 1 },
+		{ id = ToolId.Blobify, name = "Blobify", row = 3, col = 2 },
+		{ id = ToolId.Paint, name = "Paint", row = 3, col = 3 },
+		{ id = ToolId.Bridge, name = "Bridge", row = 4, col = 0 },
 	}
 
 	for _, toolInfo in ipairs(sculptTools) do
-		local pos = UDim2.new(0, toolInfo.col * 78, 0, 65 + toolInfo.row * 40)
+		local pos = UDim2.new(0, toolInfo.col * 78, 0, 60 + toolInfo.row * 38)
 		local btn = UIHelpers.createToolButton(mainFrame, toolInfo.id, toolInfo.name, pos)
 		toolButtons[toolInfo.id] = btn
 		btn.MouseButton1Click:Connect(function()
@@ -814,20 +976,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end)
 	end
 
-	UIHelpers.createHeader(mainFrame, "Other Tools", UDim2.new(0, 0, 0, 195))
-	local paintBtn = UIHelpers.createToolButton(mainFrame, ToolId.Paint, "Paint", UDim2.new(0, 0, 0, 220))
-	toolButtons[ToolId.Paint] = paintBtn
-	paintBtn.MouseButton1Click:Connect(function()
-		selectTool(ToolId.Paint)
-	end)
-
-	local bridgeBtn = UIHelpers.createToolButton(mainFrame, ToolId.Bridge, "Bridge", UDim2.new(0, 78, 0, 220))
-	toolButtons[ToolId.Bridge] = bridgeBtn
-	bridgeBtn.MouseButton1Click:Connect(function()
-		selectTool(ToolId.Bridge)
-	end)
-
-	local CONFIG_START_Y = 270
+	local CONFIG_START_Y = 243
 
 	local configContainer = Instance.new("Frame")
 	configContainer.Name = "ConfigContainer"
@@ -891,12 +1040,53 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		1,
 		100,
 		math.floor(S.brushStrength * 100),
-		function(value)
+		function(value: number)
 			S.brushStrength = value / 100
 		end
 	)
 	strengthSliderContainer.LayoutOrder = 2
 	configPanels["strength"] = strengthPanel
+
+	-- Brush Rate Panel
+	local brushRatePanel = UIHelpers.createConfigPanel(configContainer, "brushRate")
+	UIHelpers.createHeader(brushRatePanel, "Brush Rate", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local brushRateButtonsContainer = Instance.new("Frame")
+	brushRateButtonsContainer.BackgroundTransparency = 1
+	brushRateButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+	brushRateButtonsContainer.LayoutOrder = 2
+	brushRateButtonsContainer.Parent = brushRatePanel
+
+	local brushRates = {
+		{ id = "no_repeat", name = "No repeat" },
+		{ id = "on_move_only", name = "On move" },
+		{ id = "very_slow", name = "Very slow" },
+		{ id = "slow", name = "Slow" },
+		{ id = "normal", name = "Normal" },
+		{ id = "fast", name = "Fast" },
+	}
+	local brushRateButtons = {}
+	local function updateBrushRateButtons()
+		for rateId, btn in pairs(brushRateButtons) do
+			btn.BackgroundColor3 = (rateId == S.brushRate) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
+	end
+	for i, rateInfo in ipairs(brushRates) do
+		local btn = UIHelpers.createButton(
+			brushRateButtonsContainer,
+			rateInfo.name,
+			UDim2.new(0, (i - 1) * 78, 0, 0),
+			UDim2.new(0, 70, 0, 28),
+			function()
+				S.brushRate = rateInfo.id
+				updateBrushRateButtons()
+			end
+		)
+		brushRateButtons[rateInfo.id] = btn
+	end
+	updateBrushRateButtons()
+	configPanels["brushRate"] = brushRatePanel
 
 	-- Pivot Panel
 	local pivotPanel = UIHelpers.createConfigPanel(configContainer, "pivot")
@@ -949,22 +1139,77 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		S.hollowEnabled = not S.hollowEnabled
 		updateHollowButton()
 	end)
-	hollowToggleBtn.LayoutOrder = 2
+	if hollowToggleBtn then
+		hollowToggleBtn.LayoutOrder = 2
+	end
 	local _, thicknessSliderContainer, _ = UIHelpers.createSlider(
 		hollowPanel,
 		"Thickness",
 		10,
 		50,
 		math.floor(S.wallThickness * 100),
-		function(val)
+		function(val: number)
 			S.wallThickness = val / 100
 		end
 	)
 	thicknessSliderContainer.LayoutOrder = 3
 	hollowThicknessContainer = thicknessSliderContainer
-	hollowThicknessContainer.Visible = false
+	if hollowThicknessContainer then
+		hollowThicknessContainer.Visible = false
+	end
 	updateHollowButton()
 	configPanels["hollow"] = hollowPanel
+
+	-- Spin Mode Panel
+	local spinPanel = UIHelpers.createConfigPanel(configContainer, "spin")
+	UIHelpers.createHeader(spinPanel, "Spin Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+	local spinButtonsContainer = Instance.new("Frame")
+	spinButtonsContainer.BackgroundTransparency = 1
+	spinButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
+	spinButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+	spinButtonsContainer.LayoutOrder = 2
+	spinButtonsContainer.Parent = spinPanel
+	local spinLayout = Instance.new("UIListLayout")
+	spinLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	spinLayout.Padding = UDim.new(0, 6)
+	spinLayout.Parent = spinButtonsContainer
+	local spinModes = {
+		{ id = SpinMode.Off, name = "Off" },
+		{ id = SpinMode.Full3D, name = "3D" },
+		{ id = SpinMode.XZ, name = "XZ" },
+		{ id = SpinMode.Fast3D, name = "Fast 3D" },
+		{ id = SpinMode.XZFast, name = "Fast XZ" },
+	}
+	local spinButtons: { [string]: TextButton } = {}
+	local function updateSpinButtons()
+		for modeId, btn in pairs(spinButtons) do
+			btn.BackgroundColor3 = (modeId == S.spinMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
+	end
+	for i, modeInfo in ipairs(spinModes) do
+		local btn = Instance.new("TextButton")
+		btn.Name = modeInfo.id
+		btn.Size = UDim2.new(0, 80, 0, 28)
+		btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		btn.BorderSizePixel = 0
+		btn.Font = Enum.Font.Gotham
+		btn.TextSize = 11
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.Text = modeInfo.name
+		btn.LayoutOrder = i
+		btn.Parent = spinButtonsContainer
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = btn
+		btn.MouseButton1Click:Connect(function()
+			S.spinMode = modeInfo.id
+			updateSpinButtons()
+		end)
+		spinButtons[modeInfo.id] = btn
+	end
+	updateSpinButtons()
+	configPanels["spin"] = spinPanel
 
 	-- Plane Lock Panel
 	local planeLockPanel = UIHelpers.createConfigPanel(configContainer, "planeLock")
@@ -1092,7 +1337,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local materialGridContainer = Instance.new("Frame")
 	materialGridContainer.Name = "MaterialGrid"
 	materialGridContainer.BackgroundTransparency = 1
-	materialGridContainer.Size = UDim2.new(1, 0, 0, 630)
+	materialGridContainer.Size = UDim2.new(1, 0, 0, 0)
+	materialGridContainer.AutomaticSize = Enum.AutomaticSize.Y
 	materialGridContainer.LayoutOrder = 2
 	materialGridContainer.Parent = materialPanel
 	local materialButtons = {}
@@ -1107,14 +1353,20 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			end
 		end
 	end
+	local materialGridLayout = Instance.new("UIGridLayout")
+	materialGridLayout.CellSize = UDim2.new(0, 72, 0, 94)
+	materialGridLayout.CellPadding = UDim2.new(0, 6, 0, 8)
+	materialGridLayout.FillDirection = Enum.FillDirection.Horizontal
+	materialGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	materialGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	materialGridLayout.Parent = materialGridContainer
+
 	for i, matInfo in ipairs(BrushData.Materials) do
-		local row = math.floor((i - 1) / 4)
-		local col = (i - 1) % 4
 		local container = Instance.new("Frame")
 		container.Name = matInfo.key
 		container.BackgroundTransparency = 1
-		container.Position = UDim2.new(0, col * 78, 0, row * 102)
 		container.Size = UDim2.new(0, 72, 0, 94)
+		container.LayoutOrder = i
 		container.Parent = materialGridContainer
 		local tileBtn = Instance.new("ImageButton")
 		tileBtn.Name = "TileButton"
@@ -1151,6 +1403,181 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	end
 	updateMaterialButtons()
 	configPanels["material"] = materialPanel
+
+	-- ============================================================================
+	-- Path Tool Panels
+	-- ============================================================================
+
+	-- Path Depth Panel
+	local pathDepthPanel = UIHelpers.createConfigPanel(configContainer, "pathDepth")
+	UIHelpers.createHeader(pathDepthPanel, "Path Depth", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local pathDepthDesc = Instance.new("TextLabel")
+	pathDepthDesc.BackgroundTransparency = 1
+	pathDepthDesc.Size = UDim2.new(1, 0, 0, 16)
+	pathDepthDesc.Font = Enum.Font.Gotham
+	pathDepthDesc.TextSize = 11
+	pathDepthDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+	pathDepthDesc.TextXAlignment = Enum.TextXAlignment.Left
+	pathDepthDesc.Text = "How deep the channel is in studs"
+	pathDepthDesc.LayoutOrder = 2
+	pathDepthDesc.Parent = pathDepthPanel
+
+	local _, pathDepthContainer, _setPathDepth = UIHelpers.createSlider(pathDepthPanel, "Depth", 2, 20, S.pathDepth, function(value)
+		S.pathDepth = value
+	end)
+	pathDepthContainer.LayoutOrder = 3
+
+	configPanels["pathDepth"] = pathDepthPanel
+
+	-- Path Profile Panel
+	local pathProfilePanel = UIHelpers.createConfigPanel(configContainer, "pathProfile")
+	UIHelpers.createHeader(pathProfilePanel, "Path Profile", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local pathProfileButtonsContainer = Instance.new("Frame")
+	pathProfileButtonsContainer.BackgroundTransparency = 1
+	pathProfileButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+	pathProfileButtonsContainer.LayoutOrder = 2
+	pathProfileButtonsContainer.Parent = pathProfilePanel
+
+	local pathProfiles = { { id = "V", name = "V" }, { id = "U", name = "U" }, { id = "Flat", name = "Flat" } }
+	local pathProfileButtons = {}
+	local function updatePathProfileButtons()
+		for profileId, btn in pairs(pathProfileButtons) do
+			btn.BackgroundColor3 = (profileId == S.pathProfile) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
+	end
+
+	for i, profileInfo in ipairs(pathProfiles) do
+		local btn = UIHelpers.createButton(
+			pathProfileButtonsContainer,
+			profileInfo.name,
+			UDim2.new(0, (i - 1) * 80, 0, 0),
+			UDim2.new(0, 70, 0, 28),
+			function()
+				S.pathProfile = profileInfo.id
+				updatePathProfileButtons()
+			end
+		)
+		pathProfileButtons[profileInfo.id] = btn
+	end
+	updatePathProfileButtons()
+
+	configPanels["pathProfile"] = pathProfilePanel
+
+	-- Path Direction Info Panel
+	local pathDirectionInfoPanel = UIHelpers.createConfigPanel(configContainer, "pathDirectionInfo")
+	UIHelpers.createHeader(pathDirectionInfoPanel, "Path Direction", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local pathDirDesc = Instance.new("TextLabel")
+	pathDirDesc.BackgroundTransparency = 1
+	pathDirDesc.Size = UDim2.new(1, 0, 0, 32)
+	pathDirDesc.Font = Enum.Font.Gotham
+	pathDirDesc.TextSize = 12
+	pathDirDesc.TextColor3 = Color3.fromRGB(255, 255, 255)
+	pathDirDesc.TextXAlignment = Enum.TextXAlignment.Left
+	pathDirDesc.TextWrapped = true
+	pathDirDesc.Text = "Drag mouse to set channel direction"
+	pathDirDesc.LayoutOrder = 2
+	pathDirDesc.Parent = pathDirectionInfoPanel
+
+	configPanels["pathDirectionInfo"] = pathDirectionInfoPanel
+
+	-- ============================================================================
+	-- Clone Tool Panels
+	-- ============================================================================
+
+	local cloneInfoPanel = UIHelpers.createConfigPanel(configContainer, "cloneInfo")
+	UIHelpers.createHeader(cloneInfoPanel, "Clone Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local cloneInstructions = Instance.new("TextLabel")
+	cloneInstructions.BackgroundTransparency = 1
+	cloneInstructions.Size = UDim2.new(1, 0, 0, 48)
+	cloneInstructions.Font = Enum.Font.Gotham
+	cloneInstructions.TextSize = 12
+	cloneInstructions.TextColor3 = Color3.fromRGB(255, 255, 255)
+	cloneInstructions.TextXAlignment = Enum.TextXAlignment.Left
+	cloneInstructions.TextWrapped = true
+	cloneInstructions.Text = "Alt+Click to sample source, then click to stamp"
+	cloneInstructions.LayoutOrder = 2
+	cloneInstructions.Parent = cloneInfoPanel
+
+	local cloneStatusLabel = Instance.new("TextLabel")
+	cloneStatusLabel.Name = "Status"
+	cloneStatusLabel.BackgroundTransparency = 1
+	cloneStatusLabel.Size = UDim2.new(1, 0, 0, 20)
+	cloneStatusLabel.Font = Enum.Font.Gotham
+	cloneStatusLabel.TextSize = 11
+	cloneStatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+	cloneStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	cloneStatusLabel.Text = "Status: No source sampled"
+	cloneStatusLabel.LayoutOrder = 3
+	cloneStatusLabel.Parent = cloneInfoPanel
+
+	configPanels["cloneInfo"] = cloneInfoPanel
+
+	-- ============================================================================
+	-- Blobify Tool Panels
+	-- ============================================================================
+
+	-- Blob Intensity Panel
+	local blobIntensityPanel = UIHelpers.createConfigPanel(configContainer, "blobIntensity")
+	UIHelpers.createHeader(blobIntensityPanel, "Blob Intensity", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local blobIntensityDesc = Instance.new("TextLabel")
+	blobIntensityDesc.BackgroundTransparency = 1
+	blobIntensityDesc.Size = UDim2.new(1, 0, 0, 16)
+	blobIntensityDesc.Font = Enum.Font.Gotham
+	blobIntensityDesc.TextSize = 11
+	blobIntensityDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+	blobIntensityDesc.TextXAlignment = Enum.TextXAlignment.Left
+	blobIntensityDesc.Text = "How much the blob protrudes"
+	blobIntensityDesc.LayoutOrder = 2
+	blobIntensityDesc.Parent = blobIntensityPanel
+
+	local _, blobIntensityContainer, _setBlobIntensity = UIHelpers.createSlider(
+		blobIntensityPanel,
+		"Intensity",
+		10,
+		100,
+		math.floor(S.blobIntensity * 100),
+		function(value: number)
+			S.blobIntensity = value / 100
+		end
+	)
+	blobIntensityContainer.LayoutOrder = 3
+
+	configPanels["blobIntensity"] = blobIntensityPanel
+
+	-- Blob Smoothness Panel
+	local blobSmoothnessPanel = UIHelpers.createConfigPanel(configContainer, "blobSmoothness")
+	UIHelpers.createHeader(blobSmoothnessPanel, "Blob Smoothness", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+	local blobSmoothnessDesc = Instance.new("TextLabel")
+	blobSmoothnessDesc.BackgroundTransparency = 1
+	blobSmoothnessDesc.Size = UDim2.new(1, 0, 0, 16)
+	blobSmoothnessDesc.Font = Enum.Font.Gotham
+	blobSmoothnessDesc.TextSize = 11
+	blobSmoothnessDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+	blobSmoothnessDesc.TextXAlignment = Enum.TextXAlignment.Left
+	blobSmoothnessDesc.Text = "How smooth/organic the blob shape is"
+	blobSmoothnessDesc.LayoutOrder = 2
+	blobSmoothnessDesc.Parent = blobSmoothnessPanel
+
+	local _, blobSmoothnessContainer, _setBlobSmoothness = UIHelpers.createSlider(
+		blobSmoothnessPanel,
+		"Smoothness",
+		10,
+		100,
+		math.floor(S.blobSmoothness * 100),
+		function(value: number)
+			S.blobSmoothness = value / 100
+		end
+	)
+	blobSmoothnessContainer.LayoutOrder = 3
+
+	configPanels["blobSmoothness"] = blobSmoothnessPanel
 
 	-- Bridge Info Panel
 	local bridgeInfoPanel = UIHelpers.createConfigPanel(configContainer, "bridgeInfo")
@@ -1228,6 +1655,16 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		variantBtn.MouseButton1Click:Connect(function()
 			S.bridgeVariant = variant
 			updateVariantButtons()
+			-- Initialize curves when switching to MegaMeander
+			if variant == "MegaMeander" and S.bridgeStartPoint and S.bridgeEndPoint then
+				if #S.bridgeCurves == 0 then
+					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+				end
+			else
+				-- Clear curves when switching away from MegaMeander
+				S.bridgeCurves = {}
+			end
+			updateBridgeStatus()
 			if updateBridgePreview then
 				updateBridgePreview()
 			end
@@ -1243,26 +1680,107 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		function()
 			S.bridgeStartPoint = nil
 			S.bridgeEndPoint = nil
+			S.bridgeCurves = {} -- Clear curves when clearing points
 			bridgeStatusLabel.Text = "Status: Click to set START"
 			for _, part in ipairs(S.bridgePreviewParts) do
 				part:Destroy()
 			end
 			S.bridgePreviewParts = {}
+			updateBridgeStatus()
 		end
 	)
 	clearBridgeBtn.LayoutOrder = 10
+	
+	-- Meander controls (only visible when both points are set and MegaMeander is selected)
+	local meanderControlsContainer = Instance.new("Frame")
+	meanderControlsContainer.Name = "MeanderControls"
+	meanderControlsContainer.BackgroundTransparency = 1
+	meanderControlsContainer.Size = UDim2.new(1, 0, 0, 0)
+	meanderControlsContainer.AutomaticSize = Enum.AutomaticSize.Y
+	meanderControlsContainer.LayoutOrder = 11
+	meanderControlsContainer.Visible = false
+	meanderControlsContainer.Parent = bridgeInfoPanel
+	
+	local meanderLayout = Instance.new("UIListLayout")
+	meanderLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	meanderLayout.Padding = UDim.new(0, 6)
+	meanderLayout.Parent = meanderControlsContainer
+	
+	local redoLayoutBtn = UIHelpers.createButton(
+		meanderControlsContainer,
+		"🔄 Re-randomize Layout",
+		UDim2.new(0, 0, 0, 0),
+		UDim2.new(1, 0, 0, 32),
+		function()
+			if S.bridgeStartPoint and S.bridgeEndPoint then
+				-- Generate new random curves for Mega Meander
+				if S.bridgeVariant == "MegaMeander" then
+					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+				else
+					-- For other variants, generate a few curves for added complexity
+					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(math.min(3, S.bridgeMeanderComplexity))
+				end
+				if updateBridgePreview then
+					updateBridgePreview()
+				end
+			end
+		end
+	)
+	redoLayoutBtn.LayoutOrder = 1
+	
+	local addCurveBtn = UIHelpers.createButton(
+		meanderControlsContainer,
+		"➕ Add Curve",
+		UDim2.new(0, 0, 0, 0),
+		UDim2.new(1, 0, 0, 32),
+		function()
+			if #S.bridgeCurves < 50 then
+				table.insert(S.bridgeCurves, BridgePathGenerator.generateRandomCurve())
+				if updateBridgePreview then
+					updateBridgePreview()
+				end
+			end
+		end
+	)
+	addCurveBtn.LayoutOrder = 2
+	
+	local complexityLabel = UIHelpers.createHeader(meanderControlsContainer, "Meander Complexity", UDim2.new(0, 0, 0, 0))
+	complexityLabel.LayoutOrder = 3
+	
+	local _, complexityContainer, _setComplexity = UIHelpers.createSlider(
+		meanderControlsContainer,
+		"Curves",
+		1,
+		50,
+		S.bridgeMeanderComplexity,
+		function(value: number)
+			S.bridgeMeanderComplexity = value
+			if S.bridgeVariant == "MegaMeander" and S.bridgeStartPoint and S.bridgeEndPoint then
+				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+				if updateBridgePreview then
+					updateBridgePreview()
+				end
+			end
+		end
+	)
+	complexityContainer.LayoutOrder = 4
+	
 	configPanels["bridgeInfo"] = bridgeInfoPanel
 
 	local function updateBridgeStatus()
 		if S.bridgeStartPoint and S.bridgeEndPoint then
 			bridgeStatusLabel.Text = "Status: READY - Click to build!"
 			bridgeStatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+			-- Show meander controls only for MegaMeander variant
+			meanderControlsContainer.Visible = (S.bridgeVariant == "MegaMeander")
 		elseif S.bridgeStartPoint then
 			bridgeStatusLabel.Text = "Status: Click to set END"
 			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+			meanderControlsContainer.Visible = false
 		else
 			bridgeStatusLabel.Text = "Status: Click to set START"
 			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+			meanderControlsContainer.Visible = false
 		end
 	end
 
@@ -1295,26 +1813,64 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			endMarker.Transparency = 0.5
 			endMarker.Parent = workspace
 			table.insert(S.bridgePreviewParts, endMarker)
+			
 			local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
 			local steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
-			local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
-			local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
-			for i = 1, steps - 1 do
-				local t = i / steps
-				local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-				local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
-				local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
-				local pathMarker = Instance.new("Part")
-				pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
-				pathMarker.CFrame = CFrame.new(pos + finalOffset)
-				pathMarker.Anchored = true
-				pathMarker.CanCollide = false
-				pathMarker.Material = Enum.Material.Neon
-				pathMarker.Color = Color3.fromRGB(100, 200, 255)
-				pathMarker.Transparency = 0.7
-				pathMarker.Shape = Enum.PartType.Ball
-				pathMarker.Parent = workspace
-				table.insert(S.bridgePreviewParts, pathMarker)
+			
+			-- Use advanced path generation for MegaMeander mode
+			if S.bridgeVariant == "MegaMeander" then
+				-- Initialize curves if empty
+				if #S.bridgeCurves == 0 then
+					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+				end
+				
+				-- Generate terrain-aware meandering path
+				local path = BridgePathGenerator.generateMeanderingPath(
+					S.bridgeStartPoint,
+					S.bridgeEndPoint,
+					S.bridgeCurves,
+					S.terrain,
+					steps,
+					true -- terrain awareness enabled
+				)
+				
+				-- Visualize path points
+				for i, pathPoint in ipairs(path) do
+					if i > 1 and i < #path then -- Skip first and last (already have markers)
+						local pathMarker = Instance.new("Part")
+						pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
+						pathMarker.CFrame = CFrame.new(pathPoint.position)
+						pathMarker.Anchored = true
+						pathMarker.CanCollide = false
+						pathMarker.Material = Enum.Material.Neon
+						pathMarker.Color = Color3.fromRGB(100, 200, 255)
+						pathMarker.Transparency = 0.7
+						pathMarker.Shape = Enum.PartType.Ball
+						pathMarker.Parent = workspace
+						table.insert(S.bridgePreviewParts, pathMarker)
+					end
+				end
+			else
+				-- Use original path generation for other variants
+				local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
+				local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
+				for i = 1, steps - 1 do
+					local t = i / steps
+					local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
+					local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
+					local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
+					local pathMarker = Instance.new("Part")
+					pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
+					pathMarker.CFrame = CFrame.new(pos + finalOffset)
+					pathMarker.Anchored = true
+					pathMarker.CanCollide = false
+					pathMarker.Material = Enum.Material.Neon
+					pathMarker.Color = Color3.fromRGB(100, 200, 255)
+					pathMarker.Transparency = 0.7
+					pathMarker.Shape = Enum.PartType.Ball
+					pathMarker.Parent = workspace
+					table.insert(S.bridgePreviewParts, pathMarker)
+				end
 			end
 		end
 	end
@@ -1327,19 +1883,46 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
 		local steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
 		local radius = S.bridgeWidth * Constants.VOXEL_RESOLUTION / 2
-		local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
-		local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
-		for i = 0, steps do
-			local t = i / steps
-			local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-			local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
-			local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
-			local bridgePos = pos + finalOffset
-			S.terrain:FillBall(bridgePos, radius, S.brushMaterial)
+		
+		-- Use advanced path generation for MegaMeander mode
+		if S.bridgeVariant == "MegaMeander" then
+			-- Initialize curves if empty
+			if #S.bridgeCurves == 0 then
+				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+			end
+			
+			-- Generate terrain-aware meandering path
+			local path = BridgePathGenerator.generateMeanderingPath(
+				S.bridgeStartPoint,
+				S.bridgeEndPoint,
+				S.bridgeCurves,
+				S.terrain,
+				steps,
+				true -- terrain awareness enabled
+			)
+			
+			-- Build bridge along the generated path
+			for _, pathPoint in ipairs(path) do
+				S.terrain:FillBall(pathPoint.position, radius, S.brushMaterial)
+			end
+		else
+			-- Use original path generation for other variants
+			local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
+			local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
+			for i = 0, steps do
+				local t = i / steps
+				local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
+				local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
+				local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
+				local bridgePos = pos + finalOffset
+				S.terrain:FillBall(bridgePos, radius, S.brushMaterial)
+			end
 		end
+		
 		ChangeHistoryService:SetWaypoint("TerrainBridge_End")
 		S.bridgeStartPoint = nil
 		S.bridgeEndPoint = nil
+		S.bridgeCurves = {} -- Clear curves after building
 		updateBridgeStatus()
 		updateBridgePreview()
 	end
@@ -1347,7 +1930,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Config Panel Visibility Logic
 	local configLayout = Instance.new("UIListLayout")
 	configLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	configLayout.Padding = UDim.new(0, 10)
+	configLayout.Padding = UDim.new(0, 8)
 	configLayout.Parent = configContainer
 
 	local panelOrder = { "bridgeInfo", "brushShape", "strength", "pivot", "hollow", "planeLock", "flattenMode", "material" }
@@ -1385,12 +1968,14 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			end
 		end
 		task.defer(function()
-			local totalHeight = CONFIG_START_Y + configLayout.AbsoluteContentSize.Y + 50
+			local totalHeight = CONFIG_START_Y + configLayout.AbsoluteContentSize.Y + 20
 			mainFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight, 400))
 		end)
 	end
 
-	updateConfigPanelVisibility()
+	if updateConfigPanelVisibility then
+		updateConfigPanelVisibility()
+	end
 	updateToolButtonVisuals()
 	pluginInstance:Activate(true)
 
@@ -1411,10 +1996,15 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				if hitPosition then
 					if not S.bridgeStartPoint then
 						S.bridgeStartPoint = hitPosition
+						S.bridgeCurves = {} -- Clear curves when setting new start point
 						updateBridgeStatus()
 						updateBridgePreview()
 					elseif not S.bridgeEndPoint then
 						S.bridgeEndPoint = hitPosition
+						-- Initialize curves for MegaMeander when end point is set
+						if S.bridgeVariant == "MegaMeander" and #S.bridgeCurves == 0 then
+							S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+						end
 						updateBridgeStatus()
 						updateBridgePreview()
 					else
@@ -1422,6 +2012,58 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 					end
 				end
 				return
+			end
+
+			-- Clone tool: Alt+Click to sample source
+			if S.currentTool == ToolId.Clone then
+				local altHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
+				if altHeld then
+					local hitPosition = getTerrainHit()
+					if hitPosition then
+						-- Sample terrain in brush region
+						local regionSize = Vector3.new(S.brushSizeX, S.brushSizeY, S.brushSizeZ) * Constants.VOXEL_RESOLUTION
+						local region = Region3.new(hitPosition - regionSize * 0.5, hitPosition + regionSize * 0.5)
+						local materials: { { { Enum.Material } } }
+						local occupancies: { { { number } } }
+						materials, occupancies = S.terrain:ReadVoxels(region, Constants.VOXEL_RESOLUTION)
+
+						-- Store in buffer
+						S.cloneSourceBuffer = {}
+						local sizeX = #materials
+						local sizeY = #materials[1]
+						local sizeZ = #materials[1][1]
+						local centerX = math.floor(sizeX / 2) + 1
+						local centerY = math.floor(sizeY / 2) + 1
+						local centerZ = math.floor(sizeZ / 2) + 1
+
+						local buffer =
+							S.cloneSourceBuffer :: { [number]: { [number]: { [number]: { occupancy: number, material: Enum.Material } } } }
+						for x = 1, sizeX do
+							buffer[x] = {}
+							for y = 1, sizeY do
+								buffer[x][y] = {}
+								for z = 1, sizeZ do
+									buffer[x][y][z] = {
+										occupancy = occupancies[x][y][z],
+										material = materials[x][y][z],
+									}
+								end
+							end
+						end
+
+						S.cloneSourceCenter = Vector3.new(centerX, centerY, centerZ)
+
+						-- Update status label
+						local cloneInfoPanel = configPanels["cloneInfo"]
+						if cloneInfoPanel then
+							local cloneStatusLabel = cloneInfoPanel:FindFirstChild("Status") :: TextLabel?
+							if cloneStatusLabel then
+								cloneStatusLabel.Text = "Status: Source sampled! Click to stamp."
+							end
+						end
+					end
+					return
+				end
 			end
 			if S.planeLockMode == PlaneLockType.Auto then
 				local hitPosition = getTerrainHitRaw()
@@ -1476,9 +2118,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			if sizingMode == "uniform" then
 				S.brushSizeY = newSize
 				S.brushSizeZ = newSize
-			elseif sizingMode == "cylinder" then
-				S.brushSizeZ = newSize
 			end
+			-- For "box" mode, only X is changed (Y and Z remain independent)
 		elseif ctrlHeld then
 			local delta = scrollUp and 10 or -10
 			local newStrength = math.clamp(math.floor(S.brushStrength * 100) + delta, 1, 100)
@@ -1507,7 +2148,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	end))
 
 	S.renderConnection = RunService.RenderStepped:Connect(function()
-		if S.currentTool ~= ToolId.None and parentGui.Enabled then
+		local gui = parentGui :: GuiObject
+		local isVisible = if gui:IsA("ScreenGui") then (gui :: ScreenGui).Enabled else true
+		if S.currentTool ~= ToolId.None and isVisible then
 			local hitPosition = getTerrainHit()
 			local brushPosition = hitPosition
 			if S.brushLocked and S.lockedBrushPosition then
@@ -1529,7 +2172,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			hidePlaneVisualization()
 		end
 	end)
-	addConnection(S.renderConnection)
+	if S.renderConnection then
+		addConnection(S.renderConnection)
+	end
 
 	parentGui.AncestryChanged:Connect(function()
 		if not parentGui:IsDescendantOf(game) then
@@ -1546,7 +2191,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end
 	end)
 
-	print("[TerrainEditorFork] v" .. VERSION .. " loaded!")
+	print("========================================")
+	print("[TerrainEditorFork] Version: " .. VERSION)
+	print("========================================")
 
 	return function()
 		for _, conn in ipairs(allConnections) do
@@ -1571,4 +2218,4 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	end
 end
 
-return TerrainEditorModule
+	return TerrainEditorModule

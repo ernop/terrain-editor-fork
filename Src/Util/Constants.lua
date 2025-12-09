@@ -1,3 +1,5 @@
+--!strict
+
 local Plugin = script.Parent.Parent.Parent
 
 local TerrainEnums = require(Plugin.Src.Util.TerrainEnums)

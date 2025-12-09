@@ -45,92 +45,142 @@ BrushData.ShapeSizingMode = {
 }
 
 -- Tool config definitions: which settings each tool needs
+-- Rationale:
+-- - Material: Only for tools that CREATE/CHANGE terrain material (Add, Paint, Bridge)
+-- - Hollow: Only for tools that create/remove volume (Add, Subtract, Clone)
+-- - Plane Lock: Useful for most tools, especially Flatten
+-- - Pivot: Useful for positioning brush in most tools
 BrushData.ToolConfigs = {
+	-- Add: Creates new terrain - needs material picker and hollow mode
 	[ToolId.Add] = {
 		"brushShape",
-		"handleHint",
 		"strength",
-		"actionDelay",
+		"brushRate",
 		"pivot",
-		"spin",
 		"hollow",
 		"planeLock",
-		"ignoreWater",
+		"spin",
 		"material",
 	},
+	-- Subtract: Removes terrain - needs hollow mode, no material
 	[ToolId.Subtract] = {
 		"brushShape",
-		"handleHint",
 		"strength",
-		"actionDelay",
+		"brushRate",
 		"pivot",
-		"spin",
 		"hollow",
 		"planeLock",
-		"ignoreWater",
+		"spin",
 	},
-	[ToolId.Grow] = { "brushShape", "handleHint", "strength", "actionDelay", "pivot", "spin", "hollow", "planeLock", "ignoreWater" },
-	[ToolId.Erode] = { "brushShape", "handleHint", "strength", "actionDelay", "pivot", "spin", "hollow", "planeLock", "ignoreWater" },
+	-- Grow: Grows existing terrain - no material, no hollow
+	[ToolId.Grow] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"planeLock",
+		"spin",
+	},
+	-- Erode: Wears terrain down - no material, no hollow
+	[ToolId.Erode] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"planeLock",
+		"spin",
+	},
+	-- Smooth: Smooths surface - no material, no hollow
 	[ToolId.Smooth] = {
 		"brushShape",
-		"handleHint",
 		"strength",
+		"brushRate",
 		"pivot",
-		"spin",
-		"hollow",
 		"planeLock",
-		"ignoreWater",
+		"spin",
 	},
+	-- Flatten: Levels terrain - needs flatten mode, plane lock is very useful
 	[ToolId.Flatten] = {
 		"brushShape",
-		"handleHint",
 		"strength",
+		"brushRate",
 		"pivot",
-		"spin",
-		"hollow",
 		"planeLock",
-		"ignoreWater",
 		"flattenMode",
+		"spin",
 	},
+	-- Noise: Adds procedural noise - no material, no hollow
 	[ToolId.Noise] = {
 		"brushShape",
-		"handleHint",
 		"strength",
-		"noiseScale",
-		"noiseIntensity",
-		"noiseSeed",
+		"brushRate",
 		"pivot",
 		"spin",
-		"hollow",
-		"planeLock",
-		"ignoreWater",
+		-- Note: noiseScale, noiseIntensity, noiseSeed panels not yet implemented
 	},
+	-- Terrace: Creates stepped terraces - no material, no hollow
 	[ToolId.Terrace] = {
 		"brushShape",
-		"handleHint",
 		"strength",
-		"stepHeight",
-		"stepSharpness",
+		"brushRate",
 		"pivot",
 		"spin",
-		"hollow",
-		"planeLock",
-		"ignoreWater",
+		-- Note: stepHeight, stepSharpness panels not yet implemented
 	},
+	-- Cliff: Creates cliff faces - no material, no hollow
 	[ToolId.Cliff] = {
 		"brushShape",
-		"handleHint",
 		"strength",
-		"cliffAngle",
-		"cliffDirectionInfo",
+		"brushRate",
 		"pivot",
 		"spin",
-		"hollow",
-		"planeLock",
-		"ignoreWater",
+		-- Note: cliffAngle, cliffDirectionInfo panels not yet implemented
 	},
-	[ToolId.Paint] = { "brushShape", "handleHint", "strength", "spin", "hollow", "material", "autoMaterial" },
-	[ToolId.Bridge] = { "bridgeInfo", "strength", "material" },
+	-- Path: Carves a path/channel - no material, no hollow (it's already a channel)
+	[ToolId.Path] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"spin",
+		"pathDepth",
+		"pathProfile",
+		"pathDirectionInfo",
+	},
+	-- Clone: Copies terrain - hollow might be useful for copying hollow structures
+	[ToolId.Clone] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"hollow",
+		"spin",
+		"cloneInfo",
+	},
+	-- Blobify: Creates organic blobs - no material, no hollow
+	[ToolId.Blobify] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"spin",
+		"blobIntensity",
+		"blobSmoothness",
+	},
+	-- Paint: Changes material only - needs material picker, no hollow or pivot needed
+	[ToolId.Paint] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"spin",
+		"material",
+		-- Note: autoMaterial panel not yet implemented
+	},
+	-- Bridge: Creates bridge terrain - needs material, special bridge controls
+	[ToolId.Bridge] = {
+		"bridgeInfo",
+		"strength",
+		"material",
+	},
 }
 
 -- Bridge variant definitions

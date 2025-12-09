@@ -1064,5 +1064,177 @@ Key principles:
 
 ---
 
+## For Future Agents
+
+This section provides guidance for AI agents working on implementing these tools in future sessions.
+
+### Context You Need
+
+Before starting implementation:
+
+1. **Read `README.md`** — Project overview and goals
+2. **Read `DEV_SETUP.md`** or cursor rules — Development workflow (rojo serve, hot reload)
+3. **Read `docs/module-traits-and-properties.md`** — How Lua modules work in this codebase
+4. **Skim `TerrainEditorModule.lua`** — Main plugin file, see Bridge tool as pattern
+5. **Skim `Src/TerrainOperations/performTerrainBrushOperation.lua`** — Brush operation dispatcher
+
+### Implementation Order Recommendation
+
+**Start with these (highest value, lowest risk):**
+
+1. **Slope Paint** — Simple, extends existing Paint, immediate visual impact
+2. **Paint Megarandomizer** — High impact, follows Paint pattern, just needs UI
+3. **Noise Sculpt variants** — Partially exists, add variant system
+4. **Trail Tool** — Clone Bridge, add ground-conforming raycast
+
+**Then these (medium complexity):**
+
+5. **River/Channel Tool** — Bridge + carving, clear algorithm
+6. **Cavity Fill** — Variation on Grow operation
+7. **Paint Can (Flood)** — New algorithm but isolated
+8. **Stalactite Generator** — Self-contained, clear output
+
+**Advanced (need careful architecture):**
+
+9. **Symmetricalizer** — Full spec above, high complexity but high value
+10. **Clone/Stamp** — Region capture/paste infrastructure
+11. **Tendril Generator** — Growth simulation
+12. **Melter** — Multi-pass physics simulation
+
+### Key Patterns to Follow
+
+#### Adding a New Brush Tool
+
+```lua
+-- 1. Add to TerrainEnums.lua
+TerrainEnums.ToolId = {
+    -- existing...
+    NewTool = "NewTool",
+}
+
+-- 2. Add ToolConfig in TerrainEditorModule.lua
+local ToolConfigs = {
+    [ToolId.NewTool] = { "brushShape", "strength", "customPanel", "material" },
+}
+
+-- 3. Add case in performTerrainBrushOperation.lua
+elseif tool == ToolId.NewTool then
+    SculptOperations.newTool(sculptSettings)
+
+-- 4. Add operation in SculptOperations.lua
+local function newTool(options)
+    -- per-voxel logic
+end
+
+-- 5. Add UI panel in TerrainEditorModule.lua (if needed)
+local customPanel = createConfigPanel("customPanel")
+-- ... build UI ...
+configPanels["customPanel"] = customPanel
+```
+
+#### Adding a Path-Based Tool (like Bridge)
+
+```lua
+-- 1. Add state variables
+local newToolStartPoint: Vector3? = nil
+local newToolEndPoint: Vector3? = nil
+local newToolPreviewParts: { BasePart } = {}
+local newToolVariant: string = "Default"
+
+-- 2. Add variant definitions
+local NewToolVariants = { "Default", "Variant2", "Variant3" }
+
+-- 3. Add offset/path function
+local function getNewToolOffset(t, distance, variant)
+    -- return Vector3 offset at parameter t
+end
+
+-- 4. Add preview function
+local function updateNewToolPreview()
+    -- clear old parts, create new preview
+end
+
+-- 5. Add build function
+local function buildNewTool()
+    ChangeHistoryService:SetWaypoint("NewTool_Start")
+    -- iterate path, modify terrain
+    ChangeHistoryService:SetWaypoint("NewTool_End")
+end
+
+-- 6. Add UI panel with variant buttons
+-- (follow Bridge tool pattern exactly)
+
+-- 7. Wire up mouse handling in tool activation
+```
+
+### Testing Checklist
+
+For each tool implementation:
+
+- [ ] Tool appears in UI and is selectable
+- [ ] Preview visualization works
+- [ ] Basic operation produces expected terrain
+- [ ] All variants work correctly
+- [ ] Undo/redo works (waypoints set)
+- [ ] No errors in Output
+- [ ] Performance acceptable for large brushes
+- [ ] Cleanup happens on tool switch / plugin close
+
+### Common Pitfalls
+
+1. **Forgetting `ChangeHistoryService:SetWaypoint()`** — Breaks undo
+2. **Not cleaning up preview parts** — Memory leak, visual artifacts
+3. **Modifying `readOccupancies` instead of `writeOccupancies`** — Breaks neighbor reads
+4. **Using wrong coordinate space** — World vs voxel vs local brush coordinates
+5. **Not handling edge cases** — Zero brush size, brush at world boundary
+6. **Blocking main thread** — Long operations need chunking or background
+
+### Session Handoff Template
+
+When ending a session, leave a note:
+
+```markdown
+## Session N: [Tool Name]
+
+**Status:** [Complete / In Progress / Blocked]
+
+**What was done:**
+- Implemented X
+- Added Y
+- Fixed Z
+
+**What's next:**
+- Finish A
+- Test B
+- Polish C
+
+**Known issues:**
+- Issue 1: description
+- Issue 2: description
+
+**Files modified:**
+- path/to/file1.lua
+- path/to/file2.lua
+```
+
+### Questions to Ask User
+
+If uncertain:
+
+1. "Should this tool have its own tab or go in Edit tab?"
+2. "What should the default parameter values be?"
+3. "How should this interact with Ignore Water?"
+4. "Should this support all brush shapes or just sphere?"
+5. "What's the priority: polish this tool or start next one?"
+
+### Resources
+
+- **Roblox Terrain API:** `terrain:ReadVoxels()`, `terrain:WriteVoxels()`, `terrain:FillBall()`, etc.
+- **Perlin noise:** `math.noise(x, y, z)` returns -0.5 to 0.5
+- **Existing patterns:** Bridge tool (path), Add tool (brush), Flatten tool (plane)
+- **UI patterns:** Variant buttons, sliders, material grid — all exist in codebase
+
+---
+
 *End of document*
 

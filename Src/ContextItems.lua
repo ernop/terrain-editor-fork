@@ -1,3 +1,5 @@
+--!strict
+
 local Plugin = script.Parent.Parent
 
 local Framework = require(Plugin.Packages.Framework)
@@ -40,5 +42,5 @@ return {
 	SeaLevel = require(TerrainInterfaces.TerrainSeaLevel),
 
 	ImageLoader = require(script.Parent.Util.ImageLoader),
-	CalloutController =  require(script.Parent.Util.CalloutController),
+	CalloutController = require(script.Parent.Util.CalloutController),
 }

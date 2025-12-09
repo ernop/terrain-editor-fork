@@ -1,3 +1,4 @@
+--!strict
 
 --[[
 	Knows what tool is currently selected

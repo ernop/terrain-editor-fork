@@ -1393,6 +1393,11 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if input.KeyCode == Enum.KeyCode.Q and not powers.fly then
 		turnOffAllPowers()
 	end
+
+	-- X always turns off all powers
+	if input.KeyCode == Enum.KeyCode.X then
+		turnOffAllPowers()
+	end
 end)
 
 -- Give weapon on load

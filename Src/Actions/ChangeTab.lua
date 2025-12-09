@@ -1,3 +1,5 @@
+--!strict
+
 --[[
 	Fired when the tab is changed
 ]]

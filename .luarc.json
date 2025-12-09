@@ -1,0 +1,36 @@
+{
+	"$schema": "https://raw.githubusercontent.com/SuperiorServers/dash-configs/main/schemas/luarc.schema.json",
+	"language": {
+		"mode": "strict"
+	},
+	"types": {
+		"roblox": true
+	},
+	"lint": {
+		"globals": [
+			"game",
+			"workspace",
+			"script",
+			"plugin"
+		]
+	},
+	"workspace": {
+		"library": [
+			"Packages"
+		],
+		"ignoreDir": [
+			"node_modules",
+			"Bin"
+		]
+	},
+	"diagnostics": {
+		"globals": [
+			"game",
+			"workspace",
+			"script",
+			"plugin"
+		],
+		"disable": []
+	}
+}
+

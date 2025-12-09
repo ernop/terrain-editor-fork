@@ -1,3 +1,5 @@
+--!strict
+
 local Plugin = script.Parent.Parent.Parent
 local Cryo = require(Plugin.Packages.Cryo)
 

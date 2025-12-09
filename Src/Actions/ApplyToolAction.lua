@@ -1,3 +1,5 @@
+--!strict
+
 local Action = require(script.Parent.Action)
 
 -- This action allow us to reuse an action across multiple reducers

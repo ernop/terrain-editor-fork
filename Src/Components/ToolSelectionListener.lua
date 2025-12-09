@@ -1,3 +1,5 @@
+--!strict
+
 local Plugin = script.Parent.Parent.Parent
 
 local Framework = require(Plugin.Packages.Framework)

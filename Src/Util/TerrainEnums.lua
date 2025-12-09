@@ -1,3 +1,5 @@
+--!strict
+
 --[[
 Collection of enums used inside the Terrain Tools plugin
 
@@ -36,6 +38,9 @@ TerrainEnums.ToolId = {
 	Noise = "Noise",
 	Terrace = "Terrace",
 	Cliff = "Cliff",
+	Path = "Path",
+	Clone = "Clone",
+	Blobify = "Blobify",
 
 	Paint = "Paint",
 	Bridge = "Bridge",
@@ -71,6 +76,15 @@ TerrainEnums.FlattenMode = {
 	Erode = "Erode",
 	Both = "Both",
 	Grow = "Grow",
+}
+
+TerrainEnums.SpinMode = {
+	Off = "Off",
+	Full3D = "Full3D",
+	XZ = "XZ",
+	Y = "Y",
+	Fast3D = "Fast3D",
+	XZFast = "XZFast",
 }
 
 TerrainEnums.BrushShape = {
@@ -125,6 +139,12 @@ TerrainEnums.ReplaceMode = {
 TerrainEnums.ImportMaterialMode = {
 	DefaultMaterial = "DefaultMaterial",
 	Colormap = "Colormap",
+}
+
+TerrainEnums.PathProfile = {
+	V = "V",
+	U = "U",
+	Flat = "Flat",
 }
 
 return TerrainEnums

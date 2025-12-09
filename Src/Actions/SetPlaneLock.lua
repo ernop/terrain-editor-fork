@@ -1,3 +1,5 @@
+--!strict
+
 local Action = require(script.Parent.Action)
 
 local Plugin = script.Parent.Parent.Parent

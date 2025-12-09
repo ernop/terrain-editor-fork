@@ -22,9 +22,9 @@ function UIHelpers.createHeader(parent: Frame, text: string, position: UDim2): T
 	local label = Instance.new("TextLabel")
 	label.BackgroundTransparency = 1
 	label.Position = position
-	label.Size = UDim2.new(1, 0, 0, 22)
+	label.Size = UDim2.new(1, 0, 0, 20)
 	label.Font = Enum.Font.GothamMedium
-	label.TextSize = 15
+	label.TextSize = 14
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Text = text
@@ -65,7 +65,7 @@ function UIHelpers.createSlider(
 
 	local container = Instance.new("Frame")
 	container.BackgroundTransparency = 1
-	container.Size = UDim2.new(1, 0, 0, 75)
+	container.Size = UDim2.new(1, 0, 0, 70)
 	container.Parent = parent
 
 	local labelText = UIHelpers.createLabel(container, label .. ": " .. tostring(initial), UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0, 18))
@@ -222,7 +222,7 @@ function UIHelpers.createConfigPanel(parent: Frame, name: string): Frame
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
+	layout.Padding = UDim.new(0, 6)
 	layout.Parent = panel
 
 	return panel

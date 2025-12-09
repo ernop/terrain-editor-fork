@@ -1,3 +1,5 @@
+--!strict
+
 local PivotType = require(script.Parent.TerrainEnums).PivotType
 
 -- Returns the given position adjusted by height depending on pivot mode bottom, center or top

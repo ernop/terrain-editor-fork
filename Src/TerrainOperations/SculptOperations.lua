@@ -1,4 +1,8 @@
+--!strict
+
+local Plugin = script.Parent.Parent.Parent
 local OperationHelper = require(script.Parent.OperationHelper)
+local Constants = require(Plugin.Src.Util.Constants)
 
 local materialAir = Enum.Material.Air
 local materialWater = Enum.Material.Water
@@ -599,6 +603,249 @@ local function cliff(options)
 	end
 end
 
+-- ============================================================================
+-- Path Tool
+-- Carves directional channels through terrain
+-- ============================================================================
+local function path(options)
+	local readMaterials, readOccupancies = options.readMaterials, options.readOccupancies
+	local writeMaterials, writeOccupancies = options.writeMaterials, options.writeOccupancies
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+	local sizeX, sizeY, sizeZ = options.sizeX, options.sizeY, options.sizeZ
+	local brushOccupancy = options.brushOccupancy
+	local magnitudePercent = options.magnitudePercent
+	local cellOccupancy = options.cellOccupancy
+	local cellMaterial = options.cellMaterial
+	local strength = options.strength
+	local airFillerMaterial = options.airFillerMaterial
+	
+	-- Path-specific parameters
+	local cellVectorX = options.cellVectorX or 0
+	local cellVectorZ = options.cellVectorZ or 0
+	local worldY = options.worldY or 0
+	local centerY = options.centerY or 0
+	local pathDirectionX = options.pathDirectionX or 0
+	local pathDirectionZ = options.pathDirectionZ or 1
+	local pathDepth = options.pathDepth or 6
+	local pathProfile = options.pathProfile or "U"
+	local pathWidth = options.pathWidth or 4
+	
+	-- Skip if brush influence is too weak
+	if brushOccupancy < 0.5 then
+		return
+	end
+	
+	-- Calculate perpendicular distance from path centerline
+	local perpX = -pathDirectionZ
+	local perpZ = pathDirectionX
+	local perpDist = math.abs(cellVectorX * perpX + cellVectorZ * perpZ)
+	local normalizedPerp = perpDist / pathWidth
+	
+	if normalizedPerp > 1 then
+		return  -- Outside the path width
+	end
+	
+	-- Calculate target depth based on profile
+	local depthAtPosition
+	if pathProfile == "V" then
+		-- V-shape: deepest at center, rises linearly to edges
+		depthAtPosition = pathDepth * (1 - normalizedPerp)
+	elseif pathProfile == "U" then
+		-- U-shape: flat bottom (60% width), then rises at edges
+		local flatPortion = 0.6
+		if normalizedPerp < flatPortion then
+			depthAtPosition = pathDepth
+		else
+			local edgeProgress = (normalizedPerp - flatPortion) / (1 - flatPortion)
+			depthAtPosition = pathDepth * (1 - edgeProgress)
+		end
+	else  -- Flat
+		-- Flat: full depth with steep walls
+		depthAtPosition = pathDepth
+	end
+	
+	-- The path "floor" is at (center Y - depthAtPosition)
+	local floorY = centerY - depthAtPosition
+	local targetOccupancy = cellOccupancy
+	
+	if worldY > floorY then
+		-- Above the floor - should be air (erode)
+		local distAboveFloor = worldY - floorY
+		if distAboveFloor < Constants.VOXEL_RESOLUTION then
+			targetOccupancy = math.max(0, 1 - (distAboveFloor / Constants.VOXEL_RESOLUTION))
+		else
+			targetOccupancy = 0
+		end
+	end
+	
+	-- Only erode, never add
+	if targetOccupancy < cellOccupancy then
+		local blendFactor = (strength + 0.1) * 0.5 * brushOccupancy * magnitudePercent
+		local newOccupancy = cellOccupancy + (targetOccupancy - cellOccupancy) * blendFactor
+		newOccupancy = math.clamp(newOccupancy, 0, 1)
+		
+		if math.abs(newOccupancy - cellOccupancy) > 0.01 then
+			if newOccupancy <= OperationHelper.one256th then
+				writeOccupancies[voxelX][voxelY][voxelZ] = airFillerMaterial == materialWater and 1 or 0
+				writeMaterials[voxelX][voxelY][voxelZ] = airFillerMaterial
+			else
+				writeOccupancies[voxelX][voxelY][voxelZ] = newOccupancy
+				if cellMaterial == materialAir and newOccupancy > 0 then
+					writeMaterials[voxelX][voxelY][voxelZ] = OperationHelper.getMaterialForAutoMaterial(
+						readMaterials,
+						voxelX, voxelY, voxelZ,
+						sizeX, sizeY, sizeZ,
+						cellMaterial
+					)
+				end
+			end
+		end
+	end
+end
+
+-- ============================================================================
+-- Clone Tool
+-- Copies terrain from source to target location
+-- ============================================================================
+local function clone(options)
+	local readMaterials, readOccupancies = options.readMaterials, options.readOccupancies
+	local writeMaterials, writeOccupancies = options.writeMaterials, options.writeOccupancies
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+	local sizeX, sizeY, sizeZ = options.sizeX, options.sizeY, options.sizeZ
+	local brushOccupancy = options.brushOccupancy
+	local magnitudePercent = options.magnitudePercent
+	local cellOccupancy = options.cellOccupancy
+	local cellMaterial = options.cellMaterial
+	local strength = options.strength
+	local airFillerMaterial = options.airFillerMaterial
+	
+	-- Clone-specific parameters
+	local sourceBuffer = options.sourceBuffer  -- { [x][y][z] = {occupancy, material} }
+	local sourceCenterX = options.sourceCenterX or 0
+	local sourceCenterY = options.sourceCenterY or 0
+	local sourceCenterZ = options.sourceCenterZ or 0
+	local targetCenterX = options.targetCenterX or 0
+	local targetCenterY = options.targetCenterY or 0
+	local targetCenterZ = options.targetCenterZ or 0
+	
+	-- Skip if no source buffer or brush influence is too weak
+	if not sourceBuffer or brushOccupancy < 0.5 then
+		return
+	end
+	
+	-- Calculate offset from target center to this voxel
+	local offsetX = voxelX - targetCenterX
+	local offsetY = voxelY - targetCenterY
+	local offsetZ = voxelZ - targetCenterZ
+	
+	-- Look up corresponding source voxel
+	local sourceX = sourceCenterX + offsetX
+	local sourceY = sourceCenterY + offsetY
+	local sourceZ = sourceCenterZ + offsetZ
+	
+	-- Check if source voxel exists in buffer
+	if not sourceBuffer[sourceX] or not sourceBuffer[sourceX][sourceY] or not sourceBuffer[sourceX][sourceY][sourceZ] then
+		return
+	end
+	
+	local sourceData = sourceBuffer[sourceX][sourceY][sourceZ]
+	local sourceOccupancy = sourceData.occupancy
+	local sourceMaterial = sourceData.material
+	
+	-- Blend toward source
+	local blendFactor = (strength + 0.1) * 0.6 * brushOccupancy * magnitudePercent
+	local newOccupancy = cellOccupancy + (sourceOccupancy - cellOccupancy) * blendFactor
+	newOccupancy = math.clamp(newOccupancy, 0, 1)
+	
+	if math.abs(newOccupancy - cellOccupancy) > 0.01 then
+		writeOccupancies[voxelX][voxelY][voxelZ] = newOccupancy
+		
+		-- Handle material transitions
+		if newOccupancy <= OperationHelper.one256th then
+			writeOccupancies[voxelX][voxelY][voxelZ] = airFillerMaterial == materialWater and 1 or 0
+			writeMaterials[voxelX][voxelY][voxelZ] = airFillerMaterial
+		else
+			-- Blend material toward source material
+			if sourceMaterial ~= materialAir then
+				writeMaterials[voxelX][voxelY][voxelZ] = sourceMaterial
+			elseif cellMaterial == materialAir and newOccupancy > 0 then
+				writeMaterials[voxelX][voxelY][voxelZ] = OperationHelper.getMaterialForAutoMaterial(
+					readMaterials,
+					voxelX, voxelY, voxelZ,
+					sizeX, sizeY, sizeZ,
+					cellMaterial
+				)
+			end
+		end
+	end
+end
+
+-- ============================================================================
+-- Blobify Tool
+-- Creates organic blob-like protrusions
+-- ============================================================================
+local function blobify(options)
+	local readMaterials, readOccupancies = options.readMaterials, options.readOccupancies
+	local writeMaterials, writeOccupancies = options.writeMaterials, options.writeOccupancies
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+	local sizeX, sizeY, sizeZ = options.sizeX, options.sizeY, options.sizeZ
+	local brushOccupancy = options.brushOccupancy
+	local magnitudePercent = options.magnitudePercent
+	local cellOccupancy = options.cellOccupancy
+	local cellMaterial = options.cellMaterial
+	local strength = options.strength
+	local airFillerMaterial = options.airFillerMaterial
+	
+	-- Blobify-specific parameters
+	local blobIntensity = options.blobIntensity or 0.5
+	local blobSmoothness = options.blobSmoothness or 0.7
+	
+	-- Skip if brush influence is too weak
+	if brushOccupancy < 0.5 then
+		return
+	end
+	
+	-- Calculate distance from brush center (normalized)
+	local distFromCenter = math.sqrt(
+		(options.cellVectorX or 0) ^ 2 +
+		(options.cellVectorY or 0) ^ 2 +
+		(options.cellVectorZ or 0) ^ 2
+	)
+	local maxDist = math.max(sizeX, sizeY, sizeZ) * 0.5
+	local normalizedDist = math.min(distFromCenter / maxDist, 1)
+	
+	-- Create blob profile: smooth falloff from center
+	-- Uses smoothstep for organic feel
+	local smoothDist = normalizedDist * normalizedDist * (3 - 2 * normalizedDist)
+	local blobProfile = 1 - smoothDist
+	
+	-- Apply blob intensity and smoothness
+	local blobAmount = blobProfile * blobIntensity * blobSmoothness
+	
+	-- Only add material (grow), never remove
+	local targetOccupancy = math.min(1, cellOccupancy + blobAmount)
+	
+	if targetOccupancy > cellOccupancy then
+		local blendFactor = (strength + 0.1) * 0.4 * brushOccupancy * magnitudePercent
+		local newOccupancy = cellOccupancy + (targetOccupancy - cellOccupancy) * blendFactor
+		newOccupancy = math.clamp(newOccupancy, 0, 1)
+		
+		if math.abs(newOccupancy - cellOccupancy) > 0.01 then
+			writeOccupancies[voxelX][voxelY][voxelZ] = newOccupancy
+			
+			-- Handle material transitions
+			if cellMaterial == materialAir and newOccupancy > 0 then
+				writeMaterials[voxelX][voxelY][voxelZ] = OperationHelper.getMaterialForAutoMaterial(
+					readMaterials,
+					voxelX, voxelY, voxelZ,
+					sizeX, sizeY, sizeZ,
+					cellMaterial
+				)
+			end
+		end
+	end
+end
+
 return {
 	grow = grow,
 	erode = erode,
@@ -606,4 +853,7 @@ return {
 	noise = noise,
 	terrace = terrace,
 	cliff = cliff,
+	path = path,
+	clone = clone,
+	blobify = blobify,
 }

@@ -1,3 +1,5 @@
+--!strict
+
 --[[
 	Fired when tool is changed
 ]]
