@@ -1,0 +1,6 @@
+{
+  "name": "TerrainEditorForkLoader",
+  "tree": {
+    "$path": "loader.server.lua"
+  }
+}

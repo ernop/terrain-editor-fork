@@ -1,0 +1,22 @@
+{
+    "name": "TerrainEditorFork",
+    "tree": {
+        "$className": "DataModel",
+        "$ignoreUnknownInstances": true,
+        "ServerStorage": {
+            "$className": "ServerStorage",
+            "$ignoreUnknownInstances": true,
+            "TerrainEditorFork": {
+                "$path": "TerrainEditorModule.lua",
+                "Packages": {
+                    "$className": "Folder",
+                    "$path": "Packages"
+                },
+                "Src": {
+                    "$className": "Folder",
+                    "$path": "Src"
+                }
+            }
+        }
+    }
+}

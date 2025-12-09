@@ -1,0 +1,39 @@
+# Wally packages (like node_modules)
+Packages/
+
+# Built plugin files
+*.rbxm
+*.rbxmx
+*.rbxl
+*.rbxlx
+
+# Rojo sourcemap
+sourcemap.json
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+wally_install.log
+
+# Session learnings (personal notes)
+learnings/
+
+# Python bytecode (for terrain-tiles scripts)
+__pycache__/
+*.pyc
+*.pyo
+
+# Bin folder (if it contains generated content)
+Bin/
+

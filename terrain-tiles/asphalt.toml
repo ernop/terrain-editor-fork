@@ -1,0 +1,24 @@
+# Asphalt Configuration for Terrain Tile Uploads
+# Copy this file to asphalt.toml and fill in your details
+#
+# Documentation: https://github.com/jackTabsCode/asphalt
+# API Key Setup: https://create.roblox.com/dashboard/credentials
+#
+# Required API Key Permissions:
+#   - asset:read
+#   - asset:write
+
+[creator]
+type = "user"
+id = 164062733  # TerrainParkour user ID
+
+[codegen]
+style = "nested"          # "nested" for Luau, "flat" for TypeScript
+strip_extensions = true   # Remove .png from asset keys
+
+[inputs.terrain]
+path = "./*.png"
+output_path = "./generated"
+
+
+

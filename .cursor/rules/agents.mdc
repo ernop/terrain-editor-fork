@@ -1,0 +1,66 @@
+---
+description: Guidelines for AI agents working on this codebase
+globs:
+alwaysApply: true
+---
+
+# Agent Guidelines
+
+## Communication Style
+
+Be direct and take action. Don't ask for permission - just do the work and explain what you did. Raise issues and observations proactively.
+
+## When Asked Questions
+
+1. **Read README.md** - Understand project context first
+2. **Read DEV_SETUP.md** - Understand the development workflow
+3. **Check relevant source files** - Don't speculate, verify
+
+## Proactive Observations
+
+**Always share what you notice.** Even if it seems tangential:
+
+- Potential bugs or edge cases
+- Code that could be simplified
+- Duplication that could be eliminated
+- Inconsistencies in naming or patterns
+- Performance concerns
+- Missing error handling (but only where it matters)
+
+Format: *"By the way, I noticed..."* or *"While looking at this, I saw..."*
+
+This helps surface important information about the system.
+
+## Code Quality Standards
+
+### Do
+- Fix bugs completely, don't paper over them
+- Eliminate duplication
+- Keep code readable and self-documenting
+- Think carefully about architectural changes before making them
+- Test changes in context
+
+### Don't
+- Leave "good enough" solutions
+- Add unnecessary abstractions
+- Make changes without understanding the existing code
+- Write fallback code that tests if a library loaded (fix the original loading instead)
+
+## Terrain Editor Specifics
+
+This plugin modifies Roblox terrain using brushes. Tools include:
+- **Sculpt**: Shape terrain surface
+- **Add/Subtract**: Build up or carve out terrain
+- **Smooth**: Reduce sharp edges
+- **Flatten**: Level terrain to a plane
+- **Erode**: Simulate erosion effects
+- **Paint**: Apply materials
+
+The core algorithms are in `Src/TerrainOperations/`. The voxel-based system works with occupancy values (0-1) per material.
+
+## Development Workflow
+
+- Use `rojo serve` for live sync during development
+- Changes picked up with Reload button in Studio
+- Loader plugin changes require rebuild + Studio restart
+- Always ensure cleanup function properly disconnects all connections

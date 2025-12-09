@@ -1,0 +1,116 @@
+---
+description: Roblox Terrain Editor Fork - Project context and development guidelines
+globs:
+alwaysApply: true
+---
+
+# Roblox Terrain Editor Fork
+
+## Project Overview
+
+This is a fork of Roblox Studio's built-in Terrain Editor plugin. The original readable Lua source code (from May 2022, commit `581236f`) has been extracted so we can modify and extend it.
+
+**Goal:** Improve existing terrain tools and add new ones using brushes. We modify sculpting, adding/subtracting, smoothing, flattening, erosion, and other terrain operations.
+
+## Before Answering Questions
+
+When the user asks a question about how something works or what something does, **read the README.md first** to understand context. Development workflow details are in the cursor rules.
+
+## Core Values
+
+- **Quality**: We want polished, professional results
+- **Precision**: Exact behavior, no approximations or "good enough"
+- **Clarity**: Code should be readable and self-documenting
+- **Zero tolerance for bugs**: Fix every issue, no matter how small
+- **Clean aesthetics**: UI and code should look neat and sharp
+- **DRY principle**: Eliminate duplication ruthlessly
+- **Architectural care**: Think carefully before major structural changes
+
+## Agent Behavior
+
+**Proactively raise observations.** If you notice anything interesting, related issues, potential problems, or opportunities for improvement, mention it:
+
+> "By the way, I noticed X..."
+
+This is highly valued. Even tangential observations are welcome - they help identify what's important in the system.
+
+## Key Paths
+
+| What | Path |
+|------|------|
+| Project | `D:\proj\roblox-terrain-editor` |
+| Plugins folder | `D:\proj\studio\plugins` (custom, NOT default!) |
+| Terrain tile assets | `terrain-tiles\generated\terrain.luau` |
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `TerrainEditorModule.lua` | **EDIT THIS** - main plugin code |
+| `loader.server.lua` | Loader plugin source |
+| `default.project.json` | Rojo project - syncs to ServerStorage |
+| `loader.project.json` | Build config for loader plugin |
+| `Src/TerrainOperations/performTerrainBrushOperation.lua` | Main brush logic |
+| `Src/TerrainOperations/SculptOperations.lua` | Add/subtract/grow/erode |
+| `Src/TerrainOperations/smartLargeSculptBrush.lua` | Large brush optimization |
+| `Src/Util/Constants.lua` | Voxel size, defaults |
+| `Src/Util/TerrainEnums.lua` | Tool IDs, brush shapes |
+
+## Project Structure
+
+```
+Src/
+├── Actions/            # Redux-style state actions
+├── Components/         # Roact UI components  
+├── Reducers/           # State management
+├── TerrainInterfaces/  # Terrain API wrappers
+├── TerrainOperations/  # Core brush algorithms (THE GOOD STUFF)
+└── Util/               # Constants, enums, helpers
+```
+
+### Rojo Sync Structure
+
+```
+ServerStorage/
+└── TerrainEditorFork (ModuleScript)  ← TerrainEditorModule.lua
+    ├── Src/                          ← script.Src
+    │   ├── Util/
+    │   │   ├── TerrainEnums.lua
+    │   │   └── Constants.lua
+    │   └── TerrainOperations/
+    │       └── performTerrainBrushOperation.lua
+    └── Packages/
+```
+
+**Important:** In code, use `script.Src` not `script.Parent.Src`
+
+## Hot-Reload Architecture
+
+- `loader.project.json` builds the loader plugin (requires rebuild + Studio restart)
+- `default.project.json` for live sync to ServerStorage via `rojo serve`
+- Loader calls cleanup function returned by `TerrainEditorModule.init()` to disconnect all connections before reloading
+
+### Critical Implementation Details
+
+- Plugin must call `pluginInstance:Activate(true)` when tool selected for 3D viewport mouse events
+- `terrain.LastUsedModificationMethod` is Roblox-internal - must be removed/skipped
+- Slider drag uses simple `isDragging` flag with element's `InputChanged` (not global `UserInputService.InputChanged`) and global `InputEnded` for release
+
+## Technology Stack
+
+- **Lua/Luau**: Roblox scripting language
+- **Roact**: React-like UI framework
+- **Rodux**: Redux-like state management
+- **Rojo**: External editor sync tool
+- **Wally**: Package manager
+
+## Terrain Materials
+
+22 materials with image tiles (in `terrain-tiles/`):
+- Grass, Sand, Rock, Ground, Snow, Ice, Glacier, Water
+- Mud, Slate, Concrete, Brick, Cobblestone, Asphalt, Pavement, Basalt
+- Cracked Lava, Salt, Sandstone, Limestone, Leafy Grass, Wood Planks
+
+## Source
+
+Original source extracted from [Roblox-Client-Tracker](https://github.com/MaximumADHD/Roblox-Client-Tracker) commit `581236f` (May 24, 2022).

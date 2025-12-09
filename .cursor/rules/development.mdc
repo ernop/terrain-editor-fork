@@ -1,0 +1,71 @@
+---
+description: Development workflow and setup instructions
+globs:
+alwaysApply: true
+---
+
+# Development Workflow
+
+## Quick Start
+
+```powershell
+cd D:\proj\roblox-terrain-editor
+rojo serve
+```
+
+Then in Studio:
+1. Click **Connect** on Rojo toolbar (localhost:34872)
+2. The editor opens automatically
+3. Click **Reload** button after making code changes
+
+## First-Time Setup
+
+1. Build the loader plugin (only once):
+   ```powershell
+   rojo build loader.project.json -o "D:\proj\studio\plugins\TerrainEditorLoader.rbxm"
+   ```
+
+2. Start Rojo:
+   ```powershell
+   rojo serve
+   ```
+
+3. In Studio: Connect to Rojo
+
+## Daily Workflow
+
+1. Open project in Cursor
+2. Run `rojo serve` in terminal
+3. Open Studio, connect Rojo
+4. Edit `TerrainEditorModule.lua`
+5. Click **Reload** button in Studio toolbar
+6. Repeat 4-5
+
+## Version Bumping
+
+Current version: See `VERSION` constant at top of `TerrainEditorModule.lua`
+
+Bump version after changes to confirm reload worked.
+
+## Troubleshooting
+
+### "Src is not a valid member of ServerStorage"
+- Wrong: `script.Parent.Src`
+- Right: `script.Src`
+
+### Changes not showing after Reload
+- Check Rojo is connected (green indicator)
+- Check Output for errors
+- Verify version number changed in title
+
+### Port already in use
+```powershell
+Get-Process -Name "rojo" | Stop-Process -Force
+rojo serve
+```
+
+### Rebuild loader plugin
+```powershell
+rojo build loader.project.json -o "D:\proj\studio\plugins\TerrainEditorLoader.rbxm"
+```
+(Restart Studio after rebuilding loader)

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrain Tile Verification - Terrain Parkour</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --accent: #e94560;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --border: #2a2a4a;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            padding: 2rem;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+            font-size: 2rem;
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .instructions {
+            max-width: 700px;
+            margin: 0 auto 2rem;
+            background: var(--bg-card);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent);
+        }
+        
+        .instructions h3 {
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        
+        .instructions code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .tile {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--border);
+        }
+        
+        .tile:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        
+        .tile-image {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            display: block;
+            background: #333;
+        }
+        
+        .tile-image.missing {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        .tile-info {
+            padding: 0.75rem 1rem;
+        }
+        
+        .tile-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .tile-key {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.75rem;
+            color: var(--accent);
+        }
+        
+        .tile-enum {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .status {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .status.loaded { background: #4ade80; }
+        .status.missing { background: var(--accent); }
+        
+        .summary {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        #stats {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>Terrain Tile Verification</h1>
+    <p class="subtitle">Terrain Parkour Asset Preparation</p>
+    
+    <div class="instructions">
+        <h3>Setup Instructions</h3>
+        <p>Place your terrain tile images in this folder with filenames matching the <code>key</code> shown below (e.g., <code>asphalt.png</code>, <code>crackedlava.png</code>).</p>
+    </div>
+    
+    <div class="grid" id="tileGrid"></div>
+    
+    <div class="summary">
+        <div id="stats">Loading...</div>
+    </div>
+
+    <script>
+        const terrainData = [
+            { key: "asphalt", name: "Asphalt", enum: "Enum.Material.Asphalt" },
+            { key: "basalt", name: "Basalt", enum: "Enum.Material.Basalt" },
+            { key: "brick", name: "Brick", enum: "Enum.Material.Brick" },
+            { key: "cobblestone", name: "Cobblestone", enum: "Enum.Material.Cobblestone" },
+            { key: "concrete", name: "Concrete", enum: "Enum.Material.Concrete" },
+            { key: "crackedlava", name: "Cracked Lava", enum: "Enum.Material.CrackedLava" },
+            { key: "glacier", name: "Glacier", enum: "Enum.Material.Glacier" },
+            { key: "grass", name: "Grass", enum: "Enum.Material.Grass" },
+            { key: "ground", name: "Ground", enum: "Enum.Material.Ground" },
+            { key: "ice", name: "Ice", enum: "Enum.Material.Ice" },
+            { key: "leafygrass", name: "Leafy Grass", enum: "Enum.Material.LeafyGrass" },
+            { key: "limestone", name: "Limestone", enum: "Enum.Material.Limestone" },
+            { key: "mud", name: "Mud", enum: "Enum.Material.Mud" },
+            { key: "pavement", name: "Pavement", enum: "Enum.Material.Pavement" },
+            { key: "rock", name: "Rock", enum: "Enum.Material.Rock" },
+            { key: "salt", name: "Salt", enum: "Enum.Material.Salt" },
+            { key: "sand", name: "Sand", enum: "Enum.Material.Sand" },
+            { key: "sandstone", name: "Sandstone", enum: "Enum.Material.Sandstone" },
+            { key: "slate", name: "Slate", enum: "Enum.Material.Slate" },
+            { key: "snow", name: "Snow", enum: "Enum.Material.Snow" },
+            { key: "water", name: "Water", enum: "Enum.Material.Water" },
+            { key: "woodplanks", name: "Wood Planks", enum: "Enum.Material.WoodPlanks" },
+            { key: "air", name: "Air", enum: "Enum.Material.Air" },
+        ];
+        
+        const grid = document.getElementById('tileGrid');
+        const stats = document.getElementById('stats');
+        let loadedCount = 0;
+        let totalCount = terrainData.length;
+        
+        function updateStats() {
+            stats.innerHTML = `<span style="color: #4ade80">${loadedCount}</span> / ${totalCount} images loaded`;
+        }
+        
+        terrainData.forEach((terrain, index) => {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.innerHTML = `
+                <img class="tile-image" 
+                     src="${terrain.key}.png" 
+                     alt="${terrain.name}"
+                     onerror="this.outerHTML='<div class=\\'tile-image missing\\'>Image not found:<br>${terrain.key}.png</div>'"
+                     onload="window.imageLoaded()">
+                <div class="tile-info">
+                    <div class="tile-name">${index + 1}. ${terrain.name}</div>
+                    <div class="tile-key">${terrain.key}</div>
+                    <div class="tile-enum">${terrain.enum}</div>
+                </div>
+            `;
+            grid.appendChild(tile);
+        });
+        
+        window.imageLoaded = function() {
+            loadedCount++;
+            updateStats();
+        };
+        
+        // Initial stats update
+        setTimeout(updateStats, 100);
+    </script>
+</body>
+</html>
+
+
+
