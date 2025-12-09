@@ -1,7 +1,9 @@
+--!strict
+
 -- TerrainEditorFork - Module Version for Live Development
 -- This module is loaded by the loader plugin for hot-reloading
 
-local VERSION = "0.0.00000022"
+local VERSION = "0.0.00000024"
 local DEBUG = false
 
 local TerrainEditorModule = {}
@@ -30,26 +32,26 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local performTerrainBrushOperation = require(Src.TerrainOperations.performTerrainBrushOperation)
 
 	-- Plugin state
-	local terrain = workspace.Terrain
-	local brushConnection = nil
-	local renderConnection = nil
+	local terrain: Terrain = workspace.Terrain
+	local brushConnection: RBXScriptConnection? = nil
+	local renderConnection: RBXScriptConnection? = nil
 
 	-- Brush settings
-	local currentTool = ToolId.Add
-	local brushSizeX = Constants.INITIAL_BRUSH_SIZE
-	local brushSizeY = Constants.INITIAL_BRUSH_SIZE
-	local brushSizeZ = Constants.INITIAL_BRUSH_SIZE
-	local brushStrength = Constants.INITIAL_BRUSH_STRENGTH
-	local brushShape = BrushShape.Sphere
-	local brushRotation = CFrame.new() -- Rotation only (no position)
-	local brushMaterial = Enum.Material.Grass
-	local pivotType = PivotType.Center
-	local flattenMode = FlattenMode.Both
-	local autoMaterial = false
-	local ignoreWater = false
-	local planeLockMode = PlaneLockType.Off
-	local planePositionY = Constants.INITIAL_PLANE_POSITION_Y
-	local autoPlaneActive = false -- True when Auto mode has captured a plane during stroke
+	local currentTool: string = ToolId.Add
+	local brushSizeX: number = Constants.INITIAL_BRUSH_SIZE
+	local brushSizeY: number = Constants.INITIAL_BRUSH_SIZE
+	local brushSizeZ: number = Constants.INITIAL_BRUSH_SIZE
+	local brushStrength: number = Constants.INITIAL_BRUSH_STRENGTH
+	local brushShape: string = BrushShape.Sphere
+	local brushRotation: CFrame = CFrame.new() -- Rotation only (no position)
+	local brushMaterial: Enum.Material = Enum.Material.Grass
+	local pivotType: string = PivotType.Center
+	local flattenMode: string = FlattenMode.Both
+	local autoMaterial: boolean = false
+	local ignoreWater: boolean = false
+	local planeLockMode: string = PlaneLockType.Off
+	local planePositionY: number = Constants.INITIAL_PLANE_POSITION_Y
+	local autoPlaneActive: boolean = false -- True when Auto mode has captured a plane during stroke
 
 	-- Shape capabilities: which shapes support rotation and multi-axis sizing
 	local ShapeSupportsRotation = {
@@ -68,16 +70,16 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Mouse state
 	local mouse = pluginInstance:GetMouse()
 	local isMouseDown = false
-	local lastBrushPosition = nil
+	local lastBrushPosition: Vector3? = nil
 
 	-- Brush visualization
-	local brushPart = nil
-	local planePart = nil -- Visual indicator for locked plane
+	local brushPart: Part? = nil
+	local planePart: Part? = nil -- Visual indicator for locked plane
 	
 	-- 3D Handles for rotation and sizing
-	local rotationHandles = nil
-	local sizeHandles = nil
-	local isHandleDragging = false -- Prevent brush painting while dragging handles
+	local rotationHandles: ArcHandles? = nil
+	local sizeHandles: Handles? = nil
+	local isHandleDragging: boolean = false -- Prevent brush painting while dragging handles
 	
 	-- Forward declarations for handle functions (defined later, after brush viz)
 	local updateHandlesAdornee
@@ -86,9 +88,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 
 	-- Config panels (will be populated later)
 	local configPanels: { [string]: Frame } = {}
-	local updateConfigPanelVisibility: (() -> ())?
-	local updateSizeSliderVisibility: (() -> ())? -- Forward declaration
-	local updateRotationPanelVisibility: (() -> ())? -- Forward declaration
+	local updateConfigPanelVisibility: (() -> ())? = nil
+	local updateSizeSliderVisibility: (() -> ())? = nil -- Forward declaration
+	local updateRotationPanelVisibility: (() -> ())? = nil -- Forward declaration
 
 	-- ============================================================================
 	-- Tool Config Definitions
@@ -358,7 +360,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		return button
 	end
 
-	local toolButtons: { [string]: TextButton } = {}
+	local toolButtons = {}
 
 	local function updateToolButtonVisuals()
 		for toolId, button in pairs(toolButtons) do
@@ -464,8 +466,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				brushPart.CFrame = finalCFrame
 			end
 			
-			-- Update 3D handles to follow the brush
-			updateHandlesAdornee()
+			-- Update 3D handles to follow the brush (temporarily disabled)
+			-- updateHandlesAdornee()
 		end
 	end
 
@@ -474,7 +476,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			brushPart:Destroy()
 			brushPart = nil
 		end
-		hideHandles()
+		-- hideHandles() -- temporarily disabled
 	end
 
 	-- ============================================================================
@@ -619,9 +621,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		isHandleDragging = false
 	end
 
-	-- Create handles at startup
-	createRotationHandles()
-	createSizeHandles()
+	-- Create handles at startup (temporarily disabled for debugging)
+	-- createRotationHandles()
+	-- createSizeHandles()
 
 	-- ============================================================================
 	-- Plane Visualization
@@ -954,7 +956,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		{ id = BrushShape.Cube, name = "Cube" },
 		{ id = BrushShape.Cylinder, name = "Cylinder" },
 	}
-	local shapeButtons: { [string]: TextButton } = {}
+	local shapeButtons = {}
 
 	local function updateShapeButtons()
 		for shapeId, btn in pairs(shapeButtons) do
@@ -1132,9 +1134,9 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	rotationHeader.LayoutOrder = 1
 
 	-- Store rotation as Euler angles (degrees) for easier UI
-	local rotationX: number = 0
-	local rotationY: number = 0
-	local rotationZ: number = 0
+	local rotationX = 0
+	local rotationY = 0
+	local rotationZ = 0
 
 	local function updateBrushRotationFromEuler()
 		brushRotation = CFrame.Angles(math.rad(rotationX), math.rad(rotationY), math.rad(rotationZ))
@@ -1261,7 +1263,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		{ id = PivotType.Center, name = "Center" },
 		{ id = PivotType.Top, name = "Top" },
 	}
-	local pivotButtons: { [string]: TextButton } = {}
+	local pivotButtons = {}
 
 	local function updatePivotButtons()
 		for pivotId, btn in pairs(pivotButtons) do
@@ -1304,7 +1306,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	planeLockModeContainer.LayoutOrder = 2
 	planeLockModeContainer.Parent = planeLockPanel
 
-	local planeLockModeButtons: { [string]: TextButton } = {}
+	local planeLockModeButtons = {}
 
 	-- Manual mode controls container (created first so updatePlaneLockVisuals can reference it)
 	local manualControlsContainer = Instance.new("Frame")
@@ -1461,7 +1463,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		{ id = FlattenMode.Both, name = "Both" },
 		{ id = FlattenMode.Grow, name = "Grow" },
 	}
-	local flattenButtons: { [string]: TextButton } = {}
+	local flattenButtons = {}
 
 	local function updateFlattenButtons()
 		for modeId, btn in pairs(flattenButtons) do
@@ -1588,7 +1590,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		{ enum = Enum.Material.WoodPlanks, key = "woodplanks", name = "Wood Planks" },
 	}
 
-	local materialButtons: { [Enum.Material]: Frame } = {}
+	local materialButtons = {}
 	local TILE_SIZE = 72
 	local TILE_GAP = 6
 	local COLS = 4
@@ -1880,7 +1882,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end
 		hideBrushVisualization()
 		hidePlaneVisualization()
-		destroyHandles() -- Clean up 3D handles
+		-- destroyHandles() -- Clean up 3D handles (temporarily disabled)
 		pluginInstance:Deactivate()
 	end
 end
