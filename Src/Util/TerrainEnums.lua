@@ -43,6 +43,17 @@ TerrainEnums.ToolId = {
 	Blobify = "Blobify",
 
 	Paint = "Paint",
+	SlopePaint = "SlopePaint",
+	Megarandomize = "Megarandomize",
+	CavityFill = "CavityFill",
+	Melt = "Melt",
+	GradientPaint = "GradientPaint",
+	FloodPaint = "FloodPaint",
+	Stalactite = "Stalactite",
+	Tendril = "Tendril",
+	Symmetry = "Symmetry",
+	VariationGrid = "VariationGrid",
+	GrowthSim = "GrowthSim",
 	Bridge = "Bridge",
 
 	None = "None",
@@ -95,14 +106,14 @@ TerrainEnums.BrushShape = {
 	CornerWedge = "CornerWedge",
 	Dome = "Dome",
 	-- Creative shapes
-	Torus = "Torus",           -- Donut shape
-	Ring = "Ring",             -- Flat washer/ring
-	ZigZag = "ZigZag",         -- Z-shaped profile
-	Sheet = "Sheet",           -- Curved paper/partial cylinder
-	Grid = "Grid",             -- 3D checkerboard pattern
-	Stick = "Stick",           -- Long thin rod
-	Spinner = "Spinner",       -- Auto-rotating cube
-	Spikepad = "Spikepad",     -- Flat base with sharp spikes
+	Torus = "Torus", -- Donut shape
+	Ring = "Ring", -- Flat washer/ring
+	ZigZag = "ZigZag", -- Z-shaped profile
+	Sheet = "Sheet", -- Curved paper/partial cylinder
+	Grid = "Grid", -- 3D checkerboard pattern
+	Stick = "Stick", -- Long thin rod
+	Spinner = "Spinner", -- Auto-rotating cube
+	Spikepad = "Spikepad", -- Flat base with sharp spikes
 }
 
 TerrainEnums.Biome = {

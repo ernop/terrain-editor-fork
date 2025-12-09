@@ -181,6 +181,99 @@ BrushData.ToolConfigs = {
 		"strength",
 		"material",
 	},
+	-- Slope Paint: Auto-textures terrain based on surface angle
+	[ToolId.SlopePaint] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"spin",
+		"slopeMaterials",
+	},
+	-- Megarandomize: Applies multiple materials with weighted randomness
+	[ToolId.Megarandomize] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"spin",
+		"megarandomizeSettings",
+	},
+	-- Cavity Fill: Intelligently fills terrain depressions
+	[ToolId.CavityFill] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"spin",
+		"cavitySensitivity",
+	},
+	-- Melt: Simulates terrain melting/flowing downward
+	[ToolId.Melt] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"spin",
+		"meltViscosity",
+	},
+	-- Gradient Paint: Creates material transitions between two points
+	[ToolId.GradientPaint] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"spin",
+		"gradientSettings",
+	},
+	-- Flood Paint: Surface-aware flood fill for materials
+	[ToolId.FloodPaint] = {
+		"brushShape",
+		"floodSettings",
+		"material",
+	},
+	-- Stalactite: Creates hanging spike formations
+	[ToolId.Stalactite] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"stalactiteSettings",
+		"material",
+	},
+	-- Tendril: Creates organic branching structures
+	[ToolId.Tendril] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"tendrilSettings",
+		"material",
+	},
+	-- Symmetry: Creates symmetric copies
+	[ToolId.Symmetry] = {
+		"brushShape",
+		"brushRate",
+		"pivot",
+		"symmetrySettings",
+	},
+	-- Variation Grid: Creates grid pattern with variations
+	[ToolId.VariationGrid] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"gridSettings",
+		"material",
+	},
+	-- Growth Simulation: Organic terrain expansion
+	[ToolId.GrowthSim] = {
+		"brushShape",
+		"strength",
+		"brushRate",
+		"pivot",
+		"growthSettings",
+	},
 }
 
 -- Bridge variant definitions
@@ -308,4 +401,3 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string)
 end
 
 return BrushData
-

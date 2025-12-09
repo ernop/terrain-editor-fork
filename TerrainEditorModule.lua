@@ -3,10 +3,133 @@
 -- TerrainEditorFork - Module Version for Live Development
 -- This module is loaded by the loader plugin for hot-reloading
 
-local VERSION = "0.0.00000046"
+local VERSION = "0.0.00000051"
 local _DEBUG = false
 
 local TerrainEditorModule = {}
+
+-- Build UI function - extracted to reduce local variable count in init()
+local function buildUI(
+	parentGui: GuiObject,
+	S: any,
+	ToolId: any,
+	BrushShape: any,
+	PivotType: any,
+	FlattenMode: any,
+	PlaneLockType: any,
+	SpinMode: any,
+	UIHelpers: any,
+	BrushData: any,
+	BridgePathGenerator: any,
+	Constants: any,
+	VERSION: string,
+	createBrushVisualization: () -> (),
+	updateToolButtonVisuals: () -> (),
+	selectTool: (string) -> (),
+	getTerrainHit: () -> Vector3?,
+	getTerrainHitRaw: () -> Vector3?
+): (any, any, any, any, any)
+	-- This function builds all UI and returns:
+	-- 1. configPanels table
+	-- 2. setStrengthValue function
+	-- 3. updateConfigPanelVisibility function
+	-- 4. toolButtons table
+	-- 5. updateBridgeStatus function
+	-- 6. updateBridgePreview function
+	-- 7. buildBridge function
+
+	local mainFrame = Instance.new("ScrollingFrame")
+	mainFrame.Name = "MainFrame"
+	mainFrame.Size = UDim2.fromScale(1, 1)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	mainFrame.BorderSizePixel = 0
+	mainFrame.ScrollBarThickness = 6
+	mainFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
+	mainFrame.Parent = parentGui
+
+	local versionLabel = Instance.new("TextLabel")
+	versionLabel.Name = "VersionLabel"
+	versionLabel.BackgroundTransparency = 1
+	versionLabel.Position = UDim2.new(1, -8, 0, 4)
+	versionLabel.Size = UDim2.new(0, 100, 0, 14)
+	versionLabel.AnchorPoint = Vector2.new(1, 0)
+	versionLabel.Font = Enum.Font.Gotham
+	versionLabel.TextSize = 10
+	versionLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
+	versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+	versionLabel.Text = "v" .. VERSION
+	versionLabel.ZIndex = 10
+	versionLabel.Parent = parentGui
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 10)
+	padding.PaddingRight = UDim.new(0, 18)
+	padding.PaddingTop = UDim.new(0, 8)
+	padding.Parent = mainFrame
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Position = UDim2.new(0, 0, 0, 0)
+	title.Size = UDim2.new(1, 0, 0, 22)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 15
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Text = "🌋 Terrain Editor Fork v" .. VERSION
+	title.Parent = mainFrame
+
+	UIHelpers.createHeader(mainFrame, "Tools", UDim2.new(0, 0, 0, 35))
+
+	local sculptTools = {
+		{ id = ToolId.Add, name = "Add", row = 0, col = 0 },
+		{ id = ToolId.Subtract, name = "Sub", row = 0, col = 1 },
+		{ id = ToolId.Grow, name = "Grow", row = 0, col = 2 },
+		{ id = ToolId.Erode, name = "Erode", row = 0, col = 3 },
+		{ id = ToolId.Smooth, name = "Smooth", row = 1, col = 0 },
+		{ id = ToolId.Flatten, name = "Flat", row = 1, col = 1 },
+		{ id = ToolId.Noise, name = "Noise", row = 1, col = 2 },
+		{ id = ToolId.Terrace, name = "Terrace", row = 1, col = 3 },
+		{ id = ToolId.Cliff, name = "Cliff", row = 2, col = 0 },
+		{ id = ToolId.Path, name = "Path", row = 2, col = 1 },
+		{ id = ToolId.Clone, name = "Clone", row = 2, col = 2 },
+		{ id = ToolId.Blobify, name = "Blob", row = 2, col = 3 },
+		{ id = ToolId.Paint, name = "Paint", row = 3, col = 0 },
+		{ id = ToolId.SlopePaint, name = "Slope", row = 3, col = 1 },
+		{ id = ToolId.Megarandomize, name = "Rand", row = 3, col = 2 },
+		{ id = ToolId.GradientPaint, name = "Grad", row = 3, col = 3 },
+		{ id = ToolId.CavityFill, name = "Fill", row = 4, col = 0 },
+		{ id = ToolId.Melt, name = "Melt", row = 4, col = 1 },
+		{ id = ToolId.FloodPaint, name = "Flood", row = 4, col = 2 },
+		{ id = ToolId.Stalactite, name = "Stalac", row = 4, col = 3 },
+		{ id = ToolId.Tendril, name = "Tendrl", row = 5, col = 0 },
+		{ id = ToolId.Bridge, name = "Bridge", row = 5, col = 1 },
+	}
+
+	local toolButtons = {}
+	for _, toolInfo in ipairs(sculptTools) do
+		local pos = UDim2.new(0, toolInfo.col * 78, 0, 60 + toolInfo.row * 38)
+		local btn = UIHelpers.createToolButton(mainFrame, toolInfo.id, toolInfo.name, pos)
+		toolButtons[toolInfo.id] = btn
+		btn.MouseButton1Click:Connect(function()
+			selectTool(toolInfo.id)
+		end)
+	end
+
+	local CONFIG_START_Y = 320
+	local configContainer = Instance.new("Frame")
+	configContainer.Name = "ConfigContainer"
+	configContainer.BackgroundTransparency = 1
+	configContainer.Position = UDim2.new(0, 0, 0, CONFIG_START_Y)
+	configContainer.Size = UDim2.new(1, 0, 0, 800)
+	configContainer.Parent = mainFrame
+
+	local configPanels: { [string]: Frame } = {}
+
+	-- Continue with all panel creation...
+	-- (This is a placeholder - the full UI building code goes here)
+	-- For now, return minimal structure to fix the immediate error
+
+	return configPanels, function() end, function() end, toolButtons, function() end, function() end, function() end
+end
 
 function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- script is the TerrainEditorFork module in ServerStorage
@@ -75,6 +198,59 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		cloneSourceCenter = nil :: Vector3?,
 		blobIntensity = 0.5,
 		blobSmoothness = 0.7,
+		-- Slope Paint tool state
+		slopeFlatMaterial = Enum.Material.Grass,
+		slopeSteepMaterial = Enum.Material.Rock,
+		slopeCliffMaterial = Enum.Material.Slate,
+		slopeThreshold1 = 30,
+		slopeThreshold2 = 60,
+		-- Megarandomize tool state
+		megarandomizeMaterials = {
+			{ material = Enum.Material.Grass, weight = 0.6 },
+			{ material = Enum.Material.Rock, weight = 0.25 },
+			{ material = Enum.Material.Ground, weight = 0.15 },
+		},
+		megarandomizeClusterSize = 4,
+		megarandomizeSeed = 0,
+		-- Cavity Fill tool state
+		cavitySensitivity = 0.3,
+		-- Melt tool state
+		meltViscosity = 0.5,
+		-- Gradient Paint tool state
+		gradientMaterial1 = Enum.Material.Grass,
+		gradientMaterial2 = Enum.Material.Rock,
+		gradientStartPoint = nil :: Vector3?,
+		gradientEndPoint = nil :: Vector3?,
+		gradientNoiseAmount = 0.1,
+		gradientSeed = 0,
+		-- Flood Paint tool state
+		floodTargetMaterial = Enum.Material.Grass,
+		floodSourceMaterial = nil :: Enum.Material?,
+		floodReplaceAll = true,
+		-- Stalactite tool state
+		stalactiteDirection = -1,
+		stalactiteDensity = 0.3,
+		stalactiteLength = 10,
+		stalactiteTaper = 0.8,
+		stalactiteSeed = 0,
+		-- Tendril tool state
+		tendrilRadius = 1.5,
+		tendrilBranches = 5,
+		tendrilLength = 15,
+		tendrilCurl = 0.5,
+		tendrilSeed = 0,
+		-- Symmetry tool state
+		symmetryType = "Radial4", -- MirrorX, MirrorZ, MirrorXZ, Radial4, Radial6, Radial8
+		symmetrySegments = 4,
+		-- Variation Grid tool state
+		gridCellSize = 8,
+		gridVariation = 0.3,
+		gridSeed = 0,
+		-- Growth Simulation tool state
+		growthRate = 0.3,
+		growthBias = 0, -- -1=down, 0=uniform, 1=up
+		growthPattern = "organic", -- organic, crystalline, cellular
+		growthSeed = 0,
 		brushRate = "normal", -- Brush rate preset: "no_repeat", "on_move_only", "very_slow", "slow", "normal", "fast"
 		lastMouseWorldPos = nil :: Vector3?,
 		lastBrushTime = 0,
@@ -128,6 +304,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		if S.currentTool == ToolId.Bridge and toolId ~= ToolId.Bridge then
 			S.bridgeStartPoint = nil
 			S.bridgeEndPoint = nil
+			S.bridgeHoverPoint = nil
+			S.bridgeLastPreviewParams = nil
 			for _, part in ipairs(S.bridgePreviewParts) do
 				part:Destroy()
 			end
@@ -783,6 +961,53 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			-- Blobify tool parameters
 			blobIntensity = S.blobIntensity,
 			blobSmoothness = S.blobSmoothness,
+			-- Slope Paint parameters
+			slopeFlatMaterial = S.slopeFlatMaterial,
+			slopeSteepMaterial = S.slopeSteepMaterial,
+			slopeCliffMaterial = S.slopeCliffMaterial,
+			slopeThreshold1 = S.slopeThreshold1,
+			slopeThreshold2 = S.slopeThreshold2,
+			-- Megarandomize parameters
+			materialPalette = S.megarandomizeMaterials,
+			clusterSize = S.megarandomizeClusterSize,
+			megarandomizeSeed = S.megarandomizeSeed,
+			-- Cavity Fill parameters
+			cavitySensitivity = S.cavitySensitivity,
+			-- Melt parameters
+			meltViscosity = S.meltViscosity,
+			-- Gradient Paint parameters
+			gradientMaterial1 = S.gradientMaterial1,
+			gradientMaterial2 = S.gradientMaterial2,
+			gradientStartX = S.gradientStartPoint and S.gradientStartPoint.X or 0,
+			gradientStartZ = S.gradientStartPoint and S.gradientStartPoint.Z or 0,
+			gradientEndX = S.gradientEndPoint and S.gradientEndPoint.X or 100,
+			gradientEndZ = S.gradientEndPoint and S.gradientEndPoint.Z or 0,
+			gradientNoiseAmount = S.gradientNoiseAmount,
+			-- Flood Paint parameters
+			floodTargetMaterial = S.floodTargetMaterial,
+			floodSourceMaterial = S.floodReplaceAll and nil or S.floodSourceMaterial,
+			-- Stalactite parameters
+			stalactiteDirection = S.stalactiteDirection,
+			stalactiteDensity = S.stalactiteDensity,
+			stalactiteLength = S.stalactiteLength,
+			stalactiteTaper = S.stalactiteTaper,
+			-- Tendril parameters
+			tendrilRadius = S.tendrilRadius,
+			tendrilBranches = S.tendrilBranches,
+			tendrilLength = S.tendrilLength,
+			tendrilCurl = S.tendrilCurl,
+			-- Symmetry parameters
+			symmetryType = S.symmetryType,
+			symmetrySegments = S.symmetrySegments,
+			-- Variation Grid parameters
+			gridCellSize = S.gridCellSize,
+			gridVariation = S.gridVariation,
+			gridSeed = S.gridSeed,
+			-- Growth Simulation parameters
+			growthRate = S.growthRate,
+			growthBias = S.growthBias,
+			growthPattern = S.growthPattern,
+			growthSeed = S.growthSeed,
 		}
 		local success, err = pcall(function()
 			performTerrainBrushOperation(S.terrain, opSet)
@@ -851,16 +1076,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				-- Repeat mode: activate on timer OR mouse movement (but movement also needs minimum time)
 				local rateMap = {
 					very_slow = 1000, -- 1 second between activations
-					slow = 500,       -- 0.5 seconds
-					normal = 200,     -- 0.2 seconds
-					fast = 100,       -- 0.1 seconds
+					slow = 500, -- 0.5 seconds
+					normal = 200, -- 0.2 seconds
+					fast = 100, -- 0.1 seconds
 				}
 				local brushCooldownMs = rateMap[S.brushRate] or 100
 				local brushCooldown = brushCooldownMs / 1000 -- Convert milliseconds to seconds
-				
+
 				-- Minimum time between activations, even for movement (prevents excessive activations)
 				local minCooldown = 0.05 -- 50ms minimum between any activations
-				
+
 				if mouseMoved and timeSinceLastActivation >= minCooldown then
 					-- Mouse moved significantly AND enough time has passed
 					shouldActivate = true
@@ -908,1076 +1133,1917 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	-- Build UI
 	-- ============================================================================
-
-	local mainFrame = Instance.new("ScrollingFrame")
-	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.fromScale(1, 1)
-	mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	mainFrame.BorderSizePixel = 0
-	mainFrame.ScrollBarThickness = 6
-	mainFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
-	mainFrame.Parent = parentGui
-
-	local versionLabel = Instance.new("TextLabel")
-	versionLabel.Name = "VersionLabel"
-	versionLabel.BackgroundTransparency = 1
-	versionLabel.Position = UDim2.new(1, -8, 0, 4)
-	versionLabel.Size = UDim2.new(0, 100, 0, 14)
-	versionLabel.AnchorPoint = Vector2.new(1, 0)
-	versionLabel.Font = Enum.Font.Gotham
-	versionLabel.TextSize = 10
-	versionLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
-	versionLabel.TextXAlignment = Enum.TextXAlignment.Right
-	versionLabel.Text = "v" .. VERSION
-	versionLabel.ZIndex = 10
-	versionLabel.Parent = parentGui
-
-	local padding = Instance.new("UIPadding")
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 18)
-	padding.PaddingTop = UDim.new(0, 8)
-	padding.Parent = mainFrame
-
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1
-	title.Position = UDim2.new(0, 0, 0, 0)
-	title.Size = UDim2.new(1, 0, 0, 22)
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 15
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Text = "🌋 Terrain Editor Fork v" .. VERSION
-	title.Parent = mainFrame
-
-	UIHelpers.createHeader(mainFrame, "Tools", UDim2.new(0, 0, 0, 35))
-
-	local sculptTools = {
-		{ id = ToolId.Add, name = "Add", row = 0, col = 0 },
-		{ id = ToolId.Subtract, name = "Subtract", row = 0, col = 1 },
-		{ id = ToolId.Grow, name = "Grow", row = 0, col = 2 },
-		{ id = ToolId.Erode, name = "Erode", row = 1, col = 0 },
-		{ id = ToolId.Smooth, name = "Smooth", row = 1, col = 1 },
-		{ id = ToolId.Flatten, name = "Flatten", row = 1, col = 2 },
-		{ id = ToolId.Noise, name = "Noise", row = 2, col = 0 },
-		{ id = ToolId.Terrace, name = "Terrace", row = 2, col = 1 },
-		{ id = ToolId.Cliff, name = "Cliff", row = 2, col = 2 },
-		{ id = ToolId.Path, name = "Path", row = 3, col = 0 },
-		{ id = ToolId.Clone, name = "Clone", row = 3, col = 1 },
-		{ id = ToolId.Blobify, name = "Blobify", row = 3, col = 2 },
-		{ id = ToolId.Paint, name = "Paint", row = 3, col = 3 },
-		{ id = ToolId.Bridge, name = "Bridge", row = 4, col = 0 },
-	}
-
-	for _, toolInfo in ipairs(sculptTools) do
-		local pos = UDim2.new(0, toolInfo.col * 78, 0, 60 + toolInfo.row * 38)
-		local btn = UIHelpers.createToolButton(mainFrame, toolInfo.id, toolInfo.name, pos)
-		toolButtons[toolInfo.id] = btn
-		btn.MouseButton1Click:Connect(function()
-			selectTool(toolInfo.id)
-		end)
-	end
-
-	local CONFIG_START_Y = 243
-
-	local configContainer = Instance.new("Frame")
-	configContainer.Name = "ConfigContainer"
-	configContainer.BackgroundTransparency = 1
-	configContainer.Position = UDim2.new(0, 0, 0, CONFIG_START_Y)
-	configContainer.Size = UDim2.new(1, 0, 0, 800)
-	configContainer.Parent = mainFrame
-
-	-- Brush Shape Panel
-	local shapePanel = UIHelpers.createConfigPanel(configContainer, "brushShape")
-	UIHelpers.createHeader(shapePanel, "Brush Shape", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local shapeButtonsContainer = Instance.new("Frame")
-	shapeButtonsContainer.BackgroundTransparency = 1
-	shapeButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
-	shapeButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
-	shapeButtonsContainer.LayoutOrder = 2
-	shapeButtonsContainer.Parent = shapePanel
-
-	local shapeGridLayout = Instance.new("UIGridLayout")
-	shapeGridLayout.CellSize = UDim2.new(0, 70, 0, 28)
-	shapeGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
-	shapeGridLayout.FillDirection = Enum.FillDirection.Horizontal
-	shapeGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	shapeGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	shapeGridLayout.Parent = shapeButtonsContainer
-
-	local shapeButtons = {}
-
-	local function updateShapeButtons()
-		for shapeId, btn in pairs(shapeButtons) do
-			if shapeId == S.brushShape then
-				btn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-			else
-				btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-			end
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-
-	for i, shapeInfo in ipairs(BrushData.Shapes) do
-		local btn = UIHelpers.createButton(shapeButtonsContainer, shapeInfo.name, UDim2.new(0, 0, 0, 0), UDim2.new(0, 70, 0, 28), function()
-			S.brushShape = shapeInfo.id
-			updateShapeButtons()
-			if S.brushPart then
-				createBrushVisualization()
-			end
-		end)
-		btn.LayoutOrder = i
-		shapeButtons[shapeInfo.id] = btn
-	end
-	updateShapeButtons()
-	configPanels["brushShape"] = shapePanel
-
-	-- Strength Panel
-	local strengthPanel = UIHelpers.createConfigPanel(configContainer, "strength")
-	UIHelpers.createHeader(strengthPanel, "Strength", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local _strengthSliderLabel, strengthSliderContainer, setStrengthValue = UIHelpers.createSlider(
-		strengthPanel,
-		"Strength",
-		1,
-		100,
-		math.floor(S.brushStrength * 100),
-		function(value: number)
-			S.brushStrength = value / 100
-		end
-	)
-	strengthSliderContainer.LayoutOrder = 2
-	configPanels["strength"] = strengthPanel
-
-	-- Brush Rate Panel
-	local brushRatePanel = UIHelpers.createConfigPanel(configContainer, "brushRate")
-	UIHelpers.createHeader(brushRatePanel, "Brush Rate", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local brushRateButtonsContainer = Instance.new("Frame")
-	brushRateButtonsContainer.BackgroundTransparency = 1
-	brushRateButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
-	brushRateButtonsContainer.LayoutOrder = 2
-	brushRateButtonsContainer.Parent = brushRatePanel
-
-	local brushRates = {
-		{ id = "no_repeat", name = "No repeat" },
-		{ id = "on_move_only", name = "On move" },
-		{ id = "very_slow", name = "Very slow" },
-		{ id = "slow", name = "Slow" },
-		{ id = "normal", name = "Normal" },
-		{ id = "fast", name = "Fast" },
-	}
-	local brushRateButtons = {}
-	local function updateBrushRateButtons()
-		for rateId, btn in pairs(brushRateButtons) do
-			btn.BackgroundColor3 = (rateId == S.brushRate) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-	for i, rateInfo in ipairs(brushRates) do
-		local btn = UIHelpers.createButton(
-			brushRateButtonsContainer,
-			rateInfo.name,
-			UDim2.new(0, (i - 1) * 78, 0, 0),
-			UDim2.new(0, 70, 0, 28),
-			function()
-				S.brushRate = rateInfo.id
-				updateBrushRateButtons()
-			end
-		)
-		brushRateButtons[rateInfo.id] = btn
-	end
-	updateBrushRateButtons()
-	configPanels["brushRate"] = brushRatePanel
-
-	-- Pivot Panel
-	local pivotPanel = UIHelpers.createConfigPanel(configContainer, "pivot")
-	UIHelpers.createHeader(pivotPanel, "Pivot Position", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local pivotButtonsContainer = Instance.new("Frame")
-	pivotButtonsContainer.BackgroundTransparency = 1
-	pivotButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
-	pivotButtonsContainer.LayoutOrder = 2
-	pivotButtonsContainer.Parent = pivotPanel
-	local pivots =
-		{ { id = PivotType.Bottom, name = "Bottom" }, { id = PivotType.Center, name = "Center" }, { id = PivotType.Top, name = "Top" } }
-	local pivotButtons = {}
-	local function updatePivotButtons()
-		for pivotId, btn in pairs(pivotButtons) do
-			btn.BackgroundColor3 = (pivotId == S.pivotType) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-	for i, pivotInfo in ipairs(pivots) do
-		local btn = UIHelpers.createButton(
-			pivotButtonsContainer,
-			pivotInfo.name,
-			UDim2.new(0, (i - 1) * 78, 0, 0),
-			UDim2.new(0, 70, 0, 28),
-			function()
-				S.pivotType = pivotInfo.id
-				updatePivotButtons()
-			end
-		)
-		pivotButtons[pivotInfo.id] = btn
-	end
-	updatePivotButtons()
-	configPanels["pivot"] = pivotPanel
-
-	-- Hollow Mode Panel
-	local hollowPanel = UIHelpers.createConfigPanel(configContainer, "hollow")
-	UIHelpers.createHeader(hollowPanel, "Hollow Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local hollowToggleBtn: TextButton? = nil
-	local hollowThicknessContainer: Frame? = nil
-	local function updateHollowButton()
-		if hollowToggleBtn then
-			hollowToggleBtn.BackgroundColor3 = S.hollowEnabled and Color3.fromRGB(100, 50, 150) or Color3.fromRGB(50, 50, 50)
-			hollowToggleBtn.Text = S.hollowEnabled and "HOLLOW" or "Solid"
-		end
-		if hollowThicknessContainer then
-			hollowThicknessContainer.Visible = S.hollowEnabled
-		end
-	end
-	hollowToggleBtn = UIHelpers.createButton(hollowPanel, "Solid", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
-		S.hollowEnabled = not S.hollowEnabled
-		updateHollowButton()
-	end)
-	if hollowToggleBtn then
-		hollowToggleBtn.LayoutOrder = 2
-	end
-	local _, thicknessSliderContainer, _ = UIHelpers.createSlider(
-		hollowPanel,
-		"Thickness",
-		10,
-		50,
-		math.floor(S.wallThickness * 100),
-		function(val: number)
-			S.wallThickness = val / 100
-		end
-	)
-	thicknessSliderContainer.LayoutOrder = 3
-	hollowThicknessContainer = thicknessSliderContainer
-	if hollowThicknessContainer then
-		hollowThicknessContainer.Visible = false
-	end
-	updateHollowButton()
-	configPanels["hollow"] = hollowPanel
-
-	-- Spin Mode Panel
-	local spinPanel = UIHelpers.createConfigPanel(configContainer, "spin")
-	UIHelpers.createHeader(spinPanel, "Spin Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local spinButtonsContainer = Instance.new("Frame")
-	spinButtonsContainer.BackgroundTransparency = 1
-	spinButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
-	spinButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
-	spinButtonsContainer.LayoutOrder = 2
-	spinButtonsContainer.Parent = spinPanel
-	local spinLayout = Instance.new("UIListLayout")
-	spinLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	spinLayout.Padding = UDim.new(0, 6)
-	spinLayout.Parent = spinButtonsContainer
-	local spinModes = {
-		{ id = SpinMode.Off, name = "Off" },
-		{ id = SpinMode.Full3D, name = "3D" },
-		{ id = SpinMode.XZ, name = "XZ" },
-		{ id = SpinMode.Fast3D, name = "Fast 3D" },
-		{ id = SpinMode.XZFast, name = "Fast XZ" },
-	}
-	local spinButtons: { [string]: TextButton } = {}
-	local function updateSpinButtons()
-		for modeId, btn in pairs(spinButtons) do
-			btn.BackgroundColor3 = (modeId == S.spinMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-	for i, modeInfo in ipairs(spinModes) do
-		local btn = Instance.new("TextButton")
-		btn.Name = modeInfo.id
-		btn.Size = UDim2.new(0, 80, 0, 28)
-		btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-		btn.BorderSizePixel = 0
-		btn.Font = Enum.Font.Gotham
-		btn.TextSize = 11
-		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		btn.Text = modeInfo.name
-		btn.LayoutOrder = i
-		btn.Parent = spinButtonsContainer
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 4)
-		corner.Parent = btn
-		btn.MouseButton1Click:Connect(function()
-			S.spinMode = modeInfo.id
-			updateSpinButtons()
-		end)
-		spinButtons[modeInfo.id] = btn
-	end
-	updateSpinButtons()
-	configPanels["spin"] = spinPanel
-
-	-- Plane Lock Panel
-	local planeLockPanel = UIHelpers.createConfigPanel(configContainer, "planeLock")
-	UIHelpers.createHeader(planeLockPanel, "Plane Lock", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local planeLockModeContainer = Instance.new("Frame")
-	planeLockModeContainer.BackgroundTransparency = 1
-	planeLockModeContainer.Size = UDim2.new(1, 0, 0, 28)
-	planeLockModeContainer.LayoutOrder = 2
-	planeLockModeContainer.Parent = planeLockPanel
-	local planeLockModeButtons = {}
-	local manualControlsContainer = Instance.new("Frame")
-	manualControlsContainer.Name = "ManualControls"
-	manualControlsContainer.BackgroundTransparency = 1
-	manualControlsContainer.Size = UDim2.new(1, 0, 0, 0)
-	manualControlsContainer.AutomaticSize = Enum.AutomaticSize.Y
-	manualControlsContainer.LayoutOrder = 3
-	manualControlsContainer.Parent = planeLockPanel
-	local manualLayout = Instance.new("UIListLayout")
-	manualLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	manualLayout.Padding = UDim.new(0, 8)
-	manualLayout.Parent = manualControlsContainer
-	local function updatePlaneLockModeButtons()
-		for modeId, btn in pairs(planeLockModeButtons) do
-			btn.BackgroundColor3 = (modeId == S.planeLockMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-	local function updatePlaneLockVisuals()
-		manualControlsContainer.Visible = (S.planeLockMode == PlaneLockType.Manual)
-		if S.planeLockMode == PlaneLockType.Off then
-			hidePlaneVisualization()
-		end
-	end
-	local planeLockModes = {
-		{ id = PlaneLockType.Off, name = "Off" },
-		{ id = PlaneLockType.Auto, name = "Auto" },
-		{ id = PlaneLockType.Manual, name = "Manual" },
-	}
-	for i, modeInfo in ipairs(planeLockModes) do
-		local btn = UIHelpers.createButton(
-			planeLockModeContainer,
-			modeInfo.name,
-			UDim2.new(0, (i - 1) * 78, 0, 0),
-			UDim2.new(0, 70, 0, 28),
-			function()
-				S.planeLockMode = modeInfo.id
-				S.autoPlaneActive = false
-				updatePlaneLockModeButtons()
-				updatePlaneLockVisuals()
-			end
-		)
-		planeLockModeButtons[modeInfo.id] = btn
-	end
-	local _, planeHeightContainer, setPlaneHeightValue = UIHelpers.createSlider(
-		manualControlsContainer,
-		"Height",
-		-100,
-		500,
-		S.planePositionY,
-		function(value)
-			S.planePositionY = value
-		end
-	)
-	planeHeightContainer.LayoutOrder = 1
-	local setHeightBtnContainer = Instance.new("Frame")
-	setHeightBtnContainer.BackgroundTransparency = 1
-	setHeightBtnContainer.Size = UDim2.new(1, 0, 0, 28)
-	setHeightBtnContainer.LayoutOrder = 2
-	setHeightBtnContainer.Parent = manualControlsContainer
-	local setHeightBtn = UIHelpers.createButton(
-		setHeightBtnContainer,
-		"Set from Cursor",
-		UDim2.new(0, 0, 0, 0),
-		UDim2.new(0, 120, 0, 28),
-		function() end
-	)
-	setHeightBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-	setHeightBtn.MouseButton1Click:Connect(function()
-		local hitPosition = getTerrainHitRaw()
-		if hitPosition then
-			S.planePositionY = math.floor(hitPosition.Y + 0.5)
-			setPlaneHeightValue(S.planePositionY)
-		end
-	end)
-	updatePlaneLockModeButtons()
-	updatePlaneLockVisuals()
-	configPanels["planeLock"] = planeLockPanel
-
-	-- Flatten Mode Panel
-	local flattenModePanel = UIHelpers.createConfigPanel(configContainer, "flattenMode")
-	UIHelpers.createHeader(flattenModePanel, "Flatten Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local flattenButtonsContainer = Instance.new("Frame")
-	flattenButtonsContainer.BackgroundTransparency = 1
-	flattenButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
-	flattenButtonsContainer.LayoutOrder = 2
-	flattenButtonsContainer.Parent = flattenModePanel
-	local flattenModes =
-		{ { id = FlattenMode.Erode, name = "Erode" }, { id = FlattenMode.Both, name = "Both" }, { id = FlattenMode.Grow, name = "Grow" } }
-	local flattenButtons = {}
-	local function updateFlattenButtons()
-		for modeId, btn in pairs(flattenButtons) do
-			btn.BackgroundColor3 = (modeId == S.flattenMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-	for i, modeInfo in ipairs(flattenModes) do
-		local btn = UIHelpers.createButton(
-			flattenButtonsContainer,
-			modeInfo.name,
-			UDim2.new(0, (i - 1) * 78, 0, 0),
-			UDim2.new(0, 70, 0, 28),
-			function()
-				S.flattenMode = modeInfo.id
-				updateFlattenButtons()
-			end
-		)
-		flattenButtons[modeInfo.id] = btn
-	end
-	updateFlattenButtons()
-	configPanels["flattenMode"] = flattenModePanel
-
-	-- Material Panel
-	local materialPanel = UIHelpers.createConfigPanel(configContainer, "material")
-	UIHelpers.createHeader(materialPanel, "Material", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local materialGridContainer = Instance.new("Frame")
-	materialGridContainer.Name = "MaterialGrid"
-	materialGridContainer.BackgroundTransparency = 1
-	materialGridContainer.Size = UDim2.new(1, 0, 0, 0)
-	materialGridContainer.AutomaticSize = Enum.AutomaticSize.Y
-	materialGridContainer.LayoutOrder = 2
-	materialGridContainer.Parent = materialPanel
-	local materialButtons = {}
-	local function updateMaterialButtons()
-		for mat, container in pairs(materialButtons) do
-			local tileBtn = container:FindFirstChild("TileButton")
-			if tileBtn then
-				local border = tileBtn:FindFirstChild("SelectionBorder") :: UIStroke?
-				if border then
-					border.Transparency = (mat == S.brushMaterial) and 0 or 1
-				end
-			end
-		end
-	end
-	local materialGridLayout = Instance.new("UIGridLayout")
-	materialGridLayout.CellSize = UDim2.new(0, 72, 0, 94)
-	materialGridLayout.CellPadding = UDim2.new(0, 6, 0, 8)
-	materialGridLayout.FillDirection = Enum.FillDirection.Horizontal
-	materialGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	materialGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	materialGridLayout.Parent = materialGridContainer
-
-	for i, matInfo in ipairs(BrushData.Materials) do
-		local container = Instance.new("Frame")
-		container.Name = matInfo.key
-		container.BackgroundTransparency = 1
-		container.Size = UDim2.new(0, 72, 0, 94)
-		container.LayoutOrder = i
-		container.Parent = materialGridContainer
-		local tileBtn = Instance.new("ImageButton")
-		tileBtn.Name = "TileButton"
-		tileBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-		tileBtn.BorderSizePixel = 0
-		tileBtn.Size = UDim2.new(0, 72, 0, 72)
-		tileBtn.Image = BrushData.TerrainTileAssets[matInfo.key] or ""
-		tileBtn.ScaleType = Enum.ScaleType.Crop
-		tileBtn.Parent = container
-		local tileCorner = Instance.new("UICorner")
-		tileCorner.CornerRadius = UDim.new(0, 6)
-		tileCorner.Parent = tileBtn
-		local selectionBorder = Instance.new("UIStroke")
-		selectionBorder.Name = "SelectionBorder"
-		selectionBorder.Color = Color3.fromRGB(0, 180, 255)
-		selectionBorder.Thickness = 3
-		selectionBorder.Transparency = (matInfo.enum == S.brushMaterial) and 0 or 1
-		selectionBorder.Parent = tileBtn
-		local label = Instance.new("TextLabel")
-		label.BackgroundTransparency = 1
-		label.Position = UDim2.new(0, 0, 0, 74)
-		label.Size = UDim2.new(1, 0, 0, 18)
-		label.Font = Enum.Font.GothamBold
-		label.TextSize = 12
-		label.TextColor3 = Color3.fromRGB(255, 255, 255)
-		label.TextTruncate = Enum.TextTruncate.AtEnd
-		label.Text = matInfo.name
-		label.Parent = container
-		materialButtons[matInfo.enum] = container
-		tileBtn.MouseButton1Click:Connect(function()
-			S.brushMaterial = matInfo.enum
-			updateMaterialButtons()
-		end)
-	end
-	updateMaterialButtons()
-	configPanels["material"] = materialPanel
-
-	-- ============================================================================
-	-- Path Tool Panels
-	-- ============================================================================
-
-	-- Path Depth Panel
-	local pathDepthPanel = UIHelpers.createConfigPanel(configContainer, "pathDepth")
-	UIHelpers.createHeader(pathDepthPanel, "Path Depth", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local pathDepthDesc = Instance.new("TextLabel")
-	pathDepthDesc.BackgroundTransparency = 1
-	pathDepthDesc.Size = UDim2.new(1, 0, 0, 16)
-	pathDepthDesc.Font = Enum.Font.Gotham
-	pathDepthDesc.TextSize = 11
-	pathDepthDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
-	pathDepthDesc.TextXAlignment = Enum.TextXAlignment.Left
-	pathDepthDesc.Text = "How deep the channel is in studs"
-	pathDepthDesc.LayoutOrder = 2
-	pathDepthDesc.Parent = pathDepthPanel
-
-	local _, pathDepthContainer, _setPathDepth = UIHelpers.createSlider(pathDepthPanel, "Depth", 2, 20, S.pathDepth, function(value)
-		S.pathDepth = value
-	end)
-	pathDepthContainer.LayoutOrder = 3
-
-	configPanels["pathDepth"] = pathDepthPanel
-
-	-- Path Profile Panel
-	local pathProfilePanel = UIHelpers.createConfigPanel(configContainer, "pathProfile")
-	UIHelpers.createHeader(pathProfilePanel, "Path Profile", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local pathProfileButtonsContainer = Instance.new("Frame")
-	pathProfileButtonsContainer.BackgroundTransparency = 1
-	pathProfileButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
-	pathProfileButtonsContainer.LayoutOrder = 2
-	pathProfileButtonsContainer.Parent = pathProfilePanel
-
-	local pathProfiles = { { id = "V", name = "V" }, { id = "U", name = "U" }, { id = "Flat", name = "Flat" } }
-	local pathProfileButtons = {}
-	local function updatePathProfileButtons()
-		for profileId, btn in pairs(pathProfileButtons) do
-			btn.BackgroundColor3 = (profileId == S.pathProfile) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-
-	for i, profileInfo in ipairs(pathProfiles) do
-		local btn = UIHelpers.createButton(
-			pathProfileButtonsContainer,
-			profileInfo.name,
-			UDim2.new(0, (i - 1) * 80, 0, 0),
-			UDim2.new(0, 70, 0, 28),
-			function()
-				S.pathProfile = profileInfo.id
-				updatePathProfileButtons()
-			end
-		)
-		pathProfileButtons[profileInfo.id] = btn
-	end
-	updatePathProfileButtons()
-
-	configPanels["pathProfile"] = pathProfilePanel
-
-	-- Path Direction Info Panel
-	local pathDirectionInfoPanel = UIHelpers.createConfigPanel(configContainer, "pathDirectionInfo")
-	UIHelpers.createHeader(pathDirectionInfoPanel, "Path Direction", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local pathDirDesc = Instance.new("TextLabel")
-	pathDirDesc.BackgroundTransparency = 1
-	pathDirDesc.Size = UDim2.new(1, 0, 0, 32)
-	pathDirDesc.Font = Enum.Font.Gotham
-	pathDirDesc.TextSize = 12
-	pathDirDesc.TextColor3 = Color3.fromRGB(255, 255, 255)
-	pathDirDesc.TextXAlignment = Enum.TextXAlignment.Left
-	pathDirDesc.TextWrapped = true
-	pathDirDesc.Text = "Drag mouse to set channel direction"
-	pathDirDesc.LayoutOrder = 2
-	pathDirDesc.Parent = pathDirectionInfoPanel
-
-	configPanels["pathDirectionInfo"] = pathDirectionInfoPanel
-
-	-- ============================================================================
-	-- Clone Tool Panels
-	-- ============================================================================
-
-	local cloneInfoPanel = UIHelpers.createConfigPanel(configContainer, "cloneInfo")
-	UIHelpers.createHeader(cloneInfoPanel, "Clone Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local cloneInstructions = Instance.new("TextLabel")
-	cloneInstructions.BackgroundTransparency = 1
-	cloneInstructions.Size = UDim2.new(1, 0, 0, 48)
-	cloneInstructions.Font = Enum.Font.Gotham
-	cloneInstructions.TextSize = 12
-	cloneInstructions.TextColor3 = Color3.fromRGB(255, 255, 255)
-	cloneInstructions.TextXAlignment = Enum.TextXAlignment.Left
-	cloneInstructions.TextWrapped = true
-	cloneInstructions.Text = "Alt+Click to sample source, then click to stamp"
-	cloneInstructions.LayoutOrder = 2
-	cloneInstructions.Parent = cloneInfoPanel
-
-	local cloneStatusLabel = Instance.new("TextLabel")
-	cloneStatusLabel.Name = "Status"
-	cloneStatusLabel.BackgroundTransparency = 1
-	cloneStatusLabel.Size = UDim2.new(1, 0, 0, 20)
-	cloneStatusLabel.Font = Enum.Font.Gotham
-	cloneStatusLabel.TextSize = 11
-	cloneStatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-	cloneStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-	cloneStatusLabel.Text = "Status: No source sampled"
-	cloneStatusLabel.LayoutOrder = 3
-	cloneStatusLabel.Parent = cloneInfoPanel
-
-	configPanels["cloneInfo"] = cloneInfoPanel
-
-	-- ============================================================================
-	-- Blobify Tool Panels
-	-- ============================================================================
-
-	-- Blob Intensity Panel
-	local blobIntensityPanel = UIHelpers.createConfigPanel(configContainer, "blobIntensity")
-	UIHelpers.createHeader(blobIntensityPanel, "Blob Intensity", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local blobIntensityDesc = Instance.new("TextLabel")
-	blobIntensityDesc.BackgroundTransparency = 1
-	blobIntensityDesc.Size = UDim2.new(1, 0, 0, 16)
-	blobIntensityDesc.Font = Enum.Font.Gotham
-	blobIntensityDesc.TextSize = 11
-	blobIntensityDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
-	blobIntensityDesc.TextXAlignment = Enum.TextXAlignment.Left
-	blobIntensityDesc.Text = "How much the blob protrudes"
-	blobIntensityDesc.LayoutOrder = 2
-	blobIntensityDesc.Parent = blobIntensityPanel
-
-	local _, blobIntensityContainer, _setBlobIntensity = UIHelpers.createSlider(
-		blobIntensityPanel,
-		"Intensity",
-		10,
-		100,
-		math.floor(S.blobIntensity * 100),
-		function(value: number)
-			S.blobIntensity = value / 100
-		end
-	)
-	blobIntensityContainer.LayoutOrder = 3
-
-	configPanels["blobIntensity"] = blobIntensityPanel
-
-	-- Blob Smoothness Panel
-	local blobSmoothnessPanel = UIHelpers.createConfigPanel(configContainer, "blobSmoothness")
-	UIHelpers.createHeader(blobSmoothnessPanel, "Blob Smoothness", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-
-	local blobSmoothnessDesc = Instance.new("TextLabel")
-	blobSmoothnessDesc.BackgroundTransparency = 1
-	blobSmoothnessDesc.Size = UDim2.new(1, 0, 0, 16)
-	blobSmoothnessDesc.Font = Enum.Font.Gotham
-	blobSmoothnessDesc.TextSize = 11
-	blobSmoothnessDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
-	blobSmoothnessDesc.TextXAlignment = Enum.TextXAlignment.Left
-	blobSmoothnessDesc.Text = "How smooth/organic the blob shape is"
-	blobSmoothnessDesc.LayoutOrder = 2
-	blobSmoothnessDesc.Parent = blobSmoothnessPanel
-
-	local _, blobSmoothnessContainer, _setBlobSmoothness = UIHelpers.createSlider(
-		blobSmoothnessPanel,
-		"Smoothness",
-		10,
-		100,
-		math.floor(S.blobSmoothness * 100),
-		function(value: number)
-			S.blobSmoothness = value / 100
-		end
-	)
-	blobSmoothnessContainer.LayoutOrder = 3
-
-	configPanels["blobSmoothness"] = blobSmoothnessPanel
-
-	-- Bridge Info Panel
-	local bridgeInfoPanel = UIHelpers.createConfigPanel(configContainer, "bridgeInfo")
-	UIHelpers.createHeader(bridgeInfoPanel, "Bridge Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
-	local updateBridgePreview
-	local bridgeInstructions = Instance.new("TextLabel")
-	bridgeInstructions.Name = "Instructions"
-	bridgeInstructions.BackgroundTransparency = 1
-	bridgeInstructions.Size = UDim2.new(1, 0, 0, 50)
-	bridgeInstructions.Font = Enum.Font.Gotham
-	bridgeInstructions.TextSize = 12
-	bridgeInstructions.TextColor3 = Color3.fromRGB(255, 255, 255)
-	bridgeInstructions.TextWrapped = true
-	bridgeInstructions.TextXAlignment = Enum.TextXAlignment.Left
-	bridgeInstructions.TextYAlignment = Enum.TextYAlignment.Top
-	bridgeInstructions.Text = "Click to set START point, then click again to set END point."
-	bridgeInstructions.LayoutOrder = 2
-	bridgeInstructions.Parent = bridgeInfoPanel
-	local bridgeStatusLabel = Instance.new("TextLabel")
-	bridgeStatusLabel.Name = "Status"
-	bridgeStatusLabel.BackgroundTransparency = 1
-	bridgeStatusLabel.Size = UDim2.new(1, 0, 0, 24)
-	bridgeStatusLabel.Font = Enum.Font.GothamBold
-	bridgeStatusLabel.TextSize = 14
-	bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-	bridgeStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-	bridgeStatusLabel.Text = "Status: Click to set START"
-	bridgeStatusLabel.LayoutOrder = 3
-	bridgeStatusLabel.Parent = bridgeInfoPanel
-	local _, bridgeWidthContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Width", 1, 20, S.bridgeWidth, function(val)
-		S.bridgeWidth = val
-		if updateBridgePreview then
-			updateBridgePreview()
-		end
-	end)
-	bridgeWidthContainer.LayoutOrder = 4
-	local variantLabel = UIHelpers.createHeader(bridgeInfoPanel, "Style", UDim2.new(0, 0, 0, 0))
-	variantLabel.LayoutOrder = 5
-	local variantButtonsContainer = Instance.new("Frame")
-	variantButtonsContainer.Name = "VariantButtons"
-	variantButtonsContainer.BackgroundTransparency = 1
-	variantButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
-	variantButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
-	variantButtonsContainer.LayoutOrder = 6
-	variantButtonsContainer.Parent = bridgeInfoPanel
-	local variantGridLayout = Instance.new("UIGridLayout")
-	variantGridLayout.CellSize = UDim2.new(0, 80, 0, 26)
-	variantGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
-	variantGridLayout.FillDirection = Enum.FillDirection.Horizontal
-	variantGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	variantGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	variantGridLayout.Parent = variantButtonsContainer
-	local variantButtons: { [string]: TextButton } = {}
-	local function updateVariantButtons()
-		for variant, btn in pairs(variantButtons) do
-			btn.BackgroundColor3 = (variant == S.bridgeVariant) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		end
-	end
-	for i, variant in ipairs(BrushData.BridgeVariants) do
-		local variantBtn = Instance.new("TextButton")
-		variantBtn.Name = variant
-		variantBtn.Size = UDim2.new(0, 80, 0, 26)
-		variantBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-		variantBtn.BorderSizePixel = 0
-		variantBtn.Font = Enum.Font.Gotham
-		variantBtn.TextSize = 11
-		variantBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		variantBtn.Text = variant
-		variantBtn.LayoutOrder = i
-		variantBtn.Parent = variantButtonsContainer
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 4)
-		corner.Parent = variantBtn
-		variantBtn.MouseButton1Click:Connect(function()
-			S.bridgeVariant = variant
-			updateVariantButtons()
-			-- Initialize curves when switching to MegaMeander
-			if variant == "MegaMeander" and S.bridgeStartPoint and S.bridgeEndPoint then
-				if #S.bridgeCurves == 0 then
-					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-				end
-			else
-				-- Clear curves when switching away from MegaMeander
-				S.bridgeCurves = {}
-			end
-			updateBridgeStatus()
-			if updateBridgePreview then
-				updateBridgePreview()
-			end
-		end)
-		variantButtons[variant] = variantBtn
-	end
-	updateVariantButtons()
-	local clearBridgeBtn = UIHelpers.createButton(
-		bridgeInfoPanel,
-		"Clear Points",
-		UDim2.new(0, 0, 0, 0),
-		UDim2.new(0, 100, 0, 28),
+	-- Wrap UI building in IIFE to reduce local variable count in init()
+	local configPanels, setStrengthValue, updateConfigPanelVisibility, toolButtons, updateBridgeStatus, updateBridgePreview, buildBridge = (
 		function()
-			S.bridgeStartPoint = nil
-			S.bridgeEndPoint = nil
-			S.bridgeCurves = {} -- Clear curves when clearing points
-			bridgeStatusLabel.Text = "Status: Click to set START"
-			for _, part in ipairs(S.bridgePreviewParts) do
-				part:Destroy()
-			end
-			S.bridgePreviewParts = {}
-			updateBridgeStatus()
-		end
-	)
-	clearBridgeBtn.LayoutOrder = 10
-	
-	-- Meander controls (only visible when both points are set and MegaMeander is selected)
-	local meanderControlsContainer = Instance.new("Frame")
-	meanderControlsContainer.Name = "MeanderControls"
-	meanderControlsContainer.BackgroundTransparency = 1
-	meanderControlsContainer.Size = UDim2.new(1, 0, 0, 0)
-	meanderControlsContainer.AutomaticSize = Enum.AutomaticSize.Y
-	meanderControlsContainer.LayoutOrder = 11
-	meanderControlsContainer.Visible = false
-	meanderControlsContainer.Parent = bridgeInfoPanel
-	
-	local meanderLayout = Instance.new("UIListLayout")
-	meanderLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	meanderLayout.Padding = UDim.new(0, 6)
-	meanderLayout.Parent = meanderControlsContainer
-	
-	local redoLayoutBtn = UIHelpers.createButton(
-		meanderControlsContainer,
-		"🔄 Re-randomize Layout",
-		UDim2.new(0, 0, 0, 0),
-		UDim2.new(1, 0, 0, 32),
-		function()
-			if S.bridgeStartPoint and S.bridgeEndPoint then
-				-- Generate new random curves for Mega Meander
-				if S.bridgeVariant == "MegaMeander" then
-					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-				else
-					-- For other variants, generate a few curves for added complexity
-					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(math.min(3, S.bridgeMeanderComplexity))
-				end
-				if updateBridgePreview then
-					updateBridgePreview()
-				end
-			end
-		end
-	)
-	redoLayoutBtn.LayoutOrder = 1
-	
-	local addCurveBtn = UIHelpers.createButton(
-		meanderControlsContainer,
-		"➕ Add Curve",
-		UDim2.new(0, 0, 0, 0),
-		UDim2.new(1, 0, 0, 32),
-		function()
-			if #S.bridgeCurves < 50 then
-				table.insert(S.bridgeCurves, BridgePathGenerator.generateRandomCurve())
-				if updateBridgePreview then
-					updateBridgePreview()
-				end
-			end
-		end
-	)
-	addCurveBtn.LayoutOrder = 2
-	
-	local complexityLabel = UIHelpers.createHeader(meanderControlsContainer, "Meander Complexity", UDim2.new(0, 0, 0, 0))
-	complexityLabel.LayoutOrder = 3
-	
-	local _, complexityContainer, _setComplexity = UIHelpers.createSlider(
-		meanderControlsContainer,
-		"Curves",
-		1,
-		50,
-		S.bridgeMeanderComplexity,
-		function(value: number)
-			S.bridgeMeanderComplexity = value
-			if S.bridgeVariant == "MegaMeander" and S.bridgeStartPoint and S.bridgeEndPoint then
-				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-				if updateBridgePreview then
-					updateBridgePreview()
-				end
-			end
-		end
-	)
-	complexityContainer.LayoutOrder = 4
-	
-	configPanels["bridgeInfo"] = bridgeInfoPanel
+			local mainFrame = Instance.new("ScrollingFrame")
+			mainFrame.Name = "MainFrame"
+			mainFrame.Size = UDim2.fromScale(1, 1)
+			mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+			mainFrame.BorderSizePixel = 0
+			mainFrame.ScrollBarThickness = 6
+			mainFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
+			mainFrame.Parent = parentGui
 
-	local function updateBridgeStatus()
-		if S.bridgeStartPoint and S.bridgeEndPoint then
-			bridgeStatusLabel.Text = "Status: READY - Click to build!"
-			bridgeStatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-			-- Show meander controls only for MegaMeander variant
-			meanderControlsContainer.Visible = (S.bridgeVariant == "MegaMeander")
-		elseif S.bridgeStartPoint then
-			bridgeStatusLabel.Text = "Status: Click to set END"
-			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-			meanderControlsContainer.Visible = false
-		else
-			bridgeStatusLabel.Text = "Status: Click to set START"
-			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-			meanderControlsContainer.Visible = false
-		end
-	end
+			local versionLabel = Instance.new("TextLabel")
+			versionLabel.Name = "VersionLabel"
+			versionLabel.BackgroundTransparency = 1
+			versionLabel.Position = UDim2.new(1, -8, 0, 4)
+			versionLabel.Size = UDim2.new(0, 100, 0, 14)
+			versionLabel.AnchorPoint = Vector2.new(1, 0)
+			versionLabel.Font = Enum.Font.Gotham
+			versionLabel.TextSize = 10
+			versionLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
+			versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+			versionLabel.Text = "v" .. VERSION
+			versionLabel.ZIndex = 10
+			versionLabel.Parent = parentGui
 
-	updateBridgePreview = function()
-		for _, part in ipairs(S.bridgePreviewParts) do
-			part:Destroy()
-		end
-		S.bridgePreviewParts = {}
-		if not S.bridgeStartPoint then
-			return
-		end
-		local startMarker = Instance.new("Part")
-		startMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
-		startMarker.CFrame = CFrame.new(S.bridgeStartPoint)
-		startMarker.Anchored = true
-		startMarker.CanCollide = false
-		startMarker.Material = Enum.Material.Neon
-		startMarker.Color = Color3.fromRGB(0, 255, 0)
-		startMarker.Transparency = 0.5
-		startMarker.Parent = workspace
-		table.insert(S.bridgePreviewParts, startMarker)
-		if S.bridgeEndPoint then
-			local endMarker = Instance.new("Part")
-			endMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
-			endMarker.CFrame = CFrame.new(S.bridgeEndPoint)
-			endMarker.Anchored = true
-			endMarker.CanCollide = false
-			endMarker.Material = Enum.Material.Neon
-			endMarker.Color = Color3.fromRGB(255, 100, 0)
-			endMarker.Transparency = 0.5
-			endMarker.Parent = workspace
-			table.insert(S.bridgePreviewParts, endMarker)
-			
-			local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
-			local steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
-			
-			-- Use advanced path generation for MegaMeander mode
-			if S.bridgeVariant == "MegaMeander" then
-				-- Initialize curves if empty
-				if #S.bridgeCurves == 0 then
-					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+			local padding = Instance.new("UIPadding")
+			padding.PaddingLeft = UDim.new(0, 10)
+			padding.PaddingRight = UDim.new(0, 18)
+			padding.PaddingTop = UDim.new(0, 8)
+			padding.Parent = mainFrame
+
+			local title = Instance.new("TextLabel")
+			title.BackgroundTransparency = 1
+			title.Position = UDim2.new(0, 0, 0, 0)
+			title.Size = UDim2.new(1, 0, 0, 22)
+			title.Font = Enum.Font.GothamBold
+			title.TextSize = 15
+			title.TextColor3 = Color3.fromRGB(255, 255, 255)
+			title.Text = "🌋 Terrain Editor Fork v" .. VERSION
+			title.Parent = mainFrame
+
+			UIHelpers.createHeader(mainFrame, "Tools", UDim2.new(0, 0, 0, 35))
+
+			local sculptTools = {
+				{ id = ToolId.Add, name = "Add", row = 0, col = 0 },
+				{ id = ToolId.Subtract, name = "Sub", row = 0, col = 1 },
+				{ id = ToolId.Grow, name = "Grow", row = 0, col = 2 },
+				{ id = ToolId.Erode, name = "Erode", row = 0, col = 3 },
+				{ id = ToolId.Smooth, name = "Smooth", row = 1, col = 0 },
+				{ id = ToolId.Flatten, name = "Flat", row = 1, col = 1 },
+				{ id = ToolId.Noise, name = "Noise", row = 1, col = 2 },
+				{ id = ToolId.Terrace, name = "Terrace", row = 1, col = 3 },
+				{ id = ToolId.Cliff, name = "Cliff", row = 2, col = 0 },
+				{ id = ToolId.Path, name = "Path", row = 2, col = 1 },
+				{ id = ToolId.Clone, name = "Clone", row = 2, col = 2 },
+				{ id = ToolId.Blobify, name = "Blob", row = 2, col = 3 },
+				{ id = ToolId.Paint, name = "Paint", row = 3, col = 0 },
+				{ id = ToolId.SlopePaint, name = "Slope", row = 3, col = 1 },
+				{ id = ToolId.Megarandomize, name = "Rand", row = 3, col = 2 },
+				{ id = ToolId.GradientPaint, name = "Grad", row = 3, col = 3 },
+				{ id = ToolId.CavityFill, name = "Fill", row = 4, col = 0 },
+				{ id = ToolId.Melt, name = "Melt", row = 4, col = 1 },
+				{ id = ToolId.FloodPaint, name = "Flood", row = 4, col = 2 },
+				{ id = ToolId.Stalactite, name = "Stalac", row = 4, col = 3 },
+				{ id = ToolId.Tendril, name = "Tendrl", row = 5, col = 0 },
+				{ id = ToolId.Symmetry, name = "Symm", row = 5, col = 1 },
+				{ id = ToolId.VariationGrid, name = "Grid", row = 5, col = 2 },
+				{ id = ToolId.GrowthSim, name = "Growth", row = 5, col = 3 },
+				{ id = ToolId.Bridge, name = "Bridge", row = 6, col = 0 },
+			}
+
+			for _, toolInfo in ipairs(sculptTools) do
+				local pos = UDim2.new(0, toolInfo.col * 78, 0, 60 + toolInfo.row * 38)
+				local btn = UIHelpers.createToolButton(mainFrame, toolInfo.id, toolInfo.name, pos)
+				toolButtons[toolInfo.id] = btn
+				btn.MouseButton1Click:Connect(function()
+					selectTool(toolInfo.id)
+				end)
+			end
+
+			local CONFIG_START_Y = 358 -- Adjusted for 7 rows of tool buttons
+
+			local configContainer = Instance.new("Frame")
+			configContainer.Name = "ConfigContainer"
+			configContainer.BackgroundTransparency = 1
+			configContainer.Position = UDim2.new(0, 0, 0, CONFIG_START_Y)
+			configContainer.Size = UDim2.new(1, 0, 0, 800)
+			configContainer.Parent = mainFrame
+
+			-- Brush Shape Panel
+			local shapePanel = UIHelpers.createConfigPanel(configContainer, "brushShape")
+			UIHelpers.createHeader(shapePanel, "Brush Shape", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local shapeButtonsContainer = Instance.new("Frame")
+			shapeButtonsContainer.BackgroundTransparency = 1
+			shapeButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
+			shapeButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+			shapeButtonsContainer.LayoutOrder = 2
+			shapeButtonsContainer.Parent = shapePanel
+
+			local shapeGridLayout = Instance.new("UIGridLayout")
+			shapeGridLayout.CellSize = UDim2.new(0, 70, 0, 28)
+			shapeGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+			shapeGridLayout.FillDirection = Enum.FillDirection.Horizontal
+			shapeGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			shapeGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			shapeGridLayout.Parent = shapeButtonsContainer
+
+			local shapeButtons = {}
+
+			local function updateShapeButtons()
+				for shapeId, btn in pairs(shapeButtons) do
+					if shapeId == S.brushShape then
+						btn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+					else
+						btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+					end
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 				end
-				
-				-- Generate terrain-aware meandering path
-				local path = BridgePathGenerator.generateMeanderingPath(
-					S.bridgeStartPoint,
-					S.bridgeEndPoint,
-					S.bridgeCurves,
-					S.terrain,
-					steps,
-					true -- terrain awareness enabled
+			end
+
+			for i, shapeInfo in ipairs(BrushData.Shapes) do
+				local btn = UIHelpers.createButton(
+					shapeButtonsContainer,
+					shapeInfo.name,
+					UDim2.new(0, 0, 0, 0),
+					UDim2.new(0, 70, 0, 28),
+					function()
+						S.brushShape = shapeInfo.id
+						updateShapeButtons()
+						if S.brushPart then
+							createBrushVisualization()
+						end
+					end
 				)
-				
-				-- Visualize path points
-				for i, pathPoint in ipairs(path) do
-					if i > 1 and i < #path then -- Skip first and last (already have markers)
-						local pathMarker = Instance.new("Part")
-						pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
-						pathMarker.CFrame = CFrame.new(pathPoint.position)
-						pathMarker.Anchored = true
-						pathMarker.CanCollide = false
-						pathMarker.Material = Enum.Material.Neon
-						pathMarker.Color = Color3.fromRGB(100, 200, 255)
-						pathMarker.Transparency = 0.7
-						pathMarker.Shape = Enum.PartType.Ball
-						pathMarker.Parent = workspace
-						table.insert(S.bridgePreviewParts, pathMarker)
+				btn.LayoutOrder = i
+				shapeButtons[shapeInfo.id] = btn
+			end
+			updateShapeButtons()
+			configPanels["brushShape"] = shapePanel
+
+			-- Strength Panel
+			local strengthPanel = UIHelpers.createConfigPanel(configContainer, "strength")
+			UIHelpers.createHeader(strengthPanel, "Strength", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local _strengthSliderLabel, strengthSliderContainer, setStrengthValue = UIHelpers.createSlider(
+				strengthPanel,
+				"Strength",
+				1,
+				100,
+				math.floor(S.brushStrength * 100),
+				function(value: number)
+					S.brushStrength = value / 100
+				end
+			)
+			strengthSliderContainer.LayoutOrder = 2
+			configPanels["strength"] = strengthPanel
+
+			-- Brush Rate Panel
+			local brushRatePanel = UIHelpers.createConfigPanel(configContainer, "brushRate")
+			UIHelpers.createHeader(brushRatePanel, "Brush Rate", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local brushRateButtonsContainer = Instance.new("Frame")
+			brushRateButtonsContainer.BackgroundTransparency = 1
+			brushRateButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+			brushRateButtonsContainer.LayoutOrder = 2
+			brushRateButtonsContainer.Parent = brushRatePanel
+
+			local brushRates = {
+				{ id = "no_repeat", name = "No repeat" },
+				{ id = "on_move_only", name = "On move" },
+				{ id = "very_slow", name = "Very slow" },
+				{ id = "slow", name = "Slow" },
+				{ id = "normal", name = "Normal" },
+				{ id = "fast", name = "Fast" },
+			}
+			local brushRateButtons = {}
+			local function updateBrushRateButtons()
+				for rateId, btn in pairs(brushRateButtons) do
+					btn.BackgroundColor3 = (rateId == S.brushRate) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+			end
+			for i, rateInfo in ipairs(brushRates) do
+				local btn = UIHelpers.createButton(
+					brushRateButtonsContainer,
+					rateInfo.name,
+					UDim2.new(0, (i - 1) * 78, 0, 0),
+					UDim2.new(0, 70, 0, 28),
+					function()
+						S.brushRate = rateInfo.id
+						updateBrushRateButtons()
+					end
+				)
+				brushRateButtons[rateInfo.id] = btn
+			end
+			updateBrushRateButtons()
+			configPanels["brushRate"] = brushRatePanel
+
+			-- Pivot Panel
+			local pivotPanel = UIHelpers.createConfigPanel(configContainer, "pivot")
+			UIHelpers.createHeader(pivotPanel, "Pivot Position", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local pivotButtonsContainer = Instance.new("Frame")
+			pivotButtonsContainer.BackgroundTransparency = 1
+			pivotButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+			pivotButtonsContainer.LayoutOrder = 2
+			pivotButtonsContainer.Parent = pivotPanel
+			local pivots = {
+				{ id = PivotType.Bottom, name = "Bottom" },
+				{ id = PivotType.Center, name = "Center" },
+				{ id = PivotType.Top, name = "Top" },
+			}
+			local pivotButtons = {}
+			local function updatePivotButtons()
+				for pivotId, btn in pairs(pivotButtons) do
+					btn.BackgroundColor3 = (pivotId == S.pivotType) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+			end
+			for i, pivotInfo in ipairs(pivots) do
+				local btn = UIHelpers.createButton(
+					pivotButtonsContainer,
+					pivotInfo.name,
+					UDim2.new(0, (i - 1) * 78, 0, 0),
+					UDim2.new(0, 70, 0, 28),
+					function()
+						S.pivotType = pivotInfo.id
+						updatePivotButtons()
+					end
+				)
+				pivotButtons[pivotInfo.id] = btn
+			end
+			updatePivotButtons()
+			configPanels["pivot"] = pivotPanel
+
+			-- Hollow Mode Panel
+			local hollowPanel = UIHelpers.createConfigPanel(configContainer, "hollow")
+			UIHelpers.createHeader(hollowPanel, "Hollow Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local hollowToggleBtn: TextButton? = nil
+			local hollowThicknessContainer: Frame? = nil
+			local function updateHollowButton()
+				if hollowToggleBtn then
+					hollowToggleBtn.BackgroundColor3 = S.hollowEnabled and Color3.fromRGB(100, 50, 150) or Color3.fromRGB(50, 50, 50)
+					hollowToggleBtn.Text = S.hollowEnabled and "HOLLOW" or "Solid"
+				end
+				if hollowThicknessContainer then
+					hollowThicknessContainer.Visible = S.hollowEnabled
+				end
+			end
+			hollowToggleBtn = UIHelpers.createButton(hollowPanel, "Solid", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
+				S.hollowEnabled = not S.hollowEnabled
+				updateHollowButton()
+			end)
+			if hollowToggleBtn then
+				hollowToggleBtn.LayoutOrder = 2
+			end
+			local _, thicknessSliderContainer, _ = UIHelpers.createSlider(
+				hollowPanel,
+				"Thickness",
+				10,
+				50,
+				math.floor(S.wallThickness * 100),
+				function(val: number)
+					S.wallThickness = val / 100
+				end
+			)
+			thicknessSliderContainer.LayoutOrder = 3
+			hollowThicknessContainer = thicknessSliderContainer
+			if hollowThicknessContainer then
+				hollowThicknessContainer.Visible = false
+			end
+			updateHollowButton()
+			configPanels["hollow"] = hollowPanel
+
+			-- Spin Mode Panel
+			local spinPanel = UIHelpers.createConfigPanel(configContainer, "spin")
+			UIHelpers.createHeader(spinPanel, "Spin Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local spinButtonsContainer = Instance.new("Frame")
+			spinButtonsContainer.BackgroundTransparency = 1
+			spinButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
+			spinButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+			spinButtonsContainer.LayoutOrder = 2
+			spinButtonsContainer.Parent = spinPanel
+			local spinLayout = Instance.new("UIListLayout")
+			spinLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			spinLayout.Padding = UDim.new(0, 6)
+			spinLayout.Parent = spinButtonsContainer
+			local spinModes = {
+				{ id = SpinMode.Off, name = "Off" },
+				{ id = SpinMode.Full3D, name = "3D" },
+				{ id = SpinMode.XZ, name = "XZ" },
+				{ id = SpinMode.Fast3D, name = "Fast 3D" },
+				{ id = SpinMode.XZFast, name = "Fast XZ" },
+			}
+			local spinButtons: { [string]: TextButton } = {}
+			local function updateSpinButtons()
+				for modeId, btn in pairs(spinButtons) do
+					btn.BackgroundColor3 = (modeId == S.spinMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+			end
+			for i, modeInfo in ipairs(spinModes) do
+				local btn = Instance.new("TextButton")
+				btn.Name = modeInfo.id
+				btn.Size = UDim2.new(0, 80, 0, 28)
+				btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				btn.BorderSizePixel = 0
+				btn.Font = Enum.Font.Gotham
+				btn.TextSize = 11
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btn.Text = modeInfo.name
+				btn.LayoutOrder = i
+				btn.Parent = spinButtonsContainer
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0, 4)
+				corner.Parent = btn
+				btn.MouseButton1Click:Connect(function()
+					S.spinMode = modeInfo.id
+					updateSpinButtons()
+				end)
+				spinButtons[modeInfo.id] = btn
+			end
+			updateSpinButtons()
+			configPanels["spin"] = spinPanel
+
+			-- Plane Lock Panel
+			local planeLockPanel = UIHelpers.createConfigPanel(configContainer, "planeLock")
+			UIHelpers.createHeader(planeLockPanel, "Plane Lock", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local planeLockModeContainer = Instance.new("Frame")
+			planeLockModeContainer.BackgroundTransparency = 1
+			planeLockModeContainer.Size = UDim2.new(1, 0, 0, 28)
+			planeLockModeContainer.LayoutOrder = 2
+			planeLockModeContainer.Parent = planeLockPanel
+			local planeLockModeButtons = {}
+			local manualControlsContainer = Instance.new("Frame")
+			manualControlsContainer.Name = "ManualControls"
+			manualControlsContainer.BackgroundTransparency = 1
+			manualControlsContainer.Size = UDim2.new(1, 0, 0, 0)
+			manualControlsContainer.AutomaticSize = Enum.AutomaticSize.Y
+			manualControlsContainer.LayoutOrder = 3
+			manualControlsContainer.Parent = planeLockPanel
+			local manualLayout = Instance.new("UIListLayout")
+			manualLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			manualLayout.Padding = UDim.new(0, 8)
+			manualLayout.Parent = manualControlsContainer
+			local function updatePlaneLockModeButtons()
+				for modeId, btn in pairs(planeLockModeButtons) do
+					btn.BackgroundColor3 = (modeId == S.planeLockMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+			end
+			local function updatePlaneLockVisuals()
+				manualControlsContainer.Visible = (S.planeLockMode == PlaneLockType.Manual)
+				if S.planeLockMode == PlaneLockType.Off then
+					hidePlaneVisualization()
+				end
+			end
+			local planeLockModes = {
+				{ id = PlaneLockType.Off, name = "Off" },
+				{ id = PlaneLockType.Auto, name = "Auto" },
+				{ id = PlaneLockType.Manual, name = "Manual" },
+			}
+			for i, modeInfo in ipairs(planeLockModes) do
+				local btn = UIHelpers.createButton(
+					planeLockModeContainer,
+					modeInfo.name,
+					UDim2.new(0, (i - 1) * 78, 0, 0),
+					UDim2.new(0, 70, 0, 28),
+					function()
+						S.planeLockMode = modeInfo.id
+						S.autoPlaneActive = false
+						updatePlaneLockModeButtons()
+						updatePlaneLockVisuals()
+					end
+				)
+				planeLockModeButtons[modeInfo.id] = btn
+			end
+			local _, planeHeightContainer, setPlaneHeightValue = UIHelpers.createSlider(
+				manualControlsContainer,
+				"Height",
+				-100,
+				500,
+				S.planePositionY,
+				function(value)
+					S.planePositionY = value
+				end
+			)
+			planeHeightContainer.LayoutOrder = 1
+			local setHeightBtnContainer = Instance.new("Frame")
+			setHeightBtnContainer.BackgroundTransparency = 1
+			setHeightBtnContainer.Size = UDim2.new(1, 0, 0, 28)
+			setHeightBtnContainer.LayoutOrder = 2
+			setHeightBtnContainer.Parent = manualControlsContainer
+			local setHeightBtn = UIHelpers.createButton(
+				setHeightBtnContainer,
+				"Set from Cursor",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(0, 120, 0, 28),
+				function() end
+			)
+			setHeightBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+			setHeightBtn.MouseButton1Click:Connect(function()
+				local hitPosition = getTerrainHitRaw()
+				if hitPosition then
+					S.planePositionY = math.floor(hitPosition.Y + 0.5)
+					setPlaneHeightValue(S.planePositionY)
+				end
+			end)
+			updatePlaneLockModeButtons()
+			updatePlaneLockVisuals()
+			configPanels["planeLock"] = planeLockPanel
+
+			-- Flatten Mode Panel
+			local flattenModePanel = UIHelpers.createConfigPanel(configContainer, "flattenMode")
+			UIHelpers.createHeader(flattenModePanel, "Flatten Mode", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local flattenButtonsContainer = Instance.new("Frame")
+			flattenButtonsContainer.BackgroundTransparency = 1
+			flattenButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+			flattenButtonsContainer.LayoutOrder = 2
+			flattenButtonsContainer.Parent = flattenModePanel
+			local flattenModes = {
+				{ id = FlattenMode.Erode, name = "Erode" },
+				{ id = FlattenMode.Both, name = "Both" },
+				{ id = FlattenMode.Grow, name = "Grow" },
+			}
+			local flattenButtons = {}
+			local function updateFlattenButtons()
+				for modeId, btn in pairs(flattenButtons) do
+					btn.BackgroundColor3 = (modeId == S.flattenMode) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+			end
+			for i, modeInfo in ipairs(flattenModes) do
+				local btn = UIHelpers.createButton(
+					flattenButtonsContainer,
+					modeInfo.name,
+					UDim2.new(0, (i - 1) * 78, 0, 0),
+					UDim2.new(0, 70, 0, 28),
+					function()
+						S.flattenMode = modeInfo.id
+						updateFlattenButtons()
+					end
+				)
+				flattenButtons[modeInfo.id] = btn
+			end
+			updateFlattenButtons()
+			configPanels["flattenMode"] = flattenModePanel
+
+			-- Material Panel
+			local materialPanel = UIHelpers.createConfigPanel(configContainer, "material")
+			UIHelpers.createHeader(materialPanel, "Material", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local materialGridContainer = Instance.new("Frame")
+			materialGridContainer.Name = "MaterialGrid"
+			materialGridContainer.BackgroundTransparency = 1
+			materialGridContainer.Size = UDim2.new(1, 0, 0, 0)
+			materialGridContainer.AutomaticSize = Enum.AutomaticSize.Y
+			materialGridContainer.LayoutOrder = 2
+			materialGridContainer.Parent = materialPanel
+			local materialButtons = {}
+			local function updateMaterialButtons()
+				for mat, container in pairs(materialButtons) do
+					local tileBtn = container:FindFirstChild("TileButton")
+					if tileBtn then
+						local border = tileBtn:FindFirstChild("SelectionBorder") :: UIStroke?
+						if border then
+							border.Transparency = (mat == S.brushMaterial) and 0 or 1
+						end
 					end
 				end
-			else
-				-- Use original path generation for other variants
-				local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
-				local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
-				for i = 1, steps - 1 do
-					local t = i / steps
-					local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-					local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
-					local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
-					local pathMarker = Instance.new("Part")
-					pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
-					pathMarker.CFrame = CFrame.new(pos + finalOffset)
-					pathMarker.Anchored = true
-					pathMarker.CanCollide = false
-					pathMarker.Material = Enum.Material.Neon
-					pathMarker.Color = Color3.fromRGB(100, 200, 255)
-					pathMarker.Transparency = 0.7
-					pathMarker.Shape = Enum.PartType.Ball
-					pathMarker.Parent = workspace
-					table.insert(S.bridgePreviewParts, pathMarker)
+			end
+			local materialGridLayout = Instance.new("UIGridLayout")
+			materialGridLayout.CellSize = UDim2.new(0, 72, 0, 94)
+			materialGridLayout.CellPadding = UDim2.new(0, 6, 0, 8)
+			materialGridLayout.FillDirection = Enum.FillDirection.Horizontal
+			materialGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			materialGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			materialGridLayout.Parent = materialGridContainer
+
+			for i, matInfo in ipairs(BrushData.Materials) do
+				local container = Instance.new("Frame")
+				container.Name = matInfo.key
+				container.BackgroundTransparency = 1
+				container.Size = UDim2.new(0, 72, 0, 94)
+				container.LayoutOrder = i
+				container.Parent = materialGridContainer
+				local tileBtn = Instance.new("ImageButton")
+				tileBtn.Name = "TileButton"
+				tileBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+				tileBtn.BorderSizePixel = 0
+				tileBtn.Size = UDim2.new(0, 72, 0, 72)
+				tileBtn.Image = BrushData.TerrainTileAssets[matInfo.key] or ""
+				tileBtn.ScaleType = Enum.ScaleType.Crop
+				tileBtn.Parent = container
+				local tileCorner = Instance.new("UICorner")
+				tileCorner.CornerRadius = UDim.new(0, 6)
+				tileCorner.Parent = tileBtn
+				local selectionBorder = Instance.new("UIStroke")
+				selectionBorder.Name = "SelectionBorder"
+				selectionBorder.Color = Color3.fromRGB(0, 180, 255)
+				selectionBorder.Thickness = 3
+				selectionBorder.Transparency = (matInfo.enum == S.brushMaterial) and 0 or 1
+				selectionBorder.Parent = tileBtn
+				local label = Instance.new("TextLabel")
+				label.BackgroundTransparency = 1
+				label.Position = UDim2.new(0, 0, 0, 74)
+				label.Size = UDim2.new(1, 0, 0, 18)
+				label.Font = Enum.Font.GothamBold
+				label.TextSize = 12
+				label.TextColor3 = Color3.fromRGB(255, 255, 255)
+				label.TextTruncate = Enum.TextTruncate.AtEnd
+				label.Text = matInfo.name
+				label.Parent = container
+				materialButtons[matInfo.enum] = container
+				tileBtn.MouseButton1Click:Connect(function()
+					S.brushMaterial = matInfo.enum
+					updateMaterialButtons()
+				end)
+			end
+			updateMaterialButtons()
+			configPanels["material"] = materialPanel
+
+			-- ============================================================================
+			-- Path Tool Panels
+			-- ============================================================================
+
+			-- Path Depth Panel
+			local pathDepthPanel = UIHelpers.createConfigPanel(configContainer, "pathDepth")
+			UIHelpers.createHeader(pathDepthPanel, "Path Depth", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local pathDepthDesc = Instance.new("TextLabel")
+			pathDepthDesc.BackgroundTransparency = 1
+			pathDepthDesc.Size = UDim2.new(1, 0, 0, 16)
+			pathDepthDesc.Font = Enum.Font.Gotham
+			pathDepthDesc.TextSize = 11
+			pathDepthDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			pathDepthDesc.TextXAlignment = Enum.TextXAlignment.Left
+			pathDepthDesc.Text = "How deep the channel is in studs"
+			pathDepthDesc.LayoutOrder = 2
+			pathDepthDesc.Parent = pathDepthPanel
+
+			local _, pathDepthContainer, _setPathDepth = UIHelpers.createSlider(pathDepthPanel, "Depth", 2, 20, S.pathDepth, function(value)
+				S.pathDepth = value
+			end)
+			pathDepthContainer.LayoutOrder = 3
+
+			configPanels["pathDepth"] = pathDepthPanel
+
+			-- Path Profile Panel
+			local pathProfilePanel = UIHelpers.createConfigPanel(configContainer, "pathProfile")
+			UIHelpers.createHeader(pathProfilePanel, "Path Profile", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local pathProfileButtonsContainer = Instance.new("Frame")
+			pathProfileButtonsContainer.BackgroundTransparency = 1
+			pathProfileButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+			pathProfileButtonsContainer.LayoutOrder = 2
+			pathProfileButtonsContainer.Parent = pathProfilePanel
+
+			local pathProfiles = { { id = "V", name = "V" }, { id = "U", name = "U" }, { id = "Flat", name = "Flat" } }
+			local pathProfileButtons = {}
+			local function updatePathProfileButtons()
+				for profileId, btn in pairs(pathProfileButtons) do
+					btn.BackgroundColor3 = (profileId == S.pathProfile) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 				end
 			end
-		end
-	end
 
-	local function buildBridge()
-		if not S.bridgeStartPoint or not S.bridgeEndPoint then
-			return
-		end
-		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
-		local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
-		local steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
-		local radius = S.bridgeWidth * Constants.VOXEL_RESOLUTION / 2
-		
-		-- Use advanced path generation for MegaMeander mode
-		if S.bridgeVariant == "MegaMeander" then
-			-- Initialize curves if empty
-			if #S.bridgeCurves == 0 then
-				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+			for i, profileInfo in ipairs(pathProfiles) do
+				local btn = UIHelpers.createButton(
+					pathProfileButtonsContainer,
+					profileInfo.name,
+					UDim2.new(0, (i - 1) * 80, 0, 0),
+					UDim2.new(0, 70, 0, 28),
+					function()
+						S.pathProfile = profileInfo.id
+						updatePathProfileButtons()
+					end
+				)
+				pathProfileButtons[profileInfo.id] = btn
 			end
-			
-			-- Generate terrain-aware meandering path
-			local path = BridgePathGenerator.generateMeanderingPath(
-				S.bridgeStartPoint,
-				S.bridgeEndPoint,
-				S.bridgeCurves,
-				S.terrain,
-				steps,
-				true -- terrain awareness enabled
+			updatePathProfileButtons()
+
+			configPanels["pathProfile"] = pathProfilePanel
+
+			-- Path Direction Info Panel
+			local pathDirectionInfoPanel = UIHelpers.createConfigPanel(configContainer, "pathDirectionInfo")
+			UIHelpers.createHeader(pathDirectionInfoPanel, "Path Direction", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local pathDirDesc = Instance.new("TextLabel")
+			pathDirDesc.BackgroundTransparency = 1
+			pathDirDesc.Size = UDim2.new(1, 0, 0, 32)
+			pathDirDesc.Font = Enum.Font.Gotham
+			pathDirDesc.TextSize = 12
+			pathDirDesc.TextColor3 = Color3.fromRGB(255, 255, 255)
+			pathDirDesc.TextXAlignment = Enum.TextXAlignment.Left
+			pathDirDesc.TextWrapped = true
+			pathDirDesc.Text = "Drag mouse to set channel direction"
+			pathDirDesc.LayoutOrder = 2
+			pathDirDesc.Parent = pathDirectionInfoPanel
+
+			configPanels["pathDirectionInfo"] = pathDirectionInfoPanel
+
+			-- ============================================================================
+			-- Clone Tool Panels
+			-- ============================================================================
+
+			local cloneInfoPanel = UIHelpers.createConfigPanel(configContainer, "cloneInfo")
+			UIHelpers.createHeader(cloneInfoPanel, "Clone Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local cloneInstructions = Instance.new("TextLabel")
+			cloneInstructions.BackgroundTransparency = 1
+			cloneInstructions.Size = UDim2.new(1, 0, 0, 48)
+			cloneInstructions.Font = Enum.Font.Gotham
+			cloneInstructions.TextSize = 12
+			cloneInstructions.TextColor3 = Color3.fromRGB(255, 255, 255)
+			cloneInstructions.TextXAlignment = Enum.TextXAlignment.Left
+			cloneInstructions.TextWrapped = true
+			cloneInstructions.Text = "Alt+Click to sample source, then click to stamp"
+			cloneInstructions.LayoutOrder = 2
+			cloneInstructions.Parent = cloneInfoPanel
+
+			local cloneStatusLabel = Instance.new("TextLabel")
+			cloneStatusLabel.Name = "Status"
+			cloneStatusLabel.BackgroundTransparency = 1
+			cloneStatusLabel.Size = UDim2.new(1, 0, 0, 20)
+			cloneStatusLabel.Font = Enum.Font.Gotham
+			cloneStatusLabel.TextSize = 11
+			cloneStatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+			cloneStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+			cloneStatusLabel.Text = "Status: No source sampled"
+			cloneStatusLabel.LayoutOrder = 3
+			cloneStatusLabel.Parent = cloneInfoPanel
+
+			configPanels["cloneInfo"] = cloneInfoPanel
+
+			-- ============================================================================
+			-- Blobify Tool Panels
+			-- ============================================================================
+
+			-- Blob Intensity Panel
+			local blobIntensityPanel = UIHelpers.createConfigPanel(configContainer, "blobIntensity")
+			UIHelpers.createHeader(blobIntensityPanel, "Blob Intensity", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local blobIntensityDesc = Instance.new("TextLabel")
+			blobIntensityDesc.BackgroundTransparency = 1
+			blobIntensityDesc.Size = UDim2.new(1, 0, 0, 16)
+			blobIntensityDesc.Font = Enum.Font.Gotham
+			blobIntensityDesc.TextSize = 11
+			blobIntensityDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			blobIntensityDesc.TextXAlignment = Enum.TextXAlignment.Left
+			blobIntensityDesc.Text = "How much the blob protrudes"
+			blobIntensityDesc.LayoutOrder = 2
+			blobIntensityDesc.Parent = blobIntensityPanel
+
+			local _, blobIntensityContainer, _setBlobIntensity = UIHelpers.createSlider(
+				blobIntensityPanel,
+				"Intensity",
+				10,
+				100,
+				math.floor(S.blobIntensity * 100),
+				function(value: number)
+					S.blobIntensity = value / 100
+				end
 			)
-			
-			-- Build bridge along the generated path
-			for _, pathPoint in ipairs(path) do
-				S.terrain:FillBall(pathPoint.position, radius, S.brushMaterial)
-			end
-		else
-			-- Use original path generation for other variants
-			local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
-			local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
-			for i = 0, steps do
-				local t = i / steps
-				local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-				local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
-				local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
-				local bridgePos = pos + finalOffset
-				S.terrain:FillBall(bridgePos, radius, S.brushMaterial)
-			end
-		end
-		
-		ChangeHistoryService:SetWaypoint("TerrainBridge_End")
-		S.bridgeStartPoint = nil
-		S.bridgeEndPoint = nil
-		S.bridgeCurves = {} -- Clear curves after building
-		updateBridgeStatus()
-		updateBridgePreview()
-	end
+			blobIntensityContainer.LayoutOrder = 3
 
-	-- Config Panel Visibility Logic
-	local configLayout = Instance.new("UIListLayout")
-	configLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	configLayout.Padding = UDim.new(0, 8)
-	configLayout.Parent = configContainer
+			configPanels["blobIntensity"] = blobIntensityPanel
 
-	local panelOrder = { "bridgeInfo", "brushShape", "strength", "pivot", "hollow", "planeLock", "flattenMode", "material" }
-	for i, panelName in ipairs(panelOrder) do
-		if configPanels[panelName] then
-			configPanels[panelName].LayoutOrder = i
-		end
-	end
+			-- Blob Smoothness Panel
+			local blobSmoothnessPanel = UIHelpers.createConfigPanel(configContainer, "blobSmoothness")
+			UIHelpers.createHeader(blobSmoothnessPanel, "Blob Smoothness", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
 
-	local noToolMessage = Instance.new("TextLabel")
-	noToolMessage.Name = "NoToolMessage"
-	noToolMessage.BackgroundTransparency = 1
-	noToolMessage.Size = UDim2.new(1, 0, 0, 60)
-	noToolMessage.Font = Enum.Font.Gotham
-	noToolMessage.TextSize = 14
-	noToolMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
-	noToolMessage.Text = "Select a tool above to see its settings"
-	noToolMessage.TextWrapped = true
-	noToolMessage.LayoutOrder = 0
-	noToolMessage.Parent = configContainer
+			local blobSmoothnessDesc = Instance.new("TextLabel")
+			blobSmoothnessDesc.BackgroundTransparency = 1
+			blobSmoothnessDesc.Size = UDim2.new(1, 0, 0, 16)
+			blobSmoothnessDesc.Font = Enum.Font.Gotham
+			blobSmoothnessDesc.TextSize = 11
+			blobSmoothnessDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			blobSmoothnessDesc.TextXAlignment = Enum.TextXAlignment.Left
+			blobSmoothnessDesc.Text = "How smooth/organic the blob shape is"
+			blobSmoothnessDesc.LayoutOrder = 2
+			blobSmoothnessDesc.Parent = blobSmoothnessPanel
 
-	updateConfigPanelVisibility = function()
-		local toolConfig = BrushData.ToolConfigs[S.currentTool]
-		for _, panel in pairs(configPanels) do
-			panel.Visible = false
-		end
-		if S.currentTool == ToolId.None or not toolConfig then
-			noToolMessage.Visible = true
-		else
-			noToolMessage.Visible = false
-			for _, panelName in ipairs(toolConfig) do
-				if configPanels[panelName] then
-					configPanels[panelName].Visible = true
+			local _, blobSmoothnessContainer, _setBlobSmoothness = UIHelpers.createSlider(
+				blobSmoothnessPanel,
+				"Smoothness",
+				10,
+				100,
+				math.floor(S.blobSmoothness * 100),
+				function(value: number)
+					S.blobSmoothness = value / 100
+				end
+			)
+			blobSmoothnessContainer.LayoutOrder = 3
+
+			configPanels["blobSmoothness"] = blobSmoothnessPanel
+
+			-- ============================================================================
+			-- Slope Paint Panel
+			-- ============================================================================
+			local slopeMaterialsPanel = UIHelpers.createConfigPanel(configContainer, "slopeMaterials")
+			UIHelpers.createHeader(slopeMaterialsPanel, "Slope Paint", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local slopeDesc = Instance.new("TextLabel")
+			slopeDesc.BackgroundTransparency = 1
+			slopeDesc.Size = UDim2.new(1, 0, 0, 32)
+			slopeDesc.Font = Enum.Font.Gotham
+			slopeDesc.TextSize = 11
+			slopeDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			slopeDesc.TextXAlignment = Enum.TextXAlignment.Left
+			slopeDesc.TextWrapped = true
+			slopeDesc.Text = "Auto-paints based on slope. Click buttons to change materials."
+			slopeDesc.LayoutOrder = 2
+			slopeDesc.Parent = slopeMaterialsPanel
+
+			local slopeFlatRow = Instance.new("Frame")
+			slopeFlatRow.BackgroundTransparency = 1
+			slopeFlatRow.Size = UDim2.new(1, 0, 0, 24)
+			slopeFlatRow.LayoutOrder = 3
+			slopeFlatRow.Parent = slopeMaterialsPanel
+
+			local slopeFlatLabel = Instance.new("TextLabel")
+			slopeFlatLabel.BackgroundTransparency = 1
+			slopeFlatLabel.Size = UDim2.new(0, 80, 1, 0)
+			slopeFlatLabel.Font = Enum.Font.Gotham
+			slopeFlatLabel.TextSize = 12
+			slopeFlatLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			slopeFlatLabel.TextXAlignment = Enum.TextXAlignment.Left
+			slopeFlatLabel.Text = "Flat (0-30°):"
+			slopeFlatLabel.Parent = slopeFlatRow
+
+			local slopeFlatMatBtn = UIHelpers.createButton(
+				slopeFlatRow,
+				"Grass",
+				UDim2.new(0, 85, 0, 0),
+				UDim2.new(0, 90, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.slopeFlatMaterial then
+							local nextIdx = (i % #mats) + 1
+							S.slopeFlatMaterial = mats[nextIdx].enum
+							slopeFlatMatBtn.Text = mats[nextIdx].name
+							break
+						end
+					end
+				end
+			)
+
+			local slopeSteepRow = Instance.new("Frame")
+			slopeSteepRow.BackgroundTransparency = 1
+			slopeSteepRow.Size = UDim2.new(1, 0, 0, 24)
+			slopeSteepRow.LayoutOrder = 4
+			slopeSteepRow.Parent = slopeMaterialsPanel
+
+			local slopeSteepLabel = Instance.new("TextLabel")
+			slopeSteepLabel.BackgroundTransparency = 1
+			slopeSteepLabel.Size = UDim2.new(0, 80, 1, 0)
+			slopeSteepLabel.Font = Enum.Font.Gotham
+			slopeSteepLabel.TextSize = 12
+			slopeSteepLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			slopeSteepLabel.TextXAlignment = Enum.TextXAlignment.Left
+			slopeSteepLabel.Text = "Steep:"
+			slopeSteepLabel.Parent = slopeSteepRow
+
+			local slopeSteepMatBtn = UIHelpers.createButton(
+				slopeSteepRow,
+				"Rock",
+				UDim2.new(0, 85, 0, 0),
+				UDim2.new(0, 90, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.slopeSteepMaterial then
+							local nextIdx = (i % #mats) + 1
+							S.slopeSteepMaterial = mats[nextIdx].enum
+							slopeSteepMatBtn.Text = mats[nextIdx].name
+							break
+						end
+					end
+				end
+			)
+
+			local slopeCliffRow = Instance.new("Frame")
+			slopeCliffRow.BackgroundTransparency = 1
+			slopeCliffRow.Size = UDim2.new(1, 0, 0, 24)
+			slopeCliffRow.LayoutOrder = 5
+			slopeCliffRow.Parent = slopeMaterialsPanel
+
+			local slopeCliffLabel = Instance.new("TextLabel")
+			slopeCliffLabel.BackgroundTransparency = 1
+			slopeCliffLabel.Size = UDim2.new(0, 80, 1, 0)
+			slopeCliffLabel.Font = Enum.Font.Gotham
+			slopeCliffLabel.TextSize = 12
+			slopeCliffLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			slopeCliffLabel.TextXAlignment = Enum.TextXAlignment.Left
+			slopeCliffLabel.Text = "Cliff (60°+):"
+			slopeCliffLabel.Parent = slopeCliffRow
+
+			local slopeCliffMatBtn = UIHelpers.createButton(
+				slopeCliffRow,
+				"Slate",
+				UDim2.new(0, 85, 0, 0),
+				UDim2.new(0, 90, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.slopeCliffMaterial then
+							local nextIdx = (i % #mats) + 1
+							S.slopeCliffMaterial = mats[nextIdx].enum
+							slopeCliffMatBtn.Text = mats[nextIdx].name
+							break
+						end
+					end
+				end
+			)
+
+			configPanels["slopeMaterials"] = slopeMaterialsPanel
+
+			-- ============================================================================
+			-- Megarandomize Panel
+			-- ============================================================================
+			local megarandomizePanel = UIHelpers.createConfigPanel(configContainer, "megarandomizeSettings")
+			UIHelpers.createHeader(megarandomizePanel, "Megarandomize", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local megarandDesc = Instance.new("TextLabel")
+			megarandDesc.BackgroundTransparency = 1
+			megarandDesc.Size = UDim2.new(1, 0, 0, 28)
+			megarandDesc.Font = Enum.Font.Gotham
+			megarandDesc.TextSize = 11
+			megarandDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			megarandDesc.TextXAlignment = Enum.TextXAlignment.Left
+			megarandDesc.TextWrapped = true
+			megarandDesc.Text = "Random materials in clusters. Click to cycle."
+			megarandDesc.LayoutOrder = 2
+			megarandDesc.Parent = megarandomizePanel
+
+			local megarand1Btn = UIHelpers.createButton(
+				megarandomizePanel,
+				"Grass 60%",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(0.5, -4, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.megarandomizeMaterials[1].material then
+							local nextIdx = (i % #mats) + 1
+							S.megarandomizeMaterials[1].material = mats[nextIdx].enum
+							megarand1Btn.Text = mats[nextIdx].name .. " 60%"
+							break
+						end
+					end
+				end
+			)
+			megarand1Btn.LayoutOrder = 3
+
+			local megarand2Btn = UIHelpers.createButton(
+				megarandomizePanel,
+				"Rock 25%",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(0.5, -4, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.megarandomizeMaterials[2].material then
+							local nextIdx = (i % #mats) + 1
+							S.megarandomizeMaterials[2].material = mats[nextIdx].enum
+							megarand2Btn.Text = mats[nextIdx].name .. " 25%"
+							break
+						end
+					end
+				end
+			)
+			megarand2Btn.LayoutOrder = 4
+
+			local megarand3Btn = UIHelpers.createButton(
+				megarandomizePanel,
+				"Ground 15%",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(0.5, -4, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.megarandomizeMaterials[3].material then
+							local nextIdx = (i % #mats) + 1
+							S.megarandomizeMaterials[3].material = mats[nextIdx].enum
+							megarand3Btn.Text = mats[nextIdx].name .. " 15%"
+							break
+						end
+					end
+				end
+			)
+			megarand3Btn.LayoutOrder = 5
+
+			local _, megarandClusterContainer, _ = UIHelpers.createSlider(
+				megarandomizePanel,
+				"Cluster",
+				1,
+				20,
+				S.megarandomizeClusterSize,
+				function(v)
+					S.megarandomizeClusterSize = v
+				end
+			)
+			megarandClusterContainer.LayoutOrder = 6
+
+			configPanels["megarandomizeSettings"] = megarandomizePanel
+
+			-- ============================================================================
+			-- Cavity Fill Panel
+			-- ============================================================================
+			local cavitySensitivityPanel = UIHelpers.createConfigPanel(configContainer, "cavitySensitivity")
+			UIHelpers.createHeader(cavitySensitivityPanel, "Cavity Fill", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local cavityDesc = Instance.new("TextLabel")
+			cavityDesc.BackgroundTransparency = 1
+			cavityDesc.Size = UDim2.new(1, 0, 0, 28)
+			cavityDesc.Font = Enum.Font.Gotham
+			cavityDesc.TextSize = 11
+			cavityDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			cavityDesc.TextXAlignment = Enum.TextXAlignment.Left
+			cavityDesc.TextWrapped = true
+			cavityDesc.Text = "Fills holes and depressions. Lower = more sensitive."
+			cavityDesc.LayoutOrder = 2
+			cavityDesc.Parent = cavitySensitivityPanel
+
+			local _, cavitySensContainer, _ = UIHelpers.createSlider(
+				cavitySensitivityPanel,
+				"Sensitivity",
+				5,
+				80,
+				math.floor(S.cavitySensitivity * 100),
+				function(v)
+					S.cavitySensitivity = v / 100
+				end
+			)
+			cavitySensContainer.LayoutOrder = 3
+
+			configPanels["cavitySensitivity"] = cavitySensitivityPanel
+
+			-- ============================================================================
+			-- Melt Panel
+			-- ============================================================================
+			local meltViscosityPanel = UIHelpers.createConfigPanel(configContainer, "meltViscosity")
+			UIHelpers.createHeader(meltViscosityPanel, "Melt Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local meltDesc = Instance.new("TextLabel")
+			meltDesc.BackgroundTransparency = 1
+			meltDesc.Size = UDim2.new(1, 0, 0, 28)
+			meltDesc.Font = Enum.Font.Gotham
+			meltDesc.TextSize = 11
+			meltDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			meltDesc.TextXAlignment = Enum.TextXAlignment.Left
+			meltDesc.TextWrapped = true
+			meltDesc.Text = "Terrain flows down. Lower viscosity = runnier."
+			meltDesc.LayoutOrder = 2
+			meltDesc.Parent = meltViscosityPanel
+
+			local _, meltViscContainer, _ = UIHelpers.createSlider(
+				meltViscosityPanel,
+				"Viscosity",
+				0,
+				100,
+				math.floor(S.meltViscosity * 100),
+				function(v)
+					S.meltViscosity = v / 100
+				end
+			)
+			meltViscContainer.LayoutOrder = 3
+
+			configPanels["meltViscosity"] = meltViscosityPanel
+
+			-- ============================================================================
+			-- Gradient Paint Panel
+			-- ============================================================================
+			local gradientSettingsPanel = UIHelpers.createConfigPanel(configContainer, "gradientSettings")
+			UIHelpers.createHeader(gradientSettingsPanel, "Gradient Paint", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local gradientDesc = Instance.new("TextLabel")
+			gradientDesc.BackgroundTransparency = 1
+			gradientDesc.Size = UDim2.new(1, 0, 0, 32)
+			gradientDesc.Font = Enum.Font.Gotham
+			gradientDesc.TextSize = 11
+			gradientDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			gradientDesc.TextXAlignment = Enum.TextXAlignment.Left
+			gradientDesc.TextWrapped = true
+			gradientDesc.Text = "Shift+Click = START, Ctrl+Click = END"
+			gradientDesc.LayoutOrder = 2
+			gradientDesc.Parent = gradientSettingsPanel
+
+			local gradientStatusLabel = Instance.new("TextLabel")
+			gradientStatusLabel.Name = "GradientStatus"
+			gradientStatusLabel.BackgroundTransparency = 1
+			gradientStatusLabel.Size = UDim2.new(1, 0, 0, 20)
+			gradientStatusLabel.Font = Enum.Font.GothamBold
+			gradientStatusLabel.TextSize = 12
+			gradientStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+			gradientStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+			gradientStatusLabel.Text = "Shift+Click: Set START"
+			gradientStatusLabel.LayoutOrder = 3
+			gradientStatusLabel.Parent = gradientSettingsPanel
+
+			local gradient1Row = Instance.new("Frame")
+			gradient1Row.BackgroundTransparency = 1
+			gradient1Row.Size = UDim2.new(1, 0, 0, 24)
+			gradient1Row.LayoutOrder = 4
+			gradient1Row.Parent = gradientSettingsPanel
+
+			local gradient1Label = Instance.new("TextLabel")
+			gradient1Label.BackgroundTransparency = 1
+			gradient1Label.Size = UDim2.new(0, 45, 1, 0)
+			gradient1Label.Font = Enum.Font.Gotham
+			gradient1Label.TextSize = 12
+			gradient1Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			gradient1Label.TextXAlignment = Enum.TextXAlignment.Left
+			gradient1Label.Text = "Start:"
+			gradient1Label.Parent = gradient1Row
+
+			local gradient1Btn = UIHelpers.createButton(gradient1Row, "Grass", UDim2.new(0, 50, 0, 0), UDim2.new(0, 80, 0, 22), function()
+				local mats = BrushData.Materials
+				for i, m in ipairs(mats) do
+					if m.enum == S.gradientMaterial1 then
+						local nextIdx = (i % #mats) + 1
+						S.gradientMaterial1 = mats[nextIdx].enum
+						gradient1Btn.Text = mats[nextIdx].name
+						break
+					end
+				end
+			end)
+
+			local gradient2Btn = UIHelpers.createButton(gradient1Row, "Rock", UDim2.new(0, 135, 0, 0), UDim2.new(0, 80, 0, 22), function()
+				local mats = BrushData.Materials
+				for i, m in ipairs(mats) do
+					if m.enum == S.gradientMaterial2 then
+						local nextIdx = (i % #mats) + 1
+						S.gradientMaterial2 = mats[nextIdx].enum
+						gradient2Btn.Text = mats[nextIdx].name
+						break
+					end
+				end
+			end)
+
+			local function updateGradientStatus()
+				if not S.gradientStartPoint then
+					gradientStatusLabel.Text = "Shift+Click: Set START"
+					gradientStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+				elseif not S.gradientEndPoint then
+					gradientStatusLabel.Text = "Ctrl+Click: Set END"
+					gradientStatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+				else
+					gradientStatusLabel.Text = "Ready! Paint to apply"
+					gradientStatusLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
 				end
 			end
-		end
-		task.defer(function()
-			local totalHeight = CONFIG_START_Y + configLayout.AbsoluteContentSize.Y + 20
-			mainFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight, 400))
-		end)
-	end
+			updateGradientStatus()
+			S.updateGradientStatus = updateGradientStatus
 
-	if updateConfigPanelVisibility then
-		updateConfigPanelVisibility()
-	end
-	updateToolButtonVisuals()
-	pluginInstance:Activate(true)
+			configPanels["gradientSettings"] = gradientSettingsPanel
+
+			-- ============================================================================
+			-- Flood Paint Panel
+			-- ============================================================================
+			local floodSettingsPanel = UIHelpers.createConfigPanel(configContainer, "floodSettings")
+			UIHelpers.createHeader(floodSettingsPanel, "Flood Paint", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local floodDesc = Instance.new("TextLabel")
+			floodDesc.BackgroundTransparency = 1
+			floodDesc.Size = UDim2.new(1, 0, 0, 28)
+			floodDesc.Font = Enum.Font.Gotham
+			floodDesc.TextSize = 11
+			floodDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			floodDesc.TextXAlignment = Enum.TextXAlignment.Left
+			floodDesc.TextWrapped = true
+			floodDesc.Text = "Replaces material in brush area."
+			floodDesc.LayoutOrder = 2
+			floodDesc.Parent = floodSettingsPanel
+
+			local floodTargetRow = Instance.new("Frame")
+			floodTargetRow.BackgroundTransparency = 1
+			floodTargetRow.Size = UDim2.new(1, 0, 0, 24)
+			floodTargetRow.LayoutOrder = 3
+			floodTargetRow.Parent = floodSettingsPanel
+
+			local floodTargetLabel = Instance.new("TextLabel")
+			floodTargetLabel.BackgroundTransparency = 1
+			floodTargetLabel.Size = UDim2.new(0, 70, 1, 0)
+			floodTargetLabel.Font = Enum.Font.Gotham
+			floodTargetLabel.TextSize = 12
+			floodTargetLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			floodTargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+			floodTargetLabel.Text = "Paint with:"
+			floodTargetLabel.Parent = floodTargetRow
+
+			local floodTargetBtn = UIHelpers.createButton(
+				floodTargetRow,
+				"Grass",
+				UDim2.new(0, 75, 0, 0),
+				UDim2.new(0, 90, 0, 22),
+				function()
+					local mats = BrushData.Materials
+					for i, m in ipairs(mats) do
+						if m.enum == S.floodTargetMaterial then
+							local nextIdx = (i % #mats) + 1
+							S.floodTargetMaterial = mats[nextIdx].enum
+							floodTargetBtn.Text = mats[nextIdx].name
+							break
+						end
+					end
+				end
+			)
+
+			configPanels["floodSettings"] = floodSettingsPanel
+
+			-- ============================================================================
+			-- Stalactite Panel
+			-- ============================================================================
+			local stalactiteSettingsPanel = UIHelpers.createConfigPanel(configContainer, "stalactiteSettings")
+			UIHelpers.createHeader(stalactiteSettingsPanel, "Stalactite", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local stalacDesc = Instance.new("TextLabel")
+			stalacDesc.BackgroundTransparency = 1
+			stalacDesc.Size = UDim2.new(1, 0, 0, 28)
+			stalacDesc.Font = Enum.Font.Gotham
+			stalacDesc.TextSize = 11
+			stalacDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			stalacDesc.TextXAlignment = Enum.TextXAlignment.Left
+			stalacDesc.TextWrapped = true
+			stalacDesc.Text = "Creates hanging spike formations."
+			stalacDesc.LayoutOrder = 2
+			stalacDesc.Parent = stalactiteSettingsPanel
+
+			local stalacDirRow = Instance.new("Frame")
+			stalacDirRow.BackgroundTransparency = 1
+			stalacDirRow.Size = UDim2.new(1, 0, 0, 24)
+			stalacDirRow.LayoutOrder = 3
+			stalacDirRow.Parent = stalactiteSettingsPanel
+
+			local stalacDirLabel = Instance.new("TextLabel")
+			stalacDirLabel.BackgroundTransparency = 1
+			stalacDirLabel.Size = UDim2.new(0, 60, 1, 0)
+			stalacDirLabel.Font = Enum.Font.Gotham
+			stalacDirLabel.TextSize = 12
+			stalacDirLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			stalacDirLabel.TextXAlignment = Enum.TextXAlignment.Left
+			stalacDirLabel.Text = "Type:"
+			stalacDirLabel.Parent = stalacDirRow
+
+			local stalacDirBtn = UIHelpers.createButton(
+				stalacDirRow,
+				"↓ Down",
+				UDim2.new(0, 65, 0, 0),
+				UDim2.new(0, 80, 0, 22),
+				function()
+					S.stalactiteDirection = S.stalactiteDirection == -1 and 1 or -1
+					stalacDirBtn.Text = S.stalactiteDirection == -1 and "↓ Down" or "↑ Up"
+				end
+			)
+
+			local _, stalacDensityContainer, _ = UIHelpers.createSlider(
+				stalactiteSettingsPanel,
+				"Density",
+				10,
+				80,
+				math.floor(S.stalactiteDensity * 100),
+				function(v)
+					S.stalactiteDensity = v / 100
+				end
+			)
+			stalacDensityContainer.LayoutOrder = 4
+
+			local _, stalacLengthContainer, _ = UIHelpers.createSlider(
+				stalactiteSettingsPanel,
+				"Length",
+				3,
+				30,
+				S.stalactiteLength,
+				function(v)
+					S.stalactiteLength = v
+				end
+			)
+			stalacLengthContainer.LayoutOrder = 5
+
+			local stalacRandomBtn = UIHelpers.createButton(
+				stalactiteSettingsPanel,
+				"Randomize Seed",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 22),
+				function()
+					S.stalactiteSeed = math.random(0, 99999)
+				end
+			)
+			stalacRandomBtn.LayoutOrder = 6
+
+			configPanels["stalactiteSettings"] = stalactiteSettingsPanel
+
+			-- ============================================================================
+			-- Tendril Panel
+			-- ============================================================================
+			local tendrilSettingsPanel = UIHelpers.createConfigPanel(configContainer, "tendrilSettings")
+			UIHelpers.createHeader(tendrilSettingsPanel, "Tendril", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local tendrilDesc = Instance.new("TextLabel")
+			tendrilDesc.BackgroundTransparency = 1
+			tendrilDesc.Size = UDim2.new(1, 0, 0, 28)
+			tendrilDesc.Font = Enum.Font.Gotham
+			tendrilDesc.TextSize = 11
+			tendrilDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			tendrilDesc.TextXAlignment = Enum.TextXAlignment.Left
+			tendrilDesc.TextWrapped = true
+			tendrilDesc.Text = "Organic branching structures (roots, vines)."
+			tendrilDesc.LayoutOrder = 2
+			tendrilDesc.Parent = tendrilSettingsPanel
+
+			local _, tendrilBranchContainer, _ = UIHelpers.createSlider(
+				tendrilSettingsPanel,
+				"Branches",
+				2,
+				12,
+				S.tendrilBranches,
+				function(v)
+					S.tendrilBranches = v
+				end
+			)
+			tendrilBranchContainer.LayoutOrder = 3
+
+			local _, tendrilLengthContainer, _ = UIHelpers.createSlider(tendrilSettingsPanel, "Length", 5, 40, S.tendrilLength, function(v)
+				S.tendrilLength = v
+			end)
+			tendrilLengthContainer.LayoutOrder = 4
+
+			local _, tendrilCurlContainer, _ = UIHelpers.createSlider(
+				tendrilSettingsPanel,
+				"Curl",
+				0,
+				100,
+				math.floor(S.tendrilCurl * 100),
+				function(v)
+					S.tendrilCurl = v / 100
+				end
+			)
+			tendrilCurlContainer.LayoutOrder = 5
+
+			local tendrilRandomBtn = UIHelpers.createButton(
+				tendrilSettingsPanel,
+				"Randomize Seed",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 22),
+				function()
+					S.tendrilSeed = math.random(0, 99999)
+				end
+			)
+			tendrilRandomBtn.LayoutOrder = 6
+
+			configPanels["tendrilSettings"] = tendrilSettingsPanel
+
+			-- ============================================================================
+			-- Symmetry Panel
+			-- ============================================================================
+			local symmetrySettingsPanel = UIHelpers.createConfigPanel(configContainer, "symmetrySettings")
+			UIHelpers.createHeader(symmetrySettingsPanel, "Symmetry Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local symmetryDesc = Instance.new("TextLabel")
+			symmetryDesc.BackgroundTransparency = 1
+			symmetryDesc.Size = UDim2.new(1, 0, 0, 40)
+			symmetryDesc.Font = Enum.Font.Gotham
+			symmetryDesc.TextSize = 11
+			symmetryDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			symmetryDesc.TextXAlignment = Enum.TextXAlignment.Left
+			symmetryDesc.TextWrapped = true
+			symmetryDesc.Text =
+				"Creates symmetric copies of terrain within the brush. First sector is the source, others are mirrored/rotated."
+			symmetryDesc.LayoutOrder = 2
+			symmetryDesc.Parent = symmetrySettingsPanel
+
+			local symmetryTypeLabel = Instance.new("TextLabel")
+			symmetryTypeLabel.BackgroundTransparency = 1
+			symmetryTypeLabel.Size = UDim2.new(1, 0, 0, 20)
+			symmetryTypeLabel.Font = Enum.Font.GothamBold
+			symmetryTypeLabel.TextSize = 12
+			symmetryTypeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			symmetryTypeLabel.TextXAlignment = Enum.TextXAlignment.Left
+			symmetryTypeLabel.Text = "Type: " .. S.symmetryType
+			symmetryTypeLabel.LayoutOrder = 3
+			symmetryTypeLabel.Parent = symmetrySettingsPanel
+
+			local symmetryTypes = {
+				{ id = "MirrorX", name = "Mirror X", segments = 2 },
+				{ id = "MirrorZ", name = "Mirror Z", segments = 2 },
+				{ id = "MirrorXZ", name = "Mirror XZ", segments = 4 },
+				{ id = "Radial4", name = "Radial 4", segments = 4 },
+				{ id = "Radial6", name = "Radial 6", segments = 6 },
+				{ id = "Radial8", name = "Radial 8", segments = 8 },
+			}
+
+			local symmetryButtonContainer = Instance.new("Frame")
+			symmetryButtonContainer.BackgroundTransparency = 1
+			symmetryButtonContainer.Size = UDim2.new(1, 0, 0, 0)
+			symmetryButtonContainer.AutomaticSize = Enum.AutomaticSize.Y
+			symmetryButtonContainer.LayoutOrder = 4
+			symmetryButtonContainer.Parent = symmetrySettingsPanel
+
+			local symmetryGridLayout = Instance.new("UIGridLayout")
+			symmetryGridLayout.CellSize = UDim2.new(0, 80, 0, 26)
+			symmetryGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+			symmetryGridLayout.FillDirection = Enum.FillDirection.Horizontal
+			symmetryGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			symmetryGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			symmetryGridLayout.Parent = symmetryButtonContainer
+
+			local symmetryButtons: { [string]: TextButton } = {}
+
+			local function updateSymmetryButtons()
+				for typeId, btn in pairs(symmetryButtons) do
+					btn.BackgroundColor3 = (typeId == S.symmetryType) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+				symmetryTypeLabel.Text = "Type: " .. S.symmetryType
+			end
+
+			for i, typeInfo in ipairs(symmetryTypes) do
+				local btn = UIHelpers.createButton(
+					symmetryButtonContainer,
+					typeInfo.name,
+					UDim2.new(0, 0, 0, 0),
+					UDim2.new(0, 80, 0, 26),
+					function()
+						S.symmetryType = typeInfo.id
+						S.symmetrySegments = typeInfo.segments
+						updateSymmetryButtons()
+					end
+				)
+				btn.LayoutOrder = i
+				symmetryButtons[typeInfo.id] = btn
+			end
+			updateSymmetryButtons()
+
+			local symmetryNote = Instance.new("TextLabel")
+			symmetryNote.BackgroundTransparency = 1
+			symmetryNote.Size = UDim2.new(1, 0, 0, 24)
+			symmetryNote.Font = Enum.Font.Gotham
+			symmetryNote.TextSize = 10
+			symmetryNote.TextColor3 = Color3.fromRGB(150, 150, 150)
+			symmetryNote.TextXAlignment = Enum.TextXAlignment.Left
+			symmetryNote.TextWrapped = true
+			symmetryNote.Text = "Tip: Use large brush with Cube shape for best results"
+			symmetryNote.LayoutOrder = 5
+			symmetryNote.Parent = symmetrySettingsPanel
+
+			configPanels["symmetrySettings"] = symmetrySettingsPanel
+
+			-- ============================================================================
+			-- Variation Grid Panel
+			-- ============================================================================
+			local gridSettingsPanel = UIHelpers.createConfigPanel(configContainer, "gridSettings")
+			UIHelpers.createHeader(gridSettingsPanel, "Variation Grid", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local gridDesc = Instance.new("TextLabel")
+			gridDesc.BackgroundTransparency = 1
+			gridDesc.Size = UDim2.new(1, 0, 0, 28)
+			gridDesc.Font = Enum.Font.Gotham
+			gridDesc.TextSize = 11
+			gridDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			gridDesc.TextXAlignment = Enum.TextXAlignment.Left
+			gridDesc.TextWrapped = true
+			gridDesc.Text = "Creates a grid pattern with height variation per cell."
+			gridDesc.LayoutOrder = 2
+			gridDesc.Parent = gridSettingsPanel
+
+			local _, gridCellSizeContainer, _ = UIHelpers.createSlider(gridSettingsPanel, "Cell Size", 4, 24, S.gridCellSize, function(v)
+				S.gridCellSize = v
+			end)
+			gridCellSizeContainer.LayoutOrder = 3
+
+			local _, gridVariationContainer, _ = UIHelpers.createSlider(
+				gridSettingsPanel,
+				"Variation",
+				0,
+				100,
+				math.floor(S.gridVariation * 100),
+				function(v)
+					S.gridVariation = v / 100
+				end
+			)
+			gridVariationContainer.LayoutOrder = 4
+
+			local gridRandomBtn = UIHelpers.createButton(
+				gridSettingsPanel,
+				"Randomize Seed",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 22),
+				function()
+					S.gridSeed = math.random(0, 99999)
+				end
+			)
+			gridRandomBtn.LayoutOrder = 5
+
+			configPanels["gridSettings"] = gridSettingsPanel
+
+			-- ============================================================================
+			-- Growth Simulation Panel
+			-- ============================================================================
+			local growthSettingsPanel = UIHelpers.createConfigPanel(configContainer, "growthSettings")
+			UIHelpers.createHeader(growthSettingsPanel, "Growth Simulation", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+
+			local growthDesc = Instance.new("TextLabel")
+			growthDesc.BackgroundTransparency = 1
+			growthDesc.Size = UDim2.new(1, 0, 0, 32)
+			growthDesc.Font = Enum.Font.Gotham
+			growthDesc.TextSize = 11
+			growthDesc.TextColor3 = Color3.fromRGB(180, 180, 180)
+			growthDesc.TextXAlignment = Enum.TextXAlignment.Left
+			growthDesc.TextWrapped = true
+			growthDesc.Text = "Expands existing terrain organically. Paint near terrain edges to grow."
+			growthDesc.LayoutOrder = 2
+			growthDesc.Parent = growthSettingsPanel
+
+			local _, growthRateContainer, _ = UIHelpers.createSlider(
+				growthSettingsPanel,
+				"Rate",
+				10,
+				80,
+				math.floor(S.growthRate * 100),
+				function(v)
+					S.growthRate = v / 100
+				end
+			)
+			growthRateContainer.LayoutOrder = 3
+
+			local _, growthBiasContainer, _ = UIHelpers.createSlider(
+				growthSettingsPanel,
+				"Bias (↓-0-↑)",
+				0,
+				200,
+				math.floor((S.growthBias + 1) * 100),
+				function(v)
+					S.growthBias = (v / 100) - 1 -- Map 0-200 to -1 to 1
+				end
+			)
+			growthBiasContainer.LayoutOrder = 4
+
+			local growthPatternLabel = Instance.new("TextLabel")
+			growthPatternLabel.BackgroundTransparency = 1
+			growthPatternLabel.Size = UDim2.new(1, 0, 0, 20)
+			growthPatternLabel.Font = Enum.Font.GothamBold
+			growthPatternLabel.TextSize = 12
+			growthPatternLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			growthPatternLabel.TextXAlignment = Enum.TextXAlignment.Left
+			growthPatternLabel.Text = "Pattern: " .. S.growthPattern
+			growthPatternLabel.LayoutOrder = 5
+			growthPatternLabel.Parent = growthSettingsPanel
+
+			local growthPatterns = { "organic", "crystalline", "cellular" }
+			local growthPatternIdx = 1
+			for i, p in ipairs(growthPatterns) do
+				if p == S.growthPattern then
+					growthPatternIdx = i
+					break
+				end
+			end
+
+			local growthPatternBtn = UIHelpers.createButton(
+				growthSettingsPanel,
+				"Cycle Pattern",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 22),
+				function()
+					growthPatternIdx = (growthPatternIdx % #growthPatterns) + 1
+					S.growthPattern = growthPatterns[growthPatternIdx]
+					growthPatternLabel.Text = "Pattern: " .. S.growthPattern
+				end
+			)
+			growthPatternBtn.LayoutOrder = 6
+
+			local growthRandomBtn = UIHelpers.createButton(
+				growthSettingsPanel,
+				"Randomize Seed",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 22),
+				function()
+					S.growthSeed = math.random(0, 99999)
+				end
+			)
+			growthRandomBtn.LayoutOrder = 7
+
+			configPanels["growthSettings"] = growthSettingsPanel
+
+			-- Bridge Info Panel
+			local bridgeInfoPanel = UIHelpers.createConfigPanel(configContainer, "bridgeInfo")
+			UIHelpers.createHeader(bridgeInfoPanel, "Bridge Tool", UDim2.new(0, 0, 0, 0)).LayoutOrder = 1
+			local updateBridgePreview
+			local bridgeInstructions = Instance.new("TextLabel")
+			bridgeInstructions.Name = "Instructions"
+			bridgeInstructions.BackgroundTransparency = 1
+			bridgeInstructions.Size = UDim2.new(1, 0, 0, 50)
+			bridgeInstructions.Font = Enum.Font.Gotham
+			bridgeInstructions.TextSize = 12
+			bridgeInstructions.TextColor3 = Color3.fromRGB(255, 255, 255)
+			bridgeInstructions.TextWrapped = true
+			bridgeInstructions.TextXAlignment = Enum.TextXAlignment.Left
+			bridgeInstructions.TextYAlignment = Enum.TextYAlignment.Top
+			bridgeInstructions.Text = "Click to set START point, then click again to set END point."
+			bridgeInstructions.LayoutOrder = 2
+			bridgeInstructions.Parent = bridgeInfoPanel
+			local bridgeStatusLabel = Instance.new("TextLabel")
+			bridgeStatusLabel.Name = "Status"
+			bridgeStatusLabel.BackgroundTransparency = 1
+			bridgeStatusLabel.Size = UDim2.new(1, 0, 0, 24)
+			bridgeStatusLabel.Font = Enum.Font.GothamBold
+			bridgeStatusLabel.TextSize = 14
+			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+			bridgeStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+			bridgeStatusLabel.Text = "Status: Click to set START"
+			bridgeStatusLabel.LayoutOrder = 3
+			bridgeStatusLabel.Parent = bridgeInfoPanel
+			local _, bridgeWidthContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Width", 1, 20, S.bridgeWidth, function(val)
+				S.bridgeWidth = val
+				S.bridgeLastPreviewParams = nil -- Reset cache to force preview update
+				if updateBridgePreview then
+					updateBridgePreview(S.bridgeHoverPoint) -- Use hover point if available
+				end
+			end)
+			bridgeWidthContainer.LayoutOrder = 4
+			local variantLabel = UIHelpers.createHeader(bridgeInfoPanel, "Style", UDim2.new(0, 0, 0, 0))
+			variantLabel.LayoutOrder = 5
+			local variantButtonsContainer = Instance.new("Frame")
+			variantButtonsContainer.Name = "VariantButtons"
+			variantButtonsContainer.BackgroundTransparency = 1
+			variantButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
+			variantButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+			variantButtonsContainer.LayoutOrder = 6
+			variantButtonsContainer.Parent = bridgeInfoPanel
+			local variantGridLayout = Instance.new("UIGridLayout")
+			variantGridLayout.CellSize = UDim2.new(0, 80, 0, 26)
+			variantGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+			variantGridLayout.FillDirection = Enum.FillDirection.Horizontal
+			variantGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			variantGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			variantGridLayout.Parent = variantButtonsContainer
+			local variantButtons: { [string]: TextButton } = {}
+			local function updateVariantButtons()
+				for variant, btn in pairs(variantButtons) do
+					btn.BackgroundColor3 = (variant == S.bridgeVariant) and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(50, 50, 50)
+					btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end
+			end
+			for i, variant in ipairs(BrushData.BridgeVariants) do
+				local variantBtn = Instance.new("TextButton")
+				variantBtn.Name = variant
+				variantBtn.Size = UDim2.new(0, 80, 0, 26)
+				variantBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				variantBtn.BorderSizePixel = 0
+				variantBtn.Font = Enum.Font.Gotham
+				variantBtn.TextSize = 11
+				variantBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				variantBtn.Text = variant
+				variantBtn.LayoutOrder = i
+				variantBtn.Parent = variantButtonsContainer
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0, 4)
+				corner.Parent = variantBtn
+				variantBtn.MouseButton1Click:Connect(function()
+					S.bridgeVariant = variant
+					S.bridgeLastPreviewParams = nil -- Reset cache to force preview update
+					updateVariantButtons()
+					-- Initialize curves when switching to MegaMeander
+					if variant == "MegaMeander" and S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
+						if #S.bridgeCurves == 0 then
+							S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+						end
+					else
+						-- Clear curves when switching away from MegaMeander
+						S.bridgeCurves = {}
+					end
+					updateBridgeStatus()
+					if updateBridgePreview then
+						updateBridgePreview(S.bridgeHoverPoint) -- Use hover point if available
+					end
+				end)
+				variantButtons[variant] = variantBtn
+			end
+			updateVariantButtons()
+			local clearBridgeBtn = UIHelpers.createButton(
+				bridgeInfoPanel,
+				"Clear Points",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(0, 100, 0, 28),
+				function()
+					S.bridgeStartPoint = nil
+					S.bridgeEndPoint = nil
+					S.bridgeCurves = {} -- Clear curves when clearing points
+					S.bridgeHoverPoint = nil
+					S.bridgeLastPreviewParams = nil -- Reset cache
+					bridgeStatusLabel.Text = "Status: Click to set START"
+					for _, part in ipairs(S.bridgePreviewParts) do
+						part:Destroy()
+					end
+					S.bridgePreviewParts = {}
+					updateBridgeStatus()
+				end
+			)
+			clearBridgeBtn.LayoutOrder = 10
+
+			-- Meander controls (only visible when both points are set and MegaMeander is selected)
+			local meanderControlsContainer = Instance.new("Frame")
+			meanderControlsContainer.Name = "MeanderControls"
+			meanderControlsContainer.BackgroundTransparency = 1
+			meanderControlsContainer.Size = UDim2.new(1, 0, 0, 0)
+			meanderControlsContainer.AutomaticSize = Enum.AutomaticSize.Y
+			meanderControlsContainer.LayoutOrder = 11
+			meanderControlsContainer.Visible = false
+			meanderControlsContainer.Parent = bridgeInfoPanel
+
+			local meanderLayout = Instance.new("UIListLayout")
+			meanderLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			meanderLayout.Padding = UDim.new(0, 6)
+			meanderLayout.Parent = meanderControlsContainer
+
+			local redoLayoutBtn = UIHelpers.createButton(
+				meanderControlsContainer,
+				"🔄 Re-randomize Layout",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 32),
+				function()
+					if S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
+						-- Generate new random curves for Mega Meander
+						if S.bridgeVariant == "MegaMeander" then
+							S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+						else
+							-- For other variants, generate a few curves for added complexity
+							S.bridgeCurves = BridgePathGenerator.generateRandomCurves(math.min(3, S.bridgeMeanderComplexity))
+						end
+						S.bridgeLastPreviewParams = nil -- Reset cache
+						if updateBridgePreview then
+							updateBridgePreview(S.bridgeHoverPoint)
+						end
+					end
+				end
+			)
+			redoLayoutBtn.LayoutOrder = 1
+
+			local addCurveBtn = UIHelpers.createButton(
+				meanderControlsContainer,
+				"➕ Add Curve",
+				UDim2.new(0, 0, 0, 0),
+				UDim2.new(1, 0, 0, 32),
+				function()
+					if #S.bridgeCurves < 50 then
+						table.insert(S.bridgeCurves, BridgePathGenerator.generateRandomCurve())
+						S.bridgeLastPreviewParams = nil -- Reset cache
+						if updateBridgePreview then
+							updateBridgePreview(S.bridgeHoverPoint)
+						end
+					end
+				end
+			)
+			addCurveBtn.LayoutOrder = 2
+
+			local complexityLabel = UIHelpers.createHeader(meanderControlsContainer, "Meander Complexity", UDim2.new(0, 0, 0, 0))
+			complexityLabel.LayoutOrder = 3
+
+			local _, complexityContainer, _setComplexity = UIHelpers.createSlider(
+				meanderControlsContainer,
+				"Curves",
+				1,
+				50,
+				S.bridgeMeanderComplexity,
+				function(value: number)
+					S.bridgeMeanderComplexity = value
+					if S.bridgeVariant == "MegaMeander" and S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
+						S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+						S.bridgeLastPreviewParams = nil -- Reset cache
+						if updateBridgePreview then
+							updateBridgePreview(S.bridgeHoverPoint)
+						end
+					end
+				end
+			)
+			complexityContainer.LayoutOrder = 4
+
+			configPanels["bridgeInfo"] = bridgeInfoPanel
+
+			local function updateBridgeStatus()
+				if S.bridgeStartPoint and S.bridgeEndPoint then
+					bridgeStatusLabel.Text = "Status: READY - Click to build!"
+					bridgeStatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+					-- Show meander controls only for MegaMeander variant
+					meanderControlsContainer.Visible = (S.bridgeVariant == "MegaMeander")
+				elseif S.bridgeStartPoint then
+					bridgeStatusLabel.Text = "Status: Click to set END"
+					bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+					meanderControlsContainer.Visible = false
+				else
+					bridgeStatusLabel.Text = "Status: Click to set START"
+					bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+					meanderControlsContainer.Visible = false
+				end
+			end
+
+			updateBridgePreview = function(hoverPoint: Vector3?)
+				-- Update hover point if provided
+				if hoverPoint then
+					S.bridgeHoverPoint = hoverPoint
+				end
+				for _, part in ipairs(S.bridgePreviewParts) do
+					part:Destroy()
+				end
+				S.bridgePreviewParts = {}
+				if not S.bridgeStartPoint then
+					return
+				end
+				local startMarker = Instance.new("Part")
+				startMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
+				startMarker.CFrame = CFrame.new(S.bridgeStartPoint)
+				startMarker.Anchored = true
+				startMarker.CanCollide = false
+				startMarker.Material = Enum.Material.Neon
+				startMarker.Color = Color3.fromRGB(0, 255, 0)
+				startMarker.Transparency = 0.5
+				startMarker.Parent = workspace
+				table.insert(S.bridgePreviewParts, startMarker)
+				local endPoint = S.bridgeEndPoint or hoverPoint
+				if endPoint then
+					local endMarker = Instance.new("Part")
+					endMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
+					endMarker.CFrame = CFrame.new(endPoint)
+					endMarker.Anchored = true
+					endMarker.CanCollide = false
+					endMarker.Material = Enum.Material.Neon
+					endMarker.Color = Color3.fromRGB(255, 100, 0)
+					endMarker.Transparency = 0.5
+					endMarker.Parent = workspace
+					table.insert(S.bridgePreviewParts, endMarker)
+
+					local distance = (endPoint - S.bridgeStartPoint).Magnitude
+					local steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
+
+					-- Use advanced path generation for MegaMeander mode
+					if S.bridgeVariant == "MegaMeander" then
+						-- Initialize curves if empty
+						if #S.bridgeCurves == 0 then
+							S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+						end
+
+						-- Generate terrain-aware meandering path
+						local path = BridgePathGenerator.generateMeanderingPath(
+							S.bridgeStartPoint,
+							endPoint,
+							S.bridgeCurves,
+							S.terrain,
+							steps,
+							true -- terrain awareness enabled
+						)
+
+						-- Visualize path points
+						for i, pathPoint in ipairs(path) do
+							if i > 1 and i < #path then -- Skip first and last (already have markers)
+								local pathMarker = Instance.new("Part")
+								pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5)
+									* Constants.VOXEL_RESOLUTION
+								pathMarker.CFrame = CFrame.new(pathPoint.position)
+								pathMarker.Anchored = true
+								pathMarker.CanCollide = false
+								pathMarker.Material = Enum.Material.Neon
+								pathMarker.Color = Color3.fromRGB(100, 200, 255)
+								pathMarker.Transparency = 0.7
+								pathMarker.Shape = Enum.PartType.Ball
+								pathMarker.Parent = workspace
+								table.insert(S.bridgePreviewParts, pathMarker)
+							end
+						end
+					else
+						-- Use original path generation for other variants
+						local pathDir = (endPoint - S.bridgeStartPoint).Unit
+						local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
+						for i = 1, steps - 1 do
+							local t = i / steps
+							local pos = S.bridgeStartPoint:Lerp(endPoint, t)
+							local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
+							local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
+							local pathMarker = Instance.new("Part")
+							pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5)
+								* Constants.VOXEL_RESOLUTION
+							pathMarker.CFrame = CFrame.new(pos + finalOffset)
+							pathMarker.Anchored = true
+							pathMarker.CanCollide = false
+							pathMarker.Material = Enum.Material.Neon
+							pathMarker.Color = Color3.fromRGB(100, 200, 255)
+							pathMarker.Transparency = 0.7
+							pathMarker.Shape = Enum.PartType.Ball
+							pathMarker.Parent = workspace
+							table.insert(S.bridgePreviewParts, pathMarker)
+						end
+					end
+				end
+			end
+
+			local function buildBridge()
+				if not S.bridgeStartPoint or not S.bridgeEndPoint then
+					return
+				end
+				ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
+				local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
+				local steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
+				local radius = S.bridgeWidth * Constants.VOXEL_RESOLUTION / 2
+
+				-- Use advanced path generation for MegaMeander mode
+				if S.bridgeVariant == "MegaMeander" then
+					-- Initialize curves if empty
+					if #S.bridgeCurves == 0 then
+						S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+					end
+
+					-- Generate terrain-aware meandering path
+					local path = BridgePathGenerator.generateMeanderingPath(
+						S.bridgeStartPoint,
+						S.bridgeEndPoint,
+						S.bridgeCurves,
+						S.terrain,
+						steps,
+						true -- terrain awareness enabled
+					)
+
+					-- Build bridge along the generated path
+					for _, pathPoint in ipairs(path) do
+						S.terrain:FillBall(pathPoint.position, radius, S.brushMaterial)
+					end
+				else
+					-- Use original path generation for other variants
+					local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
+					local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
+					for i = 0, steps do
+						local t = i / steps
+						local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
+						local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
+						local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
+						local bridgePos = pos + finalOffset
+						S.terrain:FillBall(bridgePos, radius, S.brushMaterial)
+					end
+				end
+
+				ChangeHistoryService:SetWaypoint("TerrainBridge_End")
+				S.bridgeStartPoint = nil
+				S.bridgeEndPoint = nil
+				S.bridgeCurves = {} -- Clear curves after building
+				S.bridgeHoverPoint = nil
+				S.bridgeLastPreviewParams = nil -- Reset cache
+				updateBridgeStatus()
+				updateBridgePreview()
+			end
+
+			-- Config Panel Visibility Logic
+			local configLayout = Instance.new("UIListLayout")
+			configLayout.SortOrder = Enum.SortOrder.LayoutOrder
+			configLayout.Padding = UDim.new(0, 8)
+			configLayout.Parent = configContainer
+
+			local panelOrder = { "bridgeInfo", "brushShape", "strength", "pivot", "hollow", "planeLock", "flattenMode", "material" }
+			for i, panelName in ipairs(panelOrder) do
+				if configPanels[panelName] then
+					configPanels[panelName].LayoutOrder = i
+				end
+			end
+
+			local noToolMessage = Instance.new("TextLabel")
+			noToolMessage.Name = "NoToolMessage"
+			noToolMessage.BackgroundTransparency = 1
+			noToolMessage.Size = UDim2.new(1, 0, 0, 60)
+			noToolMessage.Font = Enum.Font.Gotham
+			noToolMessage.TextSize = 14
+			noToolMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
+			noToolMessage.Text = "Select a tool above to see its settings"
+			noToolMessage.TextWrapped = true
+			noToolMessage.LayoutOrder = 0
+			noToolMessage.Parent = configContainer
+
+			updateConfigPanelVisibility = function()
+				local toolConfig = BrushData.ToolConfigs[S.currentTool]
+				for _, panel in pairs(configPanels) do
+					panel.Visible = false
+				end
+				if S.currentTool == ToolId.None or not toolConfig then
+					noToolMessage.Visible = true
+				else
+					noToolMessage.Visible = false
+					for _, panelName in ipairs(toolConfig) do
+						if configPanels[panelName] then
+							configPanels[panelName].Visible = true
+						end
+					end
+				end
+				task.defer(function()
+					local totalHeight = CONFIG_START_Y + configLayout.AbsoluteContentSize.Y + 20
+					mainFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight, 400))
+				end)
+			end
+
+			if updateConfigPanelVisibility then
+				updateConfigPanelVisibility()
+			end
+			updateToolButtonVisuals()
+			pluginInstance:Activate(true)
+
+			-- Return all values needed by init()
+			return configPanels,
+				setStrengthValue,
+				updateConfigPanelVisibility,
+				toolButtons,
+				updateBridgeStatus,
+				updateBridgePreview,
+				buildBridge
+		end
+	)() -- End IIFE
 
 	-- ============================================================================
 	-- Mouse & Input Handling
@@ -2012,6 +3078,32 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					end
 				end
 				return
+			end
+
+			-- Gradient tool: Shift+Click = start, Ctrl+Click = end
+			if S.currentTool == ToolId.GradientPaint then
+				local shiftHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+				local ctrlHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+					or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+				if shiftHeld then
+					local hitPosition = getTerrainHit()
+					if hitPosition then
+						S.gradientStartPoint = hitPosition
+						if S.updateGradientStatus then
+							S.updateGradientStatus()
+						end
+					end
+					return
+				elseif ctrlHeld then
+					local hitPosition = getTerrainHit()
+					if hitPosition then
+						S.gradientEndPoint = hitPosition
+						if S.updateGradientStatus then
+							S.updateGradientStatus()
+						end
+					end
+					return
+				end
 			end
 
 			-- Clone tool: Alt+Click to sample source
@@ -2167,6 +3259,17 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					hidePlaneVisualization()
 				end
 			end
+
+			-- Live bridge preview: show path to current hover position
+			if S.currentTool == ToolId.Bridge and S.bridgeStartPoint and not S.bridgeEndPoint then
+				if hitPosition then
+					S.bridgeHoverPoint = hitPosition
+					updateBridgePreview(hitPosition)
+				end
+			elseif S.currentTool ~= ToolId.Bridge then
+				-- Clear hover point when not using bridge tool
+				S.bridgeHoverPoint = nil
+			end
 		else
 			hideBrushVisualization()
 			hidePlaneVisualization()
@@ -2218,4 +3321,4 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end
 end
 
-	return TerrainEditorModule
+return TerrainEditorModule

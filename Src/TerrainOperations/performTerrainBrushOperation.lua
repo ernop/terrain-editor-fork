@@ -154,10 +154,15 @@ local function performOperation(terrain, opSet)
 			-- Fall through to main loop for ellipsoid/rotated sphere
 		elseif brushShape == BrushShape.CornerWedge or brushShape == BrushShape.Dome then
 			-- Fall through to main loop for custom shapes
-		elseif brushShape == BrushShape.Torus or brushShape == BrushShape.Ring 
-			or brushShape == BrushShape.ZigZag or brushShape == BrushShape.Sheet
-			or brushShape == BrushShape.Grid or brushShape == BrushShape.Stick
-			or brushShape == BrushShape.Spinner then
+		elseif
+			brushShape == BrushShape.Torus
+			or brushShape == BrushShape.Ring
+			or brushShape == BrushShape.ZigZag
+			or brushShape == BrushShape.Sheet
+			or brushShape == BrushShape.Grid
+			or brushShape == BrushShape.Stick
+			or brushShape == BrushShape.Spinner
+		then
 			-- Fall through to main loop for creative shapes (all per-voxel)
 		else
 			-- Unknown shape
@@ -411,6 +416,106 @@ local function performOperation(terrain, opSet)
 					sculptSettings.blobIntensity = opSet.blobIntensity
 					sculptSettings.blobSmoothness = opSet.blobSmoothness
 					SculptOperations.blobify(sculptSettings)
+				elseif tool == ToolId.SlopePaint then
+					-- Pass slope paint parameters
+					sculptSettings.slopeFlatMaterial = opSet.slopeFlatMaterial
+					sculptSettings.slopeSteepMaterial = opSet.slopeSteepMaterial
+					sculptSettings.slopeCliffMaterial = opSet.slopeCliffMaterial
+					sculptSettings.slopeThreshold1 = opSet.slopeThreshold1
+					sculptSettings.slopeThreshold2 = opSet.slopeThreshold2
+					SculptOperations.slopePaint(sculptSettings)
+				elseif tool == ToolId.Megarandomize then
+					-- Pass world coordinates and megarandomize parameters
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.clusterSize = opSet.clusterSize
+					sculptSettings.noiseSeed = opSet.megarandomizeSeed or 0
+					sculptSettings.materialPalette = opSet.materialPalette
+					SculptOperations.megarandomize(sculptSettings)
+				elseif tool == ToolId.CavityFill then
+					-- Pass cavity fill parameters
+					sculptSettings.cavitySensitivity = opSet.cavitySensitivity
+					SculptOperations.cavityFill(sculptSettings)
+				elseif tool == ToolId.Melt then
+					-- Pass melt parameters
+					sculptSettings.meltViscosity = opSet.meltViscosity
+					SculptOperations.melt(sculptSettings)
+				elseif tool == ToolId.GradientPaint then
+					-- Pass world coordinates and gradient parameters
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.gradientMaterial1 = opSet.gradientMaterial1
+					sculptSettings.gradientMaterial2 = opSet.gradientMaterial2
+					sculptSettings.gradientStartX = opSet.gradientStartX
+					sculptSettings.gradientStartZ = opSet.gradientStartZ
+					sculptSettings.gradientEndX = opSet.gradientEndX
+					sculptSettings.gradientEndZ = opSet.gradientEndZ
+					sculptSettings.gradientNoiseAmount = opSet.gradientNoiseAmount
+					sculptSettings.noiseSeed = opSet.noiseSeed
+					SculptOperations.gradientPaint(sculptSettings)
+				elseif tool == ToolId.FloodPaint then
+					-- Pass flood paint parameters
+					sculptSettings.floodTargetMaterial = opSet.floodTargetMaterial
+					sculptSettings.floodSourceMaterial = opSet.floodSourceMaterial
+					SculptOperations.floodPaint(sculptSettings)
+				elseif tool == ToolId.Stalactite then
+					-- Pass stalactite parameters
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.centerX = centerX
+					sculptSettings.centerY = centerY
+					sculptSettings.centerZ = centerZ
+					sculptSettings.stalactiteDirection = opSet.stalactiteDirection
+					sculptSettings.stalactiteDensity = opSet.stalactiteDensity
+					sculptSettings.stalactiteLength = opSet.stalactiteLength
+					sculptSettings.stalactiteTaper = opSet.stalactiteTaper
+					sculptSettings.noiseSeed = opSet.noiseSeed
+					SculptOperations.stalactite(sculptSettings)
+				elseif tool == ToolId.Tendril then
+					-- Pass tendril parameters
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.centerX = centerX
+					sculptSettings.centerY = centerY
+					sculptSettings.centerZ = centerZ
+					sculptSettings.tendrilRadius = opSet.tendrilRadius
+					sculptSettings.tendrilBranches = opSet.tendrilBranches
+					sculptSettings.tendrilLength = opSet.tendrilLength
+					sculptSettings.tendrilCurl = opSet.tendrilCurl
+					sculptSettings.noiseSeed = opSet.noiseSeed
+					SculptOperations.tendril(sculptSettings)
+				elseif tool == ToolId.Symmetry then
+					-- Pass symmetry parameters
+					-- Center is in voxel indices (relative to the read region)
+					sculptSettings.symmetryType = opSet.symmetryType
+					sculptSettings.symmetrySegments = opSet.symmetrySegments
+					sculptSettings.centerX = sizeX / 2
+					sculptSettings.centerY = sizeY / 2
+					sculptSettings.centerZ = sizeZ / 2
+					SculptOperations.symmetry(sculptSettings)
+				elseif tool == ToolId.VariationGrid then
+					-- Pass variation grid parameters
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.gridCellSize = opSet.gridCellSize
+					sculptSettings.gridVariation = opSet.gridVariation
+					sculptSettings.noiseSeed = opSet.gridSeed or 0
+					SculptOperations.variationGrid(sculptSettings)
+				elseif tool == ToolId.GrowthSim then
+					-- Pass growth simulation parameters
+					sculptSettings.worldX = worldVectorX
+					sculptSettings.worldY = worldVectorY
+					sculptSettings.worldZ = worldVectorZ
+					sculptSettings.growthRate = opSet.growthRate
+					sculptSettings.growthBias = opSet.growthBias
+					sculptSettings.growthPattern = opSet.growthPattern
+					sculptSettings.noiseSeed = opSet.growthSeed or 0
+					SculptOperations.growthSim(sculptSettings)
 				end
 			end
 		end
