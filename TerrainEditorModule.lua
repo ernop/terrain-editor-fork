@@ -3,7 +3,7 @@
 -- TerrainEditorFork - Module Version for Live Development
 -- This module is loaded by the loader plugin for hot-reloading
 
-local VERSION = "0.0.00000030"
+local VERSION = "0.0.00000034"
 local DEBUG = false
 
 local TerrainEditorModule = {}
@@ -61,17 +61,47 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		[BrushShape.Wedge] = true,
 		[BrushShape.CornerWedge] = true,
 		[BrushShape.Dome] = false, -- Dome is symmetric around Y axis
+		-- Creative shapes
+		[BrushShape.Torus] = true,
+		[BrushShape.Ring] = true,
+		[BrushShape.ZigZag] = true,
+		[BrushShape.Sheet] = true,
+		[BrushShape.Grid] = true,
+		[BrushShape.Stick] = true,
+		[BrushShape.Spinner] = false, -- Auto-rotates, no manual rotation
+		[BrushShape.Spikepad] = true, -- Can rotate the spike orientation
 	}
 
 	local ShapeSizingMode = {
-		-- "uniform" = single size (X=Y=Z), "cylinder" = radius + height, "box" = X, Y, Z independent
-		[BrushShape.Sphere] = "uniform",
+		-- "uniform" = single size (X=Y=Z), "box" = X, Y, Z independent
+		-- Most shapes now support full independent sizing for maximum flexibility
+		[BrushShape.Sphere] = "uniform", -- Sphere must be uniform
 		[BrushShape.Cube] = "box",
-		[BrushShape.Cylinder] = "cylinder", -- X=Z (radius), Y (height)
-		[BrushShape.Wedge] = "box", -- Full X, Y, Z control
-		[BrushShape.CornerWedge] = "box", -- Full X, Y, Z control
-		[BrushShape.Dome] = "cylinder", -- Radius (X=Z) + Height (Y)
+		[BrushShape.Cylinder] = "box", -- Elliptical cylinder: X, Z = radii, Y = height
+		[BrushShape.Wedge] = "box",
+		[BrushShape.CornerWedge] = "box",
+		[BrushShape.Dome] = "box", -- Elliptical dome: X, Z = radii, Y = height
+		[BrushShape.Torus] = "box", -- X = major radius, Y = tube radius, Z = depth stretch
+		[BrushShape.Ring] = "box", -- X = outer radius, Y = thickness, Z = depth
+		[BrushShape.ZigZag] = "box",
+		[BrushShape.Sheet] = "box",
+		[BrushShape.Grid] = "box", -- Non-uniform grid
+		[BrushShape.Stick] = "box", -- X = thickness, Y = length, Z = depth
+		[BrushShape.Spinner] = "box",
+		[BrushShape.Spikepad] = "box",
 	}
+
+	-- Spin mode (can be applied to any brush)
+	local spinEnabled = false
+	local spinAngle = 0
+
+	-- Hollow mode (can be applied to any brush)
+	local hollowEnabled = false
+	local wallThickness = 0.2 -- 0.1 to 0.5 (proportion of radius)
+
+	-- Brush rate limiting (prevent firing too fast)
+	local BRUSH_COOLDOWN = 0.05 -- 50ms between brush operations (20 ops/sec max)
+	local lastBrushTime = 0
 
 	-- Mouse state
 	local mouse = pluginInstance:GetMouse()
@@ -79,7 +109,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	local lastBrushPosition: Vector3? = nil
 
 	-- Brush visualization
-	local brushPart: BasePart? = nil -- Can be Part, WedgePart, or CornerWedgePart
+	local brushPart: BasePart? = nil -- Main brush part (can be Part, WedgePart, or CornerWedgePart)
+	local brushExtraParts: { BasePart } = {} -- Additional parts for complex shapes (torus, grid, spikes, etc.)
 	local planePart: Part? = nil -- Visual indicator for locked plane
 
 	-- 3D Handles for rotation and sizing
@@ -90,6 +121,12 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Brush lock mode (for interacting with handles)
 	local brushLocked: boolean = false
 	local lockedBrushPosition: Vector3? = nil
+
+	-- Bridge tool state
+	local bridgeStartPoint: Vector3? = nil
+	local bridgeEndPoint: Vector3? = nil
+	local bridgePreviewParts: { BasePart } = {}
+	local bridgeWidth: number = 4 -- Voxels wide
 
 	-- Forward declarations for handle functions (defined later, after brush viz)
 	local updateHandlesAdornee
@@ -111,6 +148,8 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			"handleHint",
 			"strength",
 			"pivot",
+			"spin",
+			"hollow",
 			"planeLock",
 			"ignoreWater",
 			"material",
@@ -120,16 +159,20 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			"handleHint",
 			"strength",
 			"pivot",
+			"spin",
+			"hollow",
 			"planeLock",
 			"ignoreWater",
 		},
-		[ToolId.Grow] = { "brushShape", "handleHint", "strength", "pivot", "planeLock", "ignoreWater" },
-		[ToolId.Erode] = { "brushShape", "handleHint", "strength", "pivot", "planeLock", "ignoreWater" },
+		[ToolId.Grow] = { "brushShape", "handleHint", "strength", "pivot", "spin", "hollow", "planeLock", "ignoreWater" },
+		[ToolId.Erode] = { "brushShape", "handleHint", "strength", "pivot", "spin", "hollow", "planeLock", "ignoreWater" },
 		[ToolId.Smooth] = {
 			"brushShape",
 			"handleHint",
 			"strength",
 			"pivot",
+			"spin",
+			"hollow",
 			"planeLock",
 			"ignoreWater",
 		},
@@ -138,11 +181,14 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			"handleHint",
 			"strength",
 			"pivot",
+			"spin",
+			"hollow",
 			"planeLock",
 			"ignoreWater",
 			"flattenMode",
 		},
-		[ToolId.Paint] = { "brushShape", "handleHint", "strength", "material", "autoMaterial" },
+		[ToolId.Paint] = { "brushShape", "handleHint", "strength", "spin", "hollow", "material", "autoMaterial" },
+		[ToolId.Bridge] = { "bridgeInfo", "strength", "material" },
 	}
 
 	-- ============================================================================
@@ -371,6 +417,16 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	end
 
 	local function selectTool(toolId: string)
+		-- Clean up bridge preview if switching away from bridge tool
+		if currentTool == ToolId.Bridge and toolId ~= ToolId.Bridge then
+			bridgeStartPoint = nil
+			bridgeEndPoint = nil
+			for _, part in ipairs(bridgePreviewParts) do
+				part:Destroy()
+			end
+			bridgePreviewParts = {}
+		end
+
 		if currentTool == toolId then
 			currentTool = ToolId.None
 			-- Deactivate plugin when no tool selected
@@ -390,10 +446,38 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	-- Brush Visualization
 	-- ============================================================================
 
+	-- Helper to create a small preview part with consistent styling
+	local function createPreviewPart(shape: Enum.PartType?): Part
+		local part = Instance.new("Part")
+		part.Name = "TerrainBrushExtra"
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CastShadow = false
+		part.Material = Enum.Material.Neon
+		-- Use locked color (orange) or normal color (blue)
+		part.Color = brushLocked and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(0, 162, 255)
+		part.Transparency = 0.6
+		if shape then
+			part.Shape = shape
+		end
+		part.Parent = workspace
+		return part
+	end
+
+	-- Clear extra preview parts
+	local function clearExtraParts()
+		for _, part in ipairs(brushExtraParts) do
+			part:Destroy()
+		end
+		brushExtraParts = {}
+	end
+
 	local function createBrushVisualization()
 		if brushPart then
 			brushPart:Destroy()
 		end
+		clearExtraParts()
 
 		-- Create appropriate part type based on shape
 		if brushShape == BrushShape.Wedge then
@@ -404,9 +488,20 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			brushPart = Instance.new("Part")
 			if brushShape == BrushShape.Sphere or brushShape == BrushShape.Dome then
 				brushPart.Shape = Enum.PartType.Ball
-			elseif brushShape == BrushShape.Cube then
+			elseif
+				brushShape == BrushShape.Cube
+				or brushShape == BrushShape.Grid
+				or brushShape == BrushShape.ZigZag
+				or brushShape == BrushShape.Spinner
+			then
 				brushPart.Shape = Enum.PartType.Block
-			elseif brushShape == BrushShape.Cylinder then
+			elseif
+				brushShape == BrushShape.Cylinder
+				or brushShape == BrushShape.Stick
+				or brushShape == BrushShape.Torus
+				or brushShape == BrushShape.Ring
+				or brushShape == BrushShape.Sheet
+			then
 				brushPart.Shape = Enum.PartType.Cylinder
 			end
 		end
@@ -449,10 +544,19 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			-- Base CFrame at position
 			local baseCFrame = CFrame.new(position)
 
-			-- Apply user rotation if shape supports it
+			-- Update spin angle if spin mode is enabled (pauses when locked)
+			if spinEnabled and not brushLocked then
+				spinAngle = spinAngle + 0.05
+			end
+
+			-- Apply user rotation if shape supports it, then spin if enabled
 			local finalCFrame = baseCFrame
 			if ShapeSupportsRotation[brushShape] then
 				finalCFrame = baseCFrame * brushRotation
+			end
+			if spinEnabled then
+				local spinCFrame = CFrame.Angles(spinAngle * 0.7, spinAngle, spinAngle * 0.3)
+				finalCFrame = finalCFrame * spinCFrame
 			end
 
 			if brushShape == BrushShape.Sphere then
@@ -484,6 +588,177 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				-- Visualized as a ball (actual dome effect is in the brush operation)
 				brushPart.Size = Vector3.new(sizeX, sizeY, sizeX)
 				brushPart.CFrame = finalCFrame
+			elseif brushShape == BrushShape.Torus then
+				-- Torus: donut shape - use ring of spheres to show actual shape
+				brushPart.Transparency = 1 -- Hide main part, use spheres instead
+				brushPart.Size = Vector3.new(1, 1, 1)
+				brushPart.CFrame = finalCFrame
+
+				-- Create spheres around the ring
+				clearExtraParts()
+				local majorRadius = sizeX * 0.5
+				local tubeRadius = sizeY * 0.5
+				local segments = 12
+				for i = 0, segments - 1 do
+					local angle = (i / segments) * math.pi * 2
+					local localPos = Vector3.new(math.cos(angle) * majorRadius, 0, math.sin(angle) * majorRadius)
+					local worldPos = finalCFrame:PointToWorldSpace(localPos)
+
+					local sphere = createPreviewPart(Enum.PartType.Ball)
+					sphere.Size = Vector3.new(tubeRadius * 2, tubeRadius * 2, tubeRadius * 2)
+					sphere.CFrame = CFrame.new(worldPos)
+					table.insert(brushExtraParts, sphere)
+				end
+			elseif brushShape == BrushShape.Ring then
+				-- Ring: flat washer - use cylinders to show the ring shape
+				brushPart.Transparency = 1
+				brushPart.Size = Vector3.new(1, 1, 1)
+				brushPart.CFrame = finalCFrame
+
+				clearExtraParts()
+				local outerRadius = sizeX * 0.5
+				local thickness = sizeY * 0.5
+				local segments = 16
+				for i = 0, segments - 1 do
+					local angle = (i / segments) * math.pi * 2
+					local nextAngle = ((i + 1) / segments) * math.pi * 2
+					local midAngle = (angle + nextAngle) / 2
+					local localPos = Vector3.new(math.cos(midAngle) * outerRadius * 0.85, 0, math.sin(midAngle) * outerRadius * 0.85)
+					local worldPos = finalCFrame:PointToWorldSpace(localPos)
+
+					local seg = createPreviewPart(Enum.PartType.Block)
+					local segLength = outerRadius * 0.4
+					seg.Size = Vector3.new(segLength, thickness, outerRadius * 0.15)
+					seg.CFrame = CFrame.new(worldPos) * CFrame.Angles(0, -midAngle, 0)
+					table.insert(brushExtraParts, seg)
+				end
+			elseif brushShape == BrushShape.ZigZag then
+				-- ZigZag: Z-shaped pattern - show with angled boxes
+				brushPart.Transparency = 1
+				brushPart.Size = Vector3.new(1, 1, 1)
+				brushPart.CFrame = finalCFrame
+
+				clearExtraParts()
+				local zigWidth = sizeX * 0.3
+				-- Create Z shape with 3 boxes
+				local box1 = createPreviewPart(Enum.PartType.Block)
+				box1.Size = Vector3.new(sizeX, sizeY * 0.3, zigWidth)
+				box1.CFrame = finalCFrame * CFrame.new(0, sizeY * 0.35, -sizeZ * 0.3)
+				table.insert(brushExtraParts, box1)
+
+				local box2 = createPreviewPart(Enum.PartType.Block)
+				box2.Size = Vector3.new(sizeX, sizeY * 0.5, zigWidth)
+				box2.CFrame = finalCFrame * CFrame.Angles(math.rad(45), 0, 0)
+				table.insert(brushExtraParts, box2)
+
+				local box3 = createPreviewPart(Enum.PartType.Block)
+				box3.Size = Vector3.new(sizeX, sizeY * 0.3, zigWidth)
+				box3.CFrame = finalCFrame * CFrame.new(0, -sizeY * 0.35, sizeZ * 0.3)
+				table.insert(brushExtraParts, box3)
+			elseif brushShape == BrushShape.Sheet then
+				-- Sheet: curved surface - show with arc of boxes
+				brushPart.Transparency = 1
+				brushPart.Size = Vector3.new(1, 1, 1)
+				brushPart.CFrame = finalCFrame
+
+				clearExtraParts()
+				local arcSegments = 8
+				local sheetThickness = sizeZ * 0.1
+				for i = 0, arcSegments - 1 do
+					local t = (i / (arcSegments - 1)) - 0.5 -- -0.5 to 0.5
+					local angle = t * math.pi * 0.5 -- Quarter arc
+					local localPos = Vector3.new(0, math.sin(angle) * sizeY * 0.4, math.cos(angle) * sizeX * 0.4)
+					local worldPos = finalCFrame:PointToWorldSpace(localPos)
+
+					local seg = createPreviewPart(Enum.PartType.Block)
+					seg.Size = Vector3.new(sizeX * 0.9, sizeY / arcSegments * 1.2, sheetThickness)
+					seg.CFrame = CFrame.new(worldPos) * finalCFrame.Rotation * CFrame.Angles(angle, 0, 0)
+					table.insert(brushExtraParts, seg)
+				end
+			elseif brushShape == BrushShape.Grid then
+				-- Grid: 3D checkerboard - show actual grid pattern
+				brushPart.Transparency = 1
+				brushPart.Size = Vector3.new(1, 1, 1)
+				brushPart.CFrame = finalCFrame
+
+				clearExtraParts()
+				local gridSize = 3 -- 3x3x3 grid
+				local cellSize = sizeX / gridSize
+				for gx = 0, gridSize - 1 do
+					for gy = 0, gridSize - 1 do
+						for gz = 0, gridSize - 1 do
+							-- Checkerboard pattern
+							if (gx + gy + gz) % 2 == 0 then
+								local localPos = Vector3.new(
+									(gx - (gridSize - 1) / 2) * cellSize,
+									(gy - (gridSize - 1) / 2) * cellSize,
+									(gz - (gridSize - 1) / 2) * cellSize
+								)
+								local worldPos = finalCFrame:PointToWorldSpace(localPos)
+
+								local cell = createPreviewPart(Enum.PartType.Block)
+								cell.Size = Vector3.new(cellSize * 0.9, cellSize * 0.9, cellSize * 0.9)
+								cell.CFrame = CFrame.new(worldPos) * finalCFrame.Rotation
+								table.insert(brushExtraParts, cell)
+							end
+						end
+					end
+				end
+			elseif brushShape == BrushShape.Stick then
+				-- Stick: long thin rod - already well represented by cylinder
+				brushPart.Size = Vector3.new(sizeY, sizeX * 0.3, sizeX * 0.3)
+				finalCFrame = baseCFrame * brushRotation * CFrame.Angles(0, 0, math.rad(90))
+				brushPart.CFrame = finalCFrame
+			elseif brushShape == BrushShape.Spikepad then
+				-- Spikepad: base platform with spike cones
+				local baseHeight = sizeY * 0.15
+				brushPart.Size = Vector3.new(sizeX, baseHeight, sizeZ)
+				brushPart.CFrame = finalCFrame * CFrame.new(0, -sizeY * 0.5 + baseHeight * 0.5, 0)
+
+				-- Add spike cones using wedges arranged in a pattern
+				clearExtraParts()
+				local spikeHeight = sizeY * 0.85
+				local spikeRadius = math.min(sizeX, sizeZ) * 0.12
+				local cols = 3
+				local rows = 3
+				for col = 0, cols - 1 do
+					for row = 0, rows - 1 do
+						local xPos = (col - (cols - 1) / 2) * (sizeX * 0.33)
+						local zPos = (row - (rows - 1) / 2) * (sizeZ * 0.33)
+						local spikeBase = finalCFrame * CFrame.new(xPos, -sizeY * 0.5 + baseHeight, zPos)
+
+						-- Create a cone-like spike using 4 wedges
+						for wedgeIdx = 0, 3 do
+							local wedge = Instance.new("WedgePart")
+							wedge.Name = "TerrainBrushExtra"
+							wedge.Anchored = true
+							wedge.CanCollide = false
+							wedge.CanQuery = false
+							wedge.CastShadow = false
+							wedge.Material = Enum.Material.Neon
+							wedge.Color = Color3.fromRGB(0, 162, 255)
+							wedge.Transparency = 0.6
+							wedge.Size = Vector3.new(spikeRadius, spikeHeight, spikeRadius)
+							wedge.CFrame = spikeBase * CFrame.new(0, spikeHeight * 0.5, 0) * CFrame.Angles(0, math.rad(90 * wedgeIdx), 0)
+							wedge.Parent = workspace
+							table.insert(brushExtraParts, wedge)
+						end
+					end
+				end
+			end
+
+			-- Make brush more transparent when hollow mode is enabled
+			if hollowEnabled then
+				brushPart.Transparency = math.max(brushPart.Transparency, 0.7)
+			end
+
+			-- Update extra parts color based on locked state and hollow mode
+			local extraColor = brushLocked and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(0, 162, 255)
+			for _, extraPart in ipairs(brushExtraParts) do
+				extraPart.Color = extraColor
+				if hollowEnabled then
+					extraPart.Transparency = math.max(extraPart.Transparency, 0.7)
+				end
 			end
 
 			-- Update 3D handles to follow the brush
@@ -496,6 +771,11 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			brushPart:Destroy()
 			brushPart = nil
 		end
+		-- Clean up extra parts for complex shapes
+		for _, part in ipairs(brushExtraParts) do
+			part:Destroy()
+		end
+		brushExtraParts = {}
 		hideHandles()
 	end
 
@@ -578,23 +858,45 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			local deltaVoxels = distance / Constants.VOXEL_RESOLUTION
 			local sizingMode = ShapeSizingMode[brushShape] or "uniform"
 
+			-- For shapes with axis swaps (Cylinder, Torus, Ring, Sheet, Stick), the Part's
+			-- axes don't match the brush's logical axes. We need to map correctly:
+			-- - Cylinder/Stick: Part.Size = (sizeY, sizeX, sizeX) + 90° Z rotation
+			--   So Part's Right/Left (±X) = height (sizeY), Top/Bottom/Front/Back = radius (sizeX)
+			-- - Torus/Ring: Part.Size = (sizeY, sizeX*2, sizeX*2) + 90° Z rotation
+			--   So Part's Right/Left = tube thickness (sizeY), others = major radius (sizeX)
+			-- - Sheet: Part.Size = (sizeZ*0.2, sizeX*2, sizeY*2) + 90° Z rotation
+
 			if sizingMode == "uniform" then
-				-- Sphere: all axes change together
+				-- Sphere/Grid: all axes change together
 				local newSize = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
 				brushSizeX = newSize
 				brushSizeY = newSize
 				brushSizeZ = newSize
 			elseif sizingMode == "cylinder" then
-				-- Cylinder: Top/Bottom change height (Y), others change radius (X=Z)
-				if face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then
+				-- Cylinder/Stick/Dome: Part's X = height (sizeY), Part's Y/Z = radius (sizeX)
+				-- Due to 90° Z rotation: visually top/bottom = Part's Right/Left
+				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
+					-- Dragging the visual top/bottom = height
 					brushSizeY = math.clamp(dragStartSizeY + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
 				else
+					-- Dragging the visual sides = radius
 					local newRadius = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
 					brushSizeX = newRadius
 					brushSizeZ = newRadius
 				end
-			else -- "box"
-				-- Cube: each face changes its axis
+			elseif sizingMode == "torus" then
+				-- Torus/Ring: Part's X = tube/thickness (sizeY), Part's Y/Z = major radius (sizeX)
+				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
+					-- Dragging the visual "thickness" direction
+					brushSizeY = math.clamp(dragStartSizeY + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+				else
+					-- Dragging the major radius
+					local newRadius = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+					brushSizeX = newRadius
+					brushSizeZ = newRadius
+				end
+			else -- "box" mode (Cube, Wedge, CornerWedge, ZigZag, Spikepad, etc.)
+				-- Standard mapping: each face changes its corresponding axis
 				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
 					brushSizeX = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
 				elseif face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then
@@ -790,8 +1092,23 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		elseif sizingMode == "cylinder" then
 			-- Cylinder: X is radius, Y is height, Z matches X
 			actualSizeZ = brushSizeX
+		elseif sizingMode == "torus" then
+			-- Torus: X is major radius, Y is minor radius (tube), Z matches X
+			actualSizeZ = brushSizeX
 		end
 		-- "box" mode: use all three independently (no changes needed)
+
+		-- Handle rotation: user rotation + spin mode
+		local effectiveRotation = brushRotation
+		if not ShapeSupportsRotation[brushShape] then
+			effectiveRotation = CFrame.new()
+		end
+		-- Apply spin if enabled
+		if spinEnabled then
+			spinAngle = spinAngle + 0.1
+			local spinCFrame = CFrame.Angles(spinAngle * 0.7, spinAngle, spinAngle * 0.3)
+			effectiveRotation = effectiveRotation * spinCFrame
+		end
 
 		local opSet = {
 			currentTool = currentTool,
@@ -813,8 +1130,11 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			ignoreWater = ignoreWater,
 			source = Enum.Material.Grass,
 			target = brushMaterial,
-			-- Rotation (only applied if shape supports it)
-			brushRotation = ShapeSupportsRotation[brushShape] and brushRotation or CFrame.new(),
+			-- Rotation (uses effective rotation for spinner, user rotation for others)
+			brushRotation = effectiveRotation,
+			-- Hollow mode
+			hollowEnabled = hollowEnabled,
+			wallThickness = wallThickness,
 		}
 
 		if DEBUG then
@@ -845,6 +1165,13 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				return
 			end
 
+			-- Rate limit brush operations
+			local now = tick()
+			if now - lastBrushTime < BRUSH_COOLDOWN then
+				return
+			end
+			lastBrushTime = now
+
 			local hitPosition = getTerrainHit()
 			if hitPosition then
 				performBrushOperation(hitPosition)
@@ -874,6 +1201,21 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	mainFrame.ScrollBarThickness = 6
 	mainFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
 	mainFrame.Parent = parentGui
+
+	-- Version label in upper right (faint)
+	local versionLabel = Instance.new("TextLabel")
+	versionLabel.Name = "VersionLabel"
+	versionLabel.BackgroundTransparency = 1
+	versionLabel.Position = UDim2.new(1, -8, 0, 4)
+	versionLabel.Size = UDim2.new(0, 100, 0, 14)
+	versionLabel.AnchorPoint = Vector2.new(1, 0) -- Anchor to right
+	versionLabel.Font = Enum.Font.Gotham
+	versionLabel.TextSize = 10
+	versionLabel.TextColor3 = Color3.fromRGB(120, 120, 120) -- Faint grey
+	versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+	versionLabel.Text = "v" .. VERSION
+	versionLabel.ZIndex = 10 -- Above scroll content
+	versionLabel.Parent = parentGui
 
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 10)
@@ -916,11 +1258,17 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		end)
 	end
 
-	createHeader(mainFrame, "Paint", UDim2.new(0, 0, 0, 155))
+	createHeader(mainFrame, "Other Tools", UDim2.new(0, 0, 0, 155))
 	local paintBtn = createToolButton(mainFrame, ToolId.Paint, "Paint", UDim2.new(0, 0, 0, 180))
 	toolButtons[ToolId.Paint] = paintBtn
 	paintBtn.MouseButton1Click:Connect(function()
 		selectTool(ToolId.Paint)
+	end)
+
+	local bridgeBtn = createToolButton(mainFrame, ToolId.Bridge, "Bridge", UDim2.new(0, 78, 0, 180))
+	toolButtons[ToolId.Bridge] = bridgeBtn
+	bridgeBtn.MouseButton1Click:Connect(function()
+		selectTool(ToolId.Bridge)
 	end)
 
 	-- ============================================================================
@@ -965,17 +1313,36 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 
 	local shapeButtonsContainer = Instance.new("Frame")
 	shapeButtonsContainer.BackgroundTransparency = 1
-	shapeButtonsContainer.Size = UDim2.new(1, 0, 0, 35)
+	shapeButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
+	shapeButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
 	shapeButtonsContainer.LayoutOrder = 2
 	shapeButtonsContainer.Parent = shapePanel
 
+	-- Use UIGridLayout for wrapping buttons
+	local shapeGridLayout = Instance.new("UIGridLayout")
+	shapeGridLayout.CellSize = UDim2.new(0, 70, 0, 28)
+	shapeGridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+	shapeGridLayout.FillDirection = Enum.FillDirection.Horizontal
+	shapeGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	shapeGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	shapeGridLayout.Parent = shapeButtonsContainer
+
+	-- Standard shapes
 	local shapes = {
 		{ id = BrushShape.Sphere, name = "Sphere" },
 		{ id = BrushShape.Cube, name = "Cube" },
-		{ id = BrushShape.Cylinder, name = "Cylinder" },
+		{ id = BrushShape.Cylinder, name = "Cyl" },
 		{ id = BrushShape.Wedge, name = "Wedge" },
 		{ id = BrushShape.CornerWedge, name = "Corner" },
 		{ id = BrushShape.Dome, name = "Dome" },
+		-- Creative shapes (new row)
+		{ id = BrushShape.Torus, name = "Torus" },
+		{ id = BrushShape.Ring, name = "Ring" },
+		{ id = BrushShape.ZigZag, name = "ZigZag" },
+		{ id = BrushShape.Sheet, name = "Sheet" },
+		{ id = BrushShape.Grid, name = "Grid" },
+		{ id = BrushShape.Stick, name = "Stick" },
+		{ id = BrushShape.Spikepad, name = "Spikes" },
 	}
 	local shapeButtons = {}
 
@@ -995,7 +1362,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		local btn = createButton(
 			shapeButtonsContainer,
 			shapeInfo.name,
-			UDim2.new(0, (i - 1) * 78, 0, 0),
+			UDim2.new(0, 0, 0, 0), -- Position handled by grid layout
 			UDim2.new(0, 70, 0, 28),
 			function()
 				brushShape = shapeInfo.id
@@ -1006,6 +1373,7 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 				end
 			end
 		)
+		btn.LayoutOrder = i -- For grid layout ordering
 		shapeButtons[shapeInfo.id] = btn
 	end
 	updateShapeButtons()
@@ -1155,6 +1523,86 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 	updatePivotButtons()
 
 	configPanels["pivot"] = pivotPanel
+
+	-- Spin Mode Toggle
+	local spinPanel = createConfigPanel("spin")
+	local spinHeader = createHeader(spinPanel, "Spin Mode", UDim2.new(0, 0, 0, 0))
+	spinHeader.LayoutOrder = 1
+
+	local spinToggleBtn: TextButton? = nil
+
+	local function updateSpinButton()
+		if spinToggleBtn then
+			if spinEnabled then
+				spinToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 0) -- Orange when spinning
+				spinToggleBtn.Text = "SPINNING"
+			else
+				spinToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				spinToggleBtn.Text = "Off"
+			end
+		end
+	end
+
+	spinToggleBtn = createButton(spinPanel, "Off", UDim2.new(0, 0, 0, 0), UDim2.new(0, 120, 0, 28), function()
+		spinEnabled = not spinEnabled
+		if not spinEnabled then
+			spinAngle = 0 -- Reset angle when disabled
+		end
+		updateSpinButton()
+	end)
+	spinToggleBtn.LayoutOrder = 2
+	updateSpinButton()
+
+	configPanels["spin"] = spinPanel
+
+	-- Hollow Mode Panel
+	local hollowPanel = createConfigPanel("hollow")
+	local hollowHeader = createHeader(hollowPanel, "Hollow Mode", UDim2.new(0, 0, 0, 0))
+	hollowHeader.LayoutOrder = 1
+
+	local hollowToggleBtn: TextButton? = nil
+	local hollowThicknessContainer: Frame? = nil
+
+	local function updateHollowButton()
+		if hollowToggleBtn then
+			if hollowEnabled then
+				hollowToggleBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 150) -- Purple when hollow
+				hollowToggleBtn.Text = "HOLLOW"
+			else
+				hollowToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				hollowToggleBtn.Text = "Solid"
+			end
+		end
+		-- Show/hide thickness slider
+		if hollowThicknessContainer then
+			hollowThicknessContainer.Visible = hollowEnabled
+		end
+	end
+
+	hollowToggleBtn = createButton(hollowPanel, "Solid", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
+		hollowEnabled = not hollowEnabled
+		updateHollowButton()
+	end)
+	hollowToggleBtn.LayoutOrder = 2
+
+	-- Wall thickness slider (only visible when hollow is enabled)
+	local _, thicknessSliderContainer, setThickness = createSlider(
+		hollowPanel,
+		"Thickness",
+		10,
+		50,
+		math.floor(wallThickness * 100),
+		function(val)
+			wallThickness = val / 100 -- Convert 10-50 to 0.1-0.5
+		end
+	)
+	thicknessSliderContainer.LayoutOrder = 3
+	hollowThicknessContainer = thicknessSliderContainer
+	hollowThicknessContainer.Visible = false -- Hidden by default
+
+	updateHollowButton()
+
+	configPanels["hollow"] = hollowPanel
 
 	-- Plane Lock Panel
 	local planeLockPanel = createConfigPanel("planeLock")
@@ -1522,6 +1970,165 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 
 	configPanels["material"] = materialPanel
 
+	-- Bridge Info Panel
+	local bridgeInfoPanel = createConfigPanel("bridgeInfo")
+	local bridgeHeader = createHeader(bridgeInfoPanel, "Bridge Tool", UDim2.new(0, 0, 0, 0))
+	bridgeHeader.LayoutOrder = 1
+
+	local bridgeInstructions = Instance.new("TextLabel")
+	bridgeInstructions.Name = "Instructions"
+	bridgeInstructions.BackgroundTransparency = 1
+	bridgeInstructions.Size = UDim2.new(1, 0, 0, 50)
+	bridgeInstructions.Font = Enum.Font.Gotham
+	bridgeInstructions.TextSize = 12
+	bridgeInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
+	bridgeInstructions.TextWrapped = true
+	bridgeInstructions.TextXAlignment = Enum.TextXAlignment.Left
+	bridgeInstructions.TextYAlignment = Enum.TextYAlignment.Top
+	bridgeInstructions.Text = "Click to set START point, then click again to set END point. A terrain bridge will be created between them."
+	bridgeInstructions.LayoutOrder = 2
+	bridgeInstructions.Parent = bridgeInfoPanel
+
+	local bridgeStatusLabel = Instance.new("TextLabel")
+	bridgeStatusLabel.Name = "Status"
+	bridgeStatusLabel.BackgroundTransparency = 1
+	bridgeStatusLabel.Size = UDim2.new(1, 0, 0, 24)
+	bridgeStatusLabel.Font = Enum.Font.GothamBold
+	bridgeStatusLabel.TextSize = 14
+	bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+	bridgeStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+	bridgeStatusLabel.Text = "Status: Click to set START"
+	bridgeStatusLabel.LayoutOrder = 3
+	bridgeStatusLabel.Parent = bridgeInfoPanel
+
+	local _, bridgeWidthContainer, _ = createSlider(bridgeInfoPanel, "Width", 1, 20, bridgeWidth, function(val)
+		bridgeWidth = val
+	end)
+	bridgeWidthContainer.LayoutOrder = 4
+
+	local clearBridgeBtn = createButton(bridgeInfoPanel, "Clear Points", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
+		bridgeStartPoint = nil
+		bridgeEndPoint = nil
+		bridgeStatusLabel.Text = "Status: Click to set START"
+		-- Clear preview parts
+		for _, part in ipairs(bridgePreviewParts) do
+			part:Destroy()
+		end
+		bridgePreviewParts = {}
+	end)
+	clearBridgeBtn.LayoutOrder = 6
+
+	configPanels["bridgeInfo"] = bridgeInfoPanel
+
+	-- Function to update bridge status
+	local function updateBridgeStatus()
+		if bridgeStartPoint and bridgeEndPoint then
+			bridgeStatusLabel.Text = "Status: READY - Click to build!"
+			bridgeStatusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+		elseif bridgeStartPoint then
+			bridgeStatusLabel.Text = "Status: Click to set END"
+			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+		else
+			bridgeStatusLabel.Text = "Status: Click to set START"
+			bridgeStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+		end
+	end
+
+	-- Function to create bridge preview
+	local function updateBridgePreview()
+		-- Clear old preview
+		for _, part in ipairs(bridgePreviewParts) do
+			part:Destroy()
+		end
+		bridgePreviewParts = {}
+
+		if not bridgeStartPoint then
+			return
+		end
+
+		-- Show start marker
+		local startMarker = Instance.new("Part")
+		startMarker.Size = Vector3.new(bridgeWidth, bridgeWidth, bridgeWidth) * Constants.VOXEL_RESOLUTION
+		startMarker.CFrame = CFrame.new(bridgeStartPoint)
+		startMarker.Anchored = true
+		startMarker.CanCollide = false
+		startMarker.Material = Enum.Material.Neon
+		startMarker.Color = Color3.fromRGB(0, 255, 0) -- Green for start
+		startMarker.Transparency = 0.5
+		startMarker.Parent = workspace
+		table.insert(bridgePreviewParts, startMarker)
+
+		if bridgeEndPoint then
+			-- Show end marker
+			local endMarker = Instance.new("Part")
+			endMarker.Size = Vector3.new(bridgeWidth, bridgeWidth, bridgeWidth) * Constants.VOXEL_RESOLUTION
+			endMarker.CFrame = CFrame.new(bridgeEndPoint)
+			endMarker.Anchored = true
+			endMarker.CanCollide = false
+			endMarker.Material = Enum.Material.Neon
+			endMarker.Color = Color3.fromRGB(255, 100, 0) -- Orange for end
+			endMarker.Transparency = 0.5
+			endMarker.Parent = workspace
+			table.insert(bridgePreviewParts, endMarker)
+
+			-- Show path preview (line of parts)
+			local distance = (bridgeEndPoint - bridgeStartPoint).Magnitude
+			local steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
+
+			for i = 1, steps - 1 do
+				local t = i / steps
+				local pos = bridgeStartPoint:Lerp(bridgeEndPoint, t)
+				-- Add a slight arc (parabola) for natural bridge shape
+				local arcHeight = math.sin(t * math.pi) * distance * 0.1
+
+				local pathMarker = Instance.new("Part")
+				pathMarker.Size = Vector3.new(bridgeWidth * 0.5, bridgeWidth * 0.5, bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
+				pathMarker.CFrame = CFrame.new(pos + Vector3.new(0, arcHeight, 0))
+				pathMarker.Anchored = true
+				pathMarker.CanCollide = false
+				pathMarker.Material = Enum.Material.Neon
+				pathMarker.Color = Color3.fromRGB(100, 200, 255) -- Cyan for path
+				pathMarker.Transparency = 0.7
+				pathMarker.Shape = Enum.PartType.Ball
+				pathMarker.Parent = workspace
+				table.insert(bridgePreviewParts, pathMarker)
+			end
+		end
+	end
+
+	-- Function to build the actual bridge
+	local function buildBridge()
+		if not bridgeStartPoint or not bridgeEndPoint then
+			return
+		end
+
+		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
+
+		local distance = (bridgeEndPoint - bridgeStartPoint).Magnitude
+		local steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
+		local radius = bridgeWidth * Constants.VOXEL_RESOLUTION / 2
+
+		for i = 0, steps do
+			local t = i / steps
+			local pos = bridgeStartPoint:Lerp(bridgeEndPoint, t)
+			-- Add arc for natural bridge shape
+			local arcHeight = math.sin(t * math.pi) * distance * 0.1
+
+			local bridgePos = pos + Vector3.new(0, arcHeight, 0)
+
+			-- Fill a cylinder/sphere at each point along the path
+			terrain:FillBall(bridgePos, radius, brushMaterial)
+		end
+
+		ChangeHistoryService:SetWaypoint("TerrainBridge_End")
+
+		-- Clear points after building
+		bridgeStartPoint = nil
+		bridgeEndPoint = nil
+		updateBridgeStatus()
+		updateBridgePreview()
+	end
+
 	-- ============================================================================
 	-- Config Panel Visibility Logic
 	-- ============================================================================
@@ -1534,10 +2141,13 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 
 	-- Set layout order for panels
 	local panelOrder = {
+		"bridgeInfo",
 		"brushShape",
 		"handleHint",
 		"strength",
 		"pivot",
+		"spin",
+		"hollow",
 		"planeLock",
 		"ignoreWater",
 		"flattenMode",
@@ -1613,6 +2223,28 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 			print("[DEBUG] Mouse down, currentTool =", currentTool)
 		end
 		if currentTool ~= ToolId.None then
+			-- Bridge tool has special click handling
+			if currentTool == ToolId.Bridge then
+				local hitPosition = getTerrainHit()
+				if hitPosition then
+					if not bridgeStartPoint then
+						-- Set start point
+						bridgeStartPoint = hitPosition
+						updateBridgeStatus()
+						updateBridgePreview()
+					elseif not bridgeEndPoint then
+						-- Set end point
+						bridgeEndPoint = hitPosition
+						updateBridgeStatus()
+						updateBridgePreview()
+					else
+						-- Both points set - build the bridge!
+						buildBridge()
+					end
+				end
+				return -- Don't start brushing for bridge tool
+			end
+
 			-- In Auto mode, capture the plane height on mousedown
 			if planeLockMode == PlaneLockType.Auto then
 				local hitPosition = getTerrainHitRaw()
@@ -1790,6 +2422,11 @@ function TerrainEditorModule.init(pluginInstance, parentGui)
 		hideBrushVisualization()
 		hidePlaneVisualization()
 		destroyHandles() -- Clean up 3D handles
+		-- Clean up bridge preview parts
+		for _, part in ipairs(bridgePreviewParts) do
+			part:Destroy()
+		end
+		bridgePreviewParts = {}
 		pluginInstance:Deactivate()
 	end
 end

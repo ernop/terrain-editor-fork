@@ -35,6 +35,7 @@ TerrainEnums.ToolId = {
 	Flatten = "Flatten",
 
 	Paint = "Paint",
+	Bridge = "Bridge",
 
 	None = "None",
 }
@@ -76,6 +77,15 @@ TerrainEnums.BrushShape = {
 	Wedge = "Wedge",
 	CornerWedge = "CornerWedge",
 	Dome = "Dome",
+	-- Creative shapes
+	Torus = "Torus",           -- Donut shape
+	Ring = "Ring",             -- Flat washer/ring
+	ZigZag = "ZigZag",         -- Z-shaped profile
+	Sheet = "Sheet",           -- Curved paper/partial cylinder
+	Grid = "Grid",             -- 3D checkerboard pattern
+	Stick = "Stick",           -- Long thin rod
+	Spinner = "Spinner",       -- Auto-rotating cube
+	Spikepad = "Spikepad",     -- Flat base with sharp spikes
 }
 
 TerrainEnums.Biome = {

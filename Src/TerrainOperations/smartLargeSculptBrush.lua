@@ -49,6 +49,10 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	-- Get brush rotation (default to identity if not provided)
 	local brushRotation = opSet.brushRotation or CFrame.new()
 
+	-- Hollow mode
+	local hollowEnabled = opSet.hollowEnabled or false
+	local wallThickness = opSet.wallThickness or 0.2
+
 	local strength = opSet.strength
 
 	local centerX = centerPoint.x
@@ -195,7 +199,8 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 					cellVectorX, cellVectorY, cellVectorZ,
 					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, true, brushRotation)
+					brushShape, selectionSize, true, brushRotation,
+					hollowEnabled, wallThickness)
 
 				if ignoreWater and cellMaterial == materialWater then
 					cellOccupancy = 0
@@ -223,7 +228,8 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 					cellVectorX, cellVectorY, cellVectorZ,
 					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, true, brushRotation)
+					brushShape, selectionSize, true, brushRotation,
+					hollowEnabled, wallThickness)
 
 				if ignoreWater and cellMaterial == materialWater then
 					cellMaterial = materialAir
@@ -249,7 +255,8 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 					cellVectorX, cellVectorY, cellVectorZ,
 					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, false, brushRotation)
+					brushShape, selectionSize, false, brushRotation,
+					hollowEnabled, wallThickness)
 
 				if brushOccupancy >= 0.5 then
 					if ignoreWater and cellMaterial == materialWater then

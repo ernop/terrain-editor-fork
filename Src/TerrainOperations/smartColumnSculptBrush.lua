@@ -42,6 +42,13 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local flattenMode = opSet.flattenMode
 
 	local ignoreWater = opSet.ignoreWater
+	
+	-- Get brush rotation (default to identity if not provided)
+	local brushRotation = opSet.brushRotation or CFrame.new()
+
+	-- Hollow mode
+	local hollowEnabled = opSet.hollowEnabled or false
+	local wallThickness = opSet.wallThickness or 0.2
 
 	local strength = opSet.strength
 
@@ -134,10 +141,11 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 
 						local worldVectorY = minBoundsY + ((voxelY - 0.5) * Constants.VOXEL_RESOLUTION)
 						local cellVectorY = worldVectorY - centerY
-						local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellAxisAligned(
+						local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 							cellVectorX, cellVectorY, cellVectorZ,
 							radiusX, radiusY, radiusZ,
-							brushShape, selectionSize, true)
+							brushShape, selectionSize, true, brushRotation,
+							hollowEnabled, wallThickness)
 
 						-- If outside of the brush then stop iterating
 						if brushOccupancy == 0 then
@@ -187,10 +195,11 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 
 						local worldVectorY = minBoundsY + ((voxelY - 0.5) * Constants.VOXEL_RESOLUTION)
 						local cellVectorY = worldVectorY - centerY
-						local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellAxisAligned(
+						local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 							cellVectorX, cellVectorY, cellVectorZ,
 							radiusX, radiusY, radiusZ,
-							brushShape, selectionSize, true)
+							brushShape, selectionSize, true, brushRotation,
+							hollowEnabled, wallThickness)
 
 						-- If outside of the brush then stop iterating
 						if brushOccupancy == 0 then
@@ -242,9 +251,11 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 					local worldVectorY = minBoundsY + ((initialVoxelY - 0.5) * Constants.VOXEL_RESOLUTION)
 					local cellVectorY = worldVectorY - centerY
 
-					local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCell(
+					local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 						cellVectorX, cellVectorY, cellVectorZ,
-						selectionSize, brushShape, radiusOfRegion, true)
+						radiusX, radiusY, radiusZ,
+						brushShape, selectionSize, true, brushRotation,
+						hollowEnabled, wallThickness)
 
 					sculptSettings.y = voxelY
 					sculptSettings.brushOccupancy = brushOccupancy

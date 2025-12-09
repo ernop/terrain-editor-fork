@@ -26,6 +26,9 @@
                 "$ignoreUnknownInstances": true,
                 "WalkSpeed68": {
                     "$path": "WalkSpeed68.client.lua"
+                },
+                "TerrainPowers": {
+                    "$path": "TerrainPowers.client.lua"
                 }
             }
         }

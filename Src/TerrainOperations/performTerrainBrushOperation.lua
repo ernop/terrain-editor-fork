@@ -81,6 +81,10 @@ local function performOperation(terrain, opSet)
 	local brushRotation = opSet.brushRotation or CFrame.new()
 	local hasRotation = brushRotation ~= CFrame.new()
 
+	-- Hollow mode
+	local hollowEnabled = opSet.hollowEnabled or false
+	local wallThickness = opSet.wallThickness or 0.2
+
 	assert(terrain ~= nil, "performTerrainBrushOperation requires a terrain instance")
 	assert(tool ~= nil and type(tool) == "string", "performTerrainBrushOperation requires a currentTool parameter")
 
@@ -142,12 +146,17 @@ local function performOperation(terrain, opSet)
 
 		-- Shapes that need per-voxel processing:
 		-- - Non-uniform/rotated spheres (ellipsoids)
-		-- - CornerWedge (no native API)
-		-- - Dome (half-sphere, no native API)
+		-- - CornerWedge, Dome (no native API)
+		-- - All creative shapes (Torus, Ring, ZigZag, Sheet, Grid, Stick, Spinner)
 		if brushShape == BrushShape.Sphere and (not isUniformSize or hasRotation) then
 			-- Fall through to main loop for ellipsoid/rotated sphere
 		elseif brushShape == BrushShape.CornerWedge or brushShape == BrushShape.Dome then
 			-- Fall through to main loop for custom shapes
+		elseif brushShape == BrushShape.Torus or brushShape == BrushShape.Ring 
+			or brushShape == BrushShape.ZigZag or brushShape == BrushShape.Sheet
+			or brushShape == BrushShape.Grid or brushShape == BrushShape.Stick
+			or brushShape == BrushShape.Spinner then
+			-- Fall through to main loop for creative shapes (all per-voxel)
 		else
 			-- Unknown shape
 			warn("Unknown brush shape in performTerrainBrushOperation: " .. tostring(brushShape))
@@ -261,7 +270,9 @@ local function performOperation(terrain, opSet)
 					brushShape,
 					selectionSize,
 					not (tool == ToolId.Smooth),
-					brushRotation
+					brushRotation,
+					hollowEnabled,
+					wallThickness
 				)
 
 				local cellOccupancy = occupancy
