@@ -33,6 +33,22 @@ SymmetryTool.docs = {
 				"**Type** — Radial or bilateral",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"Symmetry handled at brush operation level:",
+				"For each segment i = 0..segments-1:",
+				"  angle = i × (360° / segments)",
+				"  Transform brush position around symmetry center:",
+				"    rotatedPos = rotate(brushPos - center, angle) + center",
+				"  Execute base tool operation at rotatedPos",
+				"Base operation is standard Add (brushOcc > cellOcc)",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Each brush stroke is replicated N times at equal angular intervals around the center. 2 segments = bilateral mirror, 4 = quad symmetry, 8+ = mandala-like patterns. Useful for creating symmetric structures like towers or circular formations.",
+		},
 	},
 	
 	quickTips = {
@@ -41,7 +57,7 @@ SymmetryTool.docs = {
 		"Higher segments = mandala patterns",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

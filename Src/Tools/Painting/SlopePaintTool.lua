@@ -35,11 +35,20 @@ SlopePaintTool.docs = {
 			},
 		},
 		{
-			heading = "Thresholds",
+			heading = "Algorithm",
 			bullets = {
-				"**Threshold 1** — Angle where Flat→Steep transition occurs",
-				"**Threshold 2** — Angle where Steep→Cliff transition occurs",
+				"For each solid voxel in brush region:",
+				"  Compute gradient: ∇occ = (occ[x+1] - occ[x-1], occ[y+1] - occ[y-1], occ[z+1] - occ[z-1])",
+				"  Normal = -normalize(∇occ) (points outward from surface)",
+				"  slopeAngle = acos(normal.Y) in degrees",
+				"  if angle < threshold1: Flat material",
+				"  elif angle < threshold2: Steep material",
+				"  else: Cliff material",
 			},
+		},
+		{
+			heading = "Behavior",
+			content = "Surface normal estimated from occupancy gradient. Interior voxels (zero gradient) are skipped. Works best on smooth terrain; noisy surfaces may produce inconsistent results.",
 		},
 	},
 	
@@ -49,7 +58,7 @@ SlopePaintTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

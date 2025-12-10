@@ -34,6 +34,26 @@ PathTool.docs = {
 				"**Flat** — Square bottom, roads and canals",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"direction = normalize(pathDirX, pathDirZ)",
+				"perpendicular = (-dirZ, dirX)",
+				"For each voxel:",
+				"  perpDist = |dot((worldXZ - centerXZ), perpendicular)|",
+				"  normalizedDist = perpDist / halfBrushWidth",
+				"  depthFactor by profile:",
+				"    V: 1 - normalizedDist (linear taper)",
+				"    U: sqrt(1 - normalizedDist²) (circular)",
+				"    Flat: 1 if dist<0.8 else fade to 0",
+				"  carveDepth = pathDepth × depthFactor",
+				"  if worldY > surfaceY - carveDepth: target = 0",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Cross-sectional profile applied perpendicular to path direction. V creates sharp gullies, U creates smooth channels, Flat creates uniform trenches with vertical walls.",
+		},
 	},
 	
 	quickTips = {
@@ -42,7 +62,7 @@ PathTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

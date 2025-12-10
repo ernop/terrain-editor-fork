@@ -42,6 +42,17 @@ FlattenTool.docs = {
 				"**Grow** — Only fill below the plane",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"planeY = reference plane height (Auto: first click, Manual: slider)",
+				"For each voxel at worldY:",
+				"  if worldY > planeY + 2: target = 0 (above plane)",
+				"  if worldY < planeY - 2: target = 1 (below plane)",
+				"  else: target = 0.5 - (worldY - planeY)/4 (transition)",
+				"Blend toward target based on mode and strength",
+			},
+		},
 	},
 	
 	quickTips = {
@@ -50,7 +61,7 @@ FlattenTool.docs = {
 		"Click sets plane height (Auto mode)",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

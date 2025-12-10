@@ -32,6 +32,21 @@ CavityFillTool.docs = {
 				"**Sensitivity** — How shallow a cavity triggers paint",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each solid voxel in brush region:",
+				"  Compute discrete Laplacian:",
+				"  ∇²occ = (avg of 6 neighbors) - cellOcc",
+				"  Positive Laplacian = cavity (neighbors higher than us)",
+				"  Negative Laplacian = ridge (neighbors lower than us)",
+				"  if ∇²occ > sensitivity: paint material",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Laplacian measures local curvature. Cavities (concave) have positive values; ridges (convex) have negative. Higher sensitivity catches shallower cavities. Can be adapted for ridge-painting by inverting the test.",
+		},
 	},
 	
 	quickTips = {
@@ -40,7 +55,7 @@ CavityFillTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

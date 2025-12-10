@@ -32,6 +32,22 @@ MeltTool.docs = {
 				"**Viscosity** — Flow speed (low = fast melt)",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  occBelow = occupancy of voxel at (x, y-1, z)",
+				"  if occBelow < cellOcc:",
+				"    availableSpace = 1 - occBelow",
+				"    flowAmount = min(availableSpace, cellOcc) × (1-viscosity) × brushOcc × 0.3",
+				"    cellOcc -= flowAmount",
+				"Note: Single-pass approximation; true flow would need iterative simulation",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Simplified gravity simulation. Material \"wants\" to flow down but is limited by viscosity and available space below. Multiple brush passes accumulate the effect. Does not truly conserve mass (voxel below receives material in its own pass).",
+		},
 	},
 	
 	quickTips = {
@@ -40,7 +56,7 @@ MeltTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

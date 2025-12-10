@@ -29,6 +29,22 @@ AddTool.docs = {
 	subtitle = "Add blocks of terrain",
 	description = "Creates terrain inside the brush shape using the selected material.",
 	
+	sections = {
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  brushOcc = brush shape SDF → occupancy (0-1)",
+				"  if brushOcc > cellOcc: cellOcc = brushOcc",
+				"  if brushOcc ≥ 0.5 and cell is Air: set material",
+			},
+		},
+		{
+			heading = "Fast Path",
+			content = "For uniform spheres, cubes, cylinders, wedges without AutoMaterial or Hollow mode, uses native Terrain:FillBall/FillBlock/FillCylinder/FillWedge APIs for ~10x speed.",
+		},
+	},
+	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
@@ -36,7 +52,7 @@ AddTool.docs = {
 		"Alt+Click — Sample material",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

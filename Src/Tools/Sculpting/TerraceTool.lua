@@ -33,6 +33,22 @@ TerraceTool.docs = {
 				"**Sharpness** — Edge hardness (0=smooth, 1=sharp)",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel at worldY:",
+				"  stepIndex = floor(worldY / stepHeight)",
+				"  stepBase = stepIndex × stepHeight",
+				"  posInStep = (worldY - stepBase) / stepHeight",
+				"  if posInStep < (1 - sharpness): target = 1.0 (flat top)",
+				"  else: target = 1 - (posInStep - (1-sharpness)) / sharpness",
+				"  cellOcc blends toward target",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Creates staircase profile. Each step has a flat region (determined by 1-sharpness) followed by a transition cliff. Low sharpness = gentle slopes between steps. High sharpness = vertical risers.",
+		},
 	},
 	
 	quickTips = {
@@ -41,7 +57,7 @@ TerraceTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

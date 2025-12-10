@@ -38,6 +38,24 @@ TendrilTool.docs = {
 				"**Curl** — Spiral tightness",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel, compute distance to nearest tendril:",
+				"For each branch b = 0..branches-1:",
+				"  baseAngle = (b/branches) × 2π + seed",
+				"  For t = 0..1 along tendril:",
+				"    spiralAngle = baseAngle + t × curl × 4π",
+				"    pos = (cos(spiralAngle)×t×len, -t×len×0.3 + noise, sin(spiralAngle)×t×len)",
+				"    taperRadius = radius × (1 - t×0.7)",
+				"    track minDist to this point",
+				"spikeOcc = max(0, 1 - minDist/(radius×2))",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Parametric spiral curves with noise displacement. Each branch spirals outward and downward. Distance field creates smooth tubular shapes. Taper makes tips thinner than roots.",
+		},
 	},
 	
 	quickTips = {
@@ -46,7 +64,7 @@ TendrilTool.docs = {
 		"Change seed for different patterns",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

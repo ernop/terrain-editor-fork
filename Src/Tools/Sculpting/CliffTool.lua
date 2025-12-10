@@ -33,6 +33,23 @@ CliffTool.docs = {
 				"**Direction** — Set by dragging or manually",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"direction = normalize(cliffDirX, cliffDirZ)",
+				"For each voxel at (worldX, worldY, worldZ):",
+				"  distAlongCliff = dot((worldXZ - centerXZ), direction)",
+				"  cliffHeight = centerY + distAlongCliff × tan(angle)",
+				"  if worldY < cliffHeight - 2: target = 1 (solid)",
+				"  elif worldY > cliffHeight + 2: target = 0 (air)",
+				"  else: target = 0.5 - (worldY - cliffHeight) / 4",
+				"  cellOcc blends toward target",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Defines an angled plane in 3D space. Everything below the plane becomes solid; above becomes air. 90° = vertical wall. Drag direction during painting updates the cliff facing.",
+		},
 	},
 	
 	quickTips = {
@@ -41,7 +58,7 @@ CliffTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

@@ -30,13 +30,30 @@ SmoothTool.docs = {
 	subtitle = "Average voxel occupancy with neighbors",
 	description = "Blends each voxel toward the average of its neighbors. Can both fill gaps and erode peaks.",
 	
+	sections = {
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  neighborAvg = average of 6 face-neighbors",
+				"  delta = (neighborAvg - cellOcc) × strength × brushOcc",
+				"  cellOcc += delta",
+				"Material unchanged (smoothing only affects occupancy)",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Acts as low-pass filter on voxel data. High-frequency detail (sharp edges, noise) is reduced. Low-frequency shapes (gentle hills) preserved. Can fill small holes (occ < avg) or erode thin features (occ > avg).",
+		},
+	},
+	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

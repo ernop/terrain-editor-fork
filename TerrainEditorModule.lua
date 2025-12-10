@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.00000061"
+local VERSION = "0.0.00000062"
 
 local TerrainEditorModule = {}
 

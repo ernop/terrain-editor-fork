@@ -33,6 +33,25 @@ CloneTool.docs = {
 				"**Click/Drag** — Stamp captured terrain",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"On Ctrl+Click:",
+				"  Read voxel region around cursor into buffer",
+				"  Store {occupancy, material} for each voxel",
+				"  Record source center point",
+				"On paint:",
+				"  offset = (currentCenter - sourceCenter) / 4 (voxel units)",
+				"  For each voxel at (x, y, z):",
+				"    sourceVoxel = buffer[x-offset, y-offset, z-offset]",
+				"    Blend source occupancy with brush strength",
+				"    Copy material if occupancy > 0.5",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Source buffer persists until next Ctrl+Click. Offset tracking allows stamping at different locations while preserving relative voxel positions. Strength controls blend between existing and source terrain.",
+		},
 	},
 	
 	quickTips = {
@@ -41,7 +60,7 @@ CloneTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

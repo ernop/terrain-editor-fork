@@ -37,6 +37,22 @@ MegarandomizeTool.docs = {
 				"**Seed** — Change for different patterns",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each solid voxel:",
+				"  freq = 1 / clusterSize",
+				"  noiseVal = fbm3D(worldPos × freq, seed, 2 octaves)",
+				"  randomVal = (noiseVal + 1) / 2  (map to 0-1)",
+				"  Normalize weights to sum to 1.0",
+				"  Accumulate weights until randomVal < threshold",
+				"  Select corresponding material",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Noise-based random selection creates coherent patches rather than per-voxel salt-and-pepper. Larger cluster size = bigger material regions. Weights control probability distribution; 60% grass + 40% rock means ~60% of area will be grass.",
+		},
 	},
 	
 	quickTips = {
@@ -45,7 +61,7 @@ MegarandomizeTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

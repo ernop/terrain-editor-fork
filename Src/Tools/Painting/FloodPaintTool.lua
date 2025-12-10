@@ -22,9 +22,9 @@ FloodPaintTool.buttonLabel = "Flood"
 FloodPaintTool.docs = {
 	title = "Flood",
 	subtitle = "Fill area with material",
-	
+
 	description = "Replaces material within the brush area. Can replace all materials or only a specific source material.",
-	
+
 	sections = {
 		{
 			heading = "Modes",
@@ -33,15 +33,30 @@ FloodPaintTool.docs = {
 				"**Replace Specific** — Only replace chosen material",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each solid voxel in brush region:",
+				"  if cellOcc < 0.5 or cellMaterial == Air: skip",
+				"  if replaceAll:",
+				"    set material = targetMaterial",
+				"  elif sourceMaterial and cellMaterial == sourceMaterial:",
+				"    set material = targetMaterial",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = 'Simple material replacement without affecting occupancy. "Replace Specific" mode useful for selective changes (e.g., convert all Grass to Sand without affecting Rock). Does not perform true flood-fill connectivity check—operates on brush region only.',
+		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Use specific mode for precision",
 		"R — Lock brush position",
 	},
-	
-	docVersion = "2.0",
+
+	docVersion = "2.1",
 }
 
 -- ============================================
@@ -68,17 +83,17 @@ function FloodPaintTool.execute(options: any)
 	local targetMaterial = options.floodTargetMaterial or options.desiredMaterial
 	local sourceMaterial = options.floodSourceMaterial
 	local replaceAll = options.floodReplaceAll
-	
+
 	-- Only paint solid terrain
 	if cellOccupancy < 0.5 or cellMaterial == Enum.Material.Air then
 		return
 	end
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Check if we should replace this material
 	if replaceAll then
 		writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
@@ -88,4 +103,3 @@ function FloodPaintTool.execute(options: any)
 end
 
 return FloodPaintTool
-

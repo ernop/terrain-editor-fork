@@ -38,11 +38,23 @@ GrowthSimTool.docs = {
 			},
 		},
 		{
-			heading = "Settings",
+			heading = "Algorithm",
 			bullets = {
-				"**Rate** — Growth speed",
-				"**Bias** — Directional preference (up/down)",
+				"For each voxel in brush region:",
+				"  neighborAvg = average of 6 face-neighbors",
+				"  if neighborAvg < 0.1: skip (isolated air)",
+				"  biasedSum = (occAbove - occBelow) × bias × 0.1",
+				"  patternNoise = fbm3D with pattern-specific frequency:",
+				"    Organic: 3 octaves, ×0.3",
+				"    Crystal: 2 octaves, quantized to steps, ×0.3",
+				"    Coral: 4 octaves, ×0.4",
+				"  growth = neighborAvg × rate × brushOcc + patternNoise + biasedSum",
+				"  cellOcc += growth × 0.3",
 			},
+		},
+		{
+			heading = "Behavior",
+			content = "Cellular-automata-like growth from existing terrain. Noise modulates growth rate spatially. Crystal pattern quantizes noise for angular facets. Bias shifts growth direction vertically.",
 		},
 	},
 	
@@ -52,7 +64,7 @@ GrowthSimTool.docs = {
 		"Bias > 0 = upward growth",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

@@ -30,13 +30,32 @@ ErodeTool.docs = {
 	subtitle = "Shrink terrain inward from surfaces",
 	description = "Reduces voxel occupancy at exposed terrain edges. Opposite of Grow.",
 	
+	sections = {
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  Sample 6 face-neighbors",
+				"  neighborMin = min occupancy of neighbors",
+				"  if neighborMin < cellOcc:",
+				"    delta = (cellOcc - neighborMin) × strength × brushOcc",
+				"    cellOcc -= delta",
+				"  if cellOcc ≤ 1/256: set to Air",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Only erodes exposed surfaces. Fully surrounded voxels (all neighbors solid) are protected. Creates natural weathering patterns.",
+		},
+	},
+	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

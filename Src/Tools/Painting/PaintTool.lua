@@ -26,12 +26,25 @@ PaintTool.docs = {
 	subtitle = "Change terrain material without affecting shape",
 	description = "Applies the selected material to existing terrain. Shape is preserved.",
 	
+	sections = {
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  if cellOcc < 0.5 or cellMaterial == Air: skip",
+				"  if brushOcc > threshold:",
+				"    set material = selectedMaterial",
+				"Occupancy unchanged—only material is modified",
+			},
+		},
+	},
+	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

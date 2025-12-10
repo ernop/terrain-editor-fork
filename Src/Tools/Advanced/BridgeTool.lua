@@ -45,11 +45,22 @@ BridgeTool.docs = {
 			},
 		},
 		{
-			heading = "Meander",
+			heading = "Algorithm",
 			bullets = {
-				"**Complexity** — Number of curves",
-				"Adds S-curves to the path",
+				"Generate path from start to end:",
+				"  For t = 0..1 along path:",
+				"    basePos = lerp(start, end, t)",
+				"    height offset by variant:",
+				"      Arc: sin(t×π) × arcHeight",
+				"      Suspension: -sin(t×π) × dip",
+				"      Natural: fbm noise offset",
+				"    Apply meander: perpendicular sine waves",
+				"  Sample path at intervals, fill spheres along spine",
 			},
+		},
+		{
+			heading = "Meander",
+			content = "Adds lateral S-curves perpendicular to path direction. Complexity controls number of sine wave oscillations. Creates natural-looking winding paths instead of straight lines.",
 		},
 	},
 	
@@ -59,7 +70,7 @@ BridgeTool.docs = {
 		"Meander adds natural curves",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

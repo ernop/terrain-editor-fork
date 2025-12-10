@@ -37,6 +37,24 @@ VariationGridTool.docs = {
 				"**Seed** — Change for different patterns",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel at (worldX, worldY, worldZ):",
+				"  gridX = floor(worldX / cellSize)",
+				"  gridZ = floor(worldZ / cellSize)",
+				"  cellHash = hash3D(gridX, gridZ, 0, seed)  (0-1)",
+				"  heightOffset = (cellHash - 0.5) × variation × cellSize",
+				"  gridBaseY = centerY + heightOffset",
+				"  if worldY < gridBaseY - 2: target = 1",
+				"  elif worldY > gridBaseY + 2: target = 0",
+				"  else: target = transition value",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Each XZ grid cell gets a deterministic random height offset. Creates Minecraft-like chunky terrain or tiered city blocks. Same seed always produces same pattern. Larger cells = broader plateaus, smaller = more granular.",
+		},
 	},
 	
 	quickTips = {
@@ -45,7 +63,7 @@ VariationGridTool.docs = {
 		"Small cells = choppy terrain",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

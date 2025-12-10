@@ -30,13 +30,29 @@ SubtractTool.docs = {
 	subtitle = "Remove blocks of terrain",
 	description = "Carves away terrain inside the brush shape.",
 
+	sections = {
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  desiredOcc = 1 - brushOcc (inverse)",
+				"  if desiredOcc < cellOcc: cellOcc = desiredOcc",
+				"  if desiredOcc ≤ 1/256: set to Air (or Water if below sea level)",
+			},
+		},
+		{
+			heading = "Fast Path",
+			content = "For uniform shapes without IgnoreWater or Hollow mode, uses native Fill APIs with Air material.",
+		},
+	},
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"R — Lock brush position",
 	},
 
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

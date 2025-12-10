@@ -36,6 +36,20 @@ BlobifyTool.docs = {
 				"**Smoothness** — Blob roundness (low = lumpy)",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel at world position:",
+				"  scale = 0.1 × (1.1 - smoothness)",
+				"  blobNoise = fbm3D(x×scale, y×scale, z×scale, 2 octaves)",
+				"  displacement = blobNoise × intensity × brushOcc",
+				"  cellOcc += displacement",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Lower smoothness = higher frequency noise = more lumpy detail. Higher smoothness = low frequency = broad, gentle bulges. Intensity controls magnitude of displacement. FBM with 2 octaves keeps blobs smooth.",
+		},
 	},
 	
 	quickTips = {
@@ -44,7 +58,7 @@ BlobifyTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

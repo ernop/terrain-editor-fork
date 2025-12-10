@@ -38,6 +38,23 @@ StalactiteTool.docs = {
 				"**Taper** — Point sharpness (0=blunt, 1=needle)",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  hasSpike = fbm3D(x×0.2, z×0.2, 0) > (1 - density×2)",
+				"  if hasSpike:",
+				"    Trace upward/downward to find root surface",
+				"    spikeLen = length × (0.5 + hash×0.5) (randomized)",
+				"    normalizedDist = distFromRoot / spikeLen",
+				"    spikeOcc = 1 - normalizedDist^(1/taper)",
+				"    if spikeOcc > cellOcc: set voxel",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Noise-based spike placement creates natural clustering. Taper exponent controls profile: low taper = cylindrical, high taper = needle-sharp. Each spike has randomized length for variation.",
+		},
 	},
 	
 	quickTips = {
@@ -46,7 +63,7 @@ StalactiteTool.docs = {
 		"Use on cave floors for stalagmites",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

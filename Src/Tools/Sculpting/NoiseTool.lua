@@ -37,6 +37,21 @@ NoiseTool.docs = {
 				"**Seed** — Change for different patterns",
 			},
 		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel at world position (x, y, z):",
+				"  freq = 1 / scale",
+				"  n = fbm3D(x×freq, y×freq, z×freq, seed, 3 octaves)",
+				"  fbm = weighted sum of noise at 1×, 2×, 4× frequency",
+				"  displacement = n × intensity × brushOcc",
+				"  cellOcc += displacement (can go + or -)",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "FBM (Fractal Brownian Motion) produces natural-looking variation with both large and small features. Noise range is roughly -1 to +1 before intensity scaling. Same seed + position = same noise value (deterministic).",
+		},
 	},
 	
 	quickTips = {
@@ -45,7 +60,7 @@ NoiseTool.docs = {
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

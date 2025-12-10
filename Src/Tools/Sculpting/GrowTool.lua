@@ -30,13 +30,32 @@ GrowTool.docs = {
 	subtitle = "Expand terrain outward from surfaces",
 	description = "Increases voxel occupancy near existing terrain edges. Only affects voxels adjacent to solid terrain.",
 	
+	sections = {
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel in brush region:",
+				"  Sample 6 face-neighbors (±X, ±Y, ±Z)",
+				"  neighborMax = max occupancy of neighbors",
+				"  if neighborMax > cellOcc:",
+				"    delta = (neighborMax - cellOcc) × strength × brushOcc",
+				"    cellOcc += delta",
+				"Material propagates from highest-occupancy neighbor",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Only expands from existing edges. Interior voxels (already at 1.0) and isolated air (no solid neighbors) are unchanged. Creates smooth, organic expansion.",
+		},
+	},
+	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"R — Lock brush position",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================

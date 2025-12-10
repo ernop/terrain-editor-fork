@@ -38,11 +38,20 @@ GradientPaintTool.docs = {
 			},
 		},
 		{
-			heading = "Settings",
+			heading = "Algorithm",
 			bullets = {
-				"**Material 1/2** — Start and end materials",
-				"**Noise** — Transition roughness",
+				"axis = endPoint - startPoint",
+				"For each solid voxel:",
+				"  relPos = worldPos - startPoint",
+				"  t = dot(relPos, axis) / |axis|² (projection onto axis)",
+				"  noise = fbm3D(worldPos × 0.1, seed) × noiseAmount",
+				"  gradientPos = clamp(t + noise, 0, 1)",
+				"  material = gradientPos < 0.5 ? material1 : material2",
 			},
+		},
+		{
+			heading = "Behavior",
+			content = "Projects voxel position onto gradient axis. Position 0-0.5 gets material1, 0.5-1 gets material2. Noise adds randomness to the boundary, creating organic transitions instead of a sharp line.",
 		},
 	},
 	
@@ -52,7 +61,7 @@ GradientPaintTool.docs = {
 		"Shift+Scroll — Resize brush",
 	},
 	
-	docVersion = "2.0",
+	docVersion = "2.1",
 }
 
 -- ============================================
