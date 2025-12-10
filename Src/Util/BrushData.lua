@@ -274,6 +274,16 @@ BrushData.ToolConfigs = {
 		"pivot",
 		"growthSettings",
 	},
+	-- Analysis Tools (no brush settings needed)
+	[ToolId.VoxelInspect] = {
+		"voxelInspectPanel",
+	},
+	[ToolId.ComponentAnalyzer] = {
+		"componentAnalyzerPanel",
+	},
+	[ToolId.OccupancyOverlay] = {
+		"occupancyOverlayPanel",
+	},
 }
 
 -- Bridge variant definitions

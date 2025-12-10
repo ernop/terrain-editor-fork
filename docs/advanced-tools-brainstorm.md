@@ -1418,6 +1418,189 @@ If uncertain:
 7. **Preview for All Tools** — Transparent preview before painting
 8. **Keyboard Shortcuts** — Quick tool switching (1-9 keys)
 
+---
+
+## High-Priority Future Tools (User Requested)
+
+These ideas were specifically requested and should be prioritized for future implementation.
+
+### Tool: Connected Components Analyzer
+
+**Purpose:** Identify all disconnected terrain "islands" in the workspace.
+
+**Problem it solves:** After sculpting, there are often tiny orphaned blips and blobs of terrain floating in space. Finding them manually is nearly impossible. Players need to identify and either delete or connect these isolated pieces.
+
+**Behavior:**
+1. When activated, scans the entire terrain workspace
+2. Performs flood-fill connectivity analysis to find distinct components
+3. Reports: "Detected N connected components"
+4. For each component, shows:
+   - Approximate size (voxel count or volume)
+   - Material composition (e.g., "70% Grass, 20% Rock, 10% Ground")
+   - Bounding box or center position
+5. UI list with "Zoom to" button for each component
+6. Option to select/highlight a component
+7. Quick-delete option for small orphan blobs
+
+**Critical Performance Considerations:**
+- **DO NOT** naively iterate all voxels — terrain can be 16384³ = 4.4 trillion voxels
+- Use sparse sampling: Only check voxels where terrain actually exists
+- Work in chunks with yielding (task.wait()) to prevent freezing
+- Consider limiting scan to region around camera or user-defined bounds
+- Cache results — don't rescan unless terrain changes
+- Show progress bar during scan
+- Allow cancellation
+
+**Algorithm Sketch:**
+```lua
+-- Approach: Union-Find with sparse voxel iteration
+-- 1. Get terrain bounds (non-empty region)
+-- 2. Iterate in chunks, find all non-air voxels
+-- 3. For each non-air voxel, check if neighbors are in same component
+-- 4. Use union-find (disjoint set) for efficient merging
+-- 5. After scan, count components and their properties
+```
+
+**UI:**
+```
+┌─ Connected Components ─────────────────┐
+│ [Scan Terrain]  Progress: ████░░ 67%   │
+│                                        │
+│ Found 4 components:                    │
+│                                        │
+│ 1. Main terrain (243,891 voxels)       │
+│    Materials: Grass 45%, Rock 30%...   │
+│    [Zoom] [Select]                     │
+│                                        │
+│ 2. Floating blob (23 voxels)           │
+│    Materials: Rock 100%                │
+│    [Zoom] [Select] [Delete]            │
+│                                        │
+│ 3. Tiny fragment (4 voxels)            │
+│    [Zoom] [Select] [Delete]            │
+│ ...                                    │
+└────────────────────────────────────────┘
+```
+
+---
+
+### Tool: Voxel Inspector & Editor
+
+**Purpose:** Directly inspect and manipulate individual voxel occupancy/material values.
+
+**Problem it solves:** Sometimes you need surgical precision — adjust one specific voxel's blend, fix a rendering glitch, or understand exactly what's in a cell. Current tools only work with brushes.
+
+**Behavior:**
+
+**Hover Mode (default):**
+- Raycast from mouse to terrain
+- Find the exact voxel under cursor
+- Display live-updating info panel:
+  - Voxel coordinates (world and grid)
+  - Occupancy value (0.00 - 1.00)
+  - Material(s) present
+  - Neighbor occupancy summary
+
+**Locked/Edit Mode (after click):**
+- Click to "lock" onto a voxel
+- Panel switches from read-only to editable
+- Sliders appear for direct manipulation:
+  - **Occupancy slider** (0% - 100%)
+  - **Material dropdown** to change material
+- Changes apply immediately with live preview
+- Click elsewhere or press Escape to unlock
+
+**UI:**
+```
+┌─ Voxel Inspector ──────────────────────┐
+│ Position: (128, 45, 256)               │
+│ Grid Cell: [32, 11, 64]                │
+│                                        │
+│ ═══ HOVER MODE ═══                     │
+│ Occupancy: 0.847 (84.7%)               │
+│ Material: Grass                        │
+│                                        │
+│ Click to lock and edit                 │
+└────────────────────────────────────────┘
+
+┌─ Voxel Inspector ──────────────────────┐
+│ Position: (128, 45, 256) [LOCKED]      │
+│                                        │
+│ ═══ EDIT MODE ═══                      │
+│ Occupancy: [████████░░] 84.7%          │
+│ Material:  [Grass      ▼]              │
+│                                        │
+│ [Apply] [Reset] [Unlock]               │
+└────────────────────────────────────────┘
+```
+
+**Advanced Features (future):**
+- Show 6-neighbor occupancies
+- Multi-voxel selection (shift+click)
+- Copy/paste voxel state
+- Numeric input for precise values
+
+---
+
+### Tool: Occupancy Overlay Visualizer
+
+**Purpose:** Display voxel occupancy values directly on the terrain as a visual overlay.
+
+**Problem it solves:** Hard to understand partial voxel fill levels. Terrain looks solid but might be 20% or 80% filled. This creates a "debug view" showing the actual numeric values in 3D space.
+
+**Behavior:**
+- Toggle button enables/disables overlay
+- When enabled, renders occupancy values on visible terrain:
+  - Could be: floating text labels, color-coded voxels, heat map overlay
+  - Limited to nearby voxels (performance) with distance culling
+  - Upper limit on displayed labels (e.g., max 500 visible at once)
+- Options:
+  - Show only partial voxels (0.01 - 0.99) vs all
+  - Show only surface voxels vs all filled
+  - Color coding: gradient from red (0.1) to green (1.0)
+  - Text size and visibility distance
+
+**Visual Approaches:**
+
+1. **Floating Labels:**
+   - BillboardGui with occupancy percentage
+   - Color-coded (red=low, green=full)
+   - Only shows for voxels in view frustum
+
+2. **Color Overlay:**
+   - Transparent colored boxes over each voxel
+   - Hue represents occupancy (red→yellow→green)
+   - Alpha represents occupancy (faint=low, solid=full)
+
+3. **Heat Map:**
+   - Shader-like effect showing occupancy as color
+   - Red = low fill, Blue = full
+   - Works on terrain surface only
+
+**Performance Considerations:**
+- Only render voxels within N studs of camera
+- Maximum label count (LOD system)
+- Update on camera move, not every frame
+- Pool/reuse BillboardGui instances
+- Consider using CanvasGroup for batched rendering
+
+**UI:**
+```
+┌─ Occupancy Overlay ────────────────────┐
+│ [✓] Enable Overlay                     │
+│                                        │
+│ Display Mode: [Color Boxes ▼]          │
+│ Show Range:   [Partial Only ▼]         │
+│ Max Distance: [████░░░░] 50 studs      │
+│ Max Labels:   [██████░░] 300           │
+│                                        │
+│ Legend:                                │
+│ ■ 0-25%  ■ 25-50%  ■ 50-75%  ■ 75-100% │
+└────────────────────────────────────────┘
+```
+
+---
+
 **Version:** `0.0.00000051`
 
 ---

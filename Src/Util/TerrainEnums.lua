@@ -56,6 +56,11 @@ TerrainEnums.ToolId = {
 	GrowthSim = "GrowthSim",
 	Bridge = "Bridge",
 
+	-- Analysis Tools (non-modifying inspection tools)
+	VoxelInspect = "VoxelInspect",
+	ComponentAnalyzer = "ComponentAnalyzer",
+	OccupancyOverlay = "OccupancyOverlay",
+
 	None = "None",
 }
 

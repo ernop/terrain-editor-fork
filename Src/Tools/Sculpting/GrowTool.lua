@@ -1,0 +1,134 @@
+--!strict
+--[[
+	GrowTool.lua - Expand existing terrain outward
+	
+	Unlike Add which creates terrain anywhere, Grow only expands 
+	from existing surfaces. Creates natural, organic growth patterns.
+]]
+
+local Plugin = script.Parent.Parent.Parent.Parent
+local OperationHelper = require(Plugin.Src.TerrainOperations.OperationHelper)
+
+local materialAir = Enum.Material.Air
+local materialWater = Enum.Material.Water
+
+local GrowTool = {}
+
+-- ============================================
+-- IDENTITY
+-- ============================================
+GrowTool.id = "Grow"
+GrowTool.name = "Grow"
+GrowTool.category = "Sculpting"
+GrowTool.buttonLabel = "Grow"
+
+-- ============================================
+-- DOCUMENTATION
+-- ============================================
+GrowTool.docs = {
+	title = "Grow",
+	subtitle = "Expand terrain outward from surfaces",
+	description = "Increases voxel occupancy near existing terrain edges. Only affects voxels adjacent to solid terrain.",
+	
+	quickTips = {
+		"Shift+Scroll — Resize brush",
+		"Ctrl+Scroll — Adjust strength",
+		"R — Lock brush position",
+	},
+	
+	docVersion = "2.0",
+}
+
+-- ============================================
+-- CONFIGURATION
+-- ============================================
+GrowTool.configPanels = {
+	"brushShape",
+	"strength",
+	"brushRate",
+	"pivot",
+	"planeLock",
+	"spin",
+}
+
+-- ============================================
+-- OPERATION
+-- ============================================
+function GrowTool.execute(options: any)
+	local readMaterials = options.readMaterials
+	local readOccupancies = options.readOccupancies
+	local writeMaterials = options.writeMaterials
+	local writeOccupancies = options.writeOccupancies
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+	local sizeX, sizeY, sizeZ = options.sizeX, options.sizeY, options.sizeZ
+	local brushOccupancy = options.brushOccupancy
+	local magnitudePercent = options.magnitudePercent
+	local cellOccupancy = options.cellOccupancy
+	local strength = options.strength
+	local ignoreWater = options.ignoreWater
+	local cellMaterial = options.cellMaterial
+	local desiredMaterial = options.desiredMaterial
+	local maxOccupancy = options.maxOccupancy or 1
+	local autoMaterial = options.autoMaterial
+
+	-- Skip if already full or brush influence too weak
+	if cellOccupancy == 1 or brushOccupancy < 0.5 then
+		return
+	end
+
+	local desiredOccupancy = cellOccupancy
+	local fullNeighbor = false
+	local totalNeighbors = 0
+	local neighborOccupancies = 0
+	
+	-- Check all 6 cardinal neighbors
+	for i = 1, 6, 1 do
+		local nx = voxelX + OperationHelper.xOffset[i]
+		local ny = voxelY + OperationHelper.yOffset[i]
+		local nz = voxelZ + OperationHelper.zOffset[i]
+		
+		if nx > 0 and nx <= sizeX and ny > 0 and ny <= sizeY and nz > 0 and nz <= sizeZ then
+			local neighbor = readOccupancies[nx][ny][nz]
+			local neighborMaterial = readMaterials[nx][ny][nz]
+
+			if ignoreWater and neighborMaterial == materialWater then
+				neighbor = 0
+			end
+
+			if neighbor >= 1 then
+				fullNeighbor = true
+			end
+
+			totalNeighbors = totalNeighbors + 1
+			neighborOccupancies = neighborOccupancies + neighbor
+		end
+	end
+
+	-- Only grow if cell has some occupancy OR has a full neighbor
+	if cellOccupancy > 0 or fullNeighbor then
+		neighborOccupancies = totalNeighbors == 0 and 0 or neighborOccupancies / totalNeighbors
+		desiredOccupancy = desiredOccupancy + neighborOccupancies * (strength + 0.1) * 0.25 * brushOccupancy * magnitudePercent
+	end
+
+	desiredOccupancy = math.min(desiredOccupancy, maxOccupancy)
+
+	-- Set material if growing into air
+	if cellMaterial == materialAir and desiredOccupancy > 0 then
+		local targetMaterial = desiredMaterial
+		if autoMaterial then
+			targetMaterial = OperationHelper.getMaterialForAutoMaterial(
+				readMaterials, voxelX, voxelY, voxelZ, 
+				sizeX, sizeY, sizeZ, cellMaterial
+			)
+		end
+		writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
+	end
+
+	-- Update occupancy if changed
+	if desiredOccupancy ~= cellOccupancy then
+		writeOccupancies[voxelX][voxelY][voxelZ] = desiredOccupancy
+	end
+end
+
+return GrowTool
+
