@@ -29,7 +29,7 @@ GrowTool.docs = {
 	title = "Grow",
 	subtitle = "Expand terrain outward from surfaces",
 	description = "Increases voxel occupancy near existing terrain edges. Only affects voxels adjacent to solid terrain.",
-	
+
 	sections = {
 		{
 			heading = "Algorithm",
@@ -48,13 +48,13 @@ GrowTool.docs = {
 			content = "Only expands from existing edges. Interior voxels (already at 1.0) and isolated air (no solid neighbors) are unchanged. Creates smooth, organic expansion.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"R — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -99,13 +99,13 @@ function GrowTool.execute(options: any)
 	local fullNeighbor = false
 	local totalNeighbors = 0
 	local neighborOccupancies = 0
-	
+
 	-- Check all 6 cardinal neighbors
 	for i = 1, 6, 1 do
 		local nx = voxelX + OperationHelper.xOffset[i]
 		local ny = voxelY + OperationHelper.yOffset[i]
 		local nz = voxelZ + OperationHelper.zOffset[i]
-		
+
 		if nx > 0 and nx <= sizeX and ny > 0 and ny <= sizeY and nz > 0 and nz <= sizeZ then
 			local neighbor = readOccupancies[nx][ny][nz]
 			local neighborMaterial = readMaterials[nx][ny][nz]
@@ -135,10 +135,8 @@ function GrowTool.execute(options: any)
 	if cellMaterial == materialAir and desiredOccupancy > 0 then
 		local targetMaterial = desiredMaterial
 		if autoMaterial then
-			targetMaterial = OperationHelper.getMaterialForAutoMaterial(
-				readMaterials, voxelX, voxelY, voxelZ, 
-				sizeX, sizeY, sizeZ, cellMaterial
-			)
+			targetMaterial =
+				OperationHelper.getMaterialForAutoMaterial(readMaterials, voxelX, voxelY, voxelZ, sizeX, sizeY, sizeZ, cellMaterial)
 		end
 		writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 	end
@@ -150,4 +148,3 @@ function GrowTool.execute(options: any)
 end
 
 return GrowTool
-

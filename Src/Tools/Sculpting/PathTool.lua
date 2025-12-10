@@ -22,9 +22,9 @@ PathTool.buttonLabel = "Path"
 PathTool.docs = {
 	title = "Path",
 	subtitle = "Carve channels and trenches",
-	
+
 	description = "Removes terrain in a linear channel. Drag to set direction. Choose profile shape for different trench styles.",
-	
+
 	sections = {
 		{
 			heading = "Profiles",
@@ -55,13 +55,13 @@ PathTool.docs = {
 			content = "Cross-sectional profile applied perpendicular to path direction. V creates sharp gullies, U creates smooth channels, Flat creates uniform trenches with vertical walls.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Drag to set path direction",
 		"R — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -90,12 +90,12 @@ function PathTool.execute(options: any)
 	local pathProfile = options.pathProfile or "U"
 	local pathDirX = options.pathDirectionX or 0
 	local pathDirZ = options.pathDirectionZ or 1
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Normalize direction
 	local dirLen = math.sqrt(pathDirX * pathDirX + pathDirZ * pathDirZ)
 	if dirLen < 0.01 then
@@ -103,16 +103,16 @@ function PathTool.execute(options: any)
 	else
 		pathDirX, pathDirZ = pathDirX / dirLen, pathDirZ / dirLen
 	end
-	
+
 	-- Calculate perpendicular distance from path center line
 	local relX = worldX - centerPoint.X
 	local relZ = worldZ - centerPoint.Z
 	local perpDist = math.abs(-pathDirZ * relX + pathDirX * relZ)
-	
+
 	-- Calculate depth at this perpendicular distance based on profile
 	local halfWidth = options.cursorSizeX * 2 -- Half brush width in studs
 	local normalizedDist = perpDist / halfWidth
-	
+
 	local depthFactor
 	if pathProfile == "V" then
 		depthFactor = 1 - normalizedDist
@@ -122,11 +122,11 @@ function PathTool.execute(options: any)
 		depthFactor = math.sqrt(1 - normalizedDist * normalizedDist)
 	end
 	depthFactor = math.max(0, depthFactor)
-	
+
 	-- Calculate target depth at this position
 	local carveDepth = pathDepth * depthFactor
 	local surfaceY = centerPoint.Y
-	
+
 	-- Determine target occupancy
 	local targetOccupancy
 	if worldY > surfaceY then
@@ -136,13 +136,12 @@ function PathTool.execute(options: any)
 	else
 		targetOccupancy = cellOccupancy -- Below carved zone
 	end
-	
+
 	-- Blend toward target
 	local blendFactor = brushOccupancy * (options.strength or 0.5)
 	local newOccupancy = cellOccupancy + (targetOccupancy - cellOccupancy) * blendFactor
-	
+
 	writeOccupancies[voxelX][voxelY][voxelZ] = math.clamp(newOccupancy, 0, 1)
 end
 
 return PathTool
-
