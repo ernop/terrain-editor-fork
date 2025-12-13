@@ -83,6 +83,7 @@ ErodeTool.docs = {
 ErodeTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

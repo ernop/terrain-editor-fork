@@ -81,6 +81,7 @@ SubtractTool.docs = {
 SubtractTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

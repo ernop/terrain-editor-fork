@@ -73,6 +73,7 @@ PaintTool.docs = {
 PaintTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"spin",

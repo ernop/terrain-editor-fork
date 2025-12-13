@@ -314,7 +314,8 @@ local function performOperation(terrain, opSet)
 					brushRotation,
 					hollowEnabled,
 					wallThickness,
-					falloffType
+					falloffType,
+					falloffExtent
 				)
 
 				local cellOccupancy = occupancy

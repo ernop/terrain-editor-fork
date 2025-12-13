@@ -89,6 +89,7 @@ FlattenTool.docs = {
 FlattenTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

@@ -1311,9 +1311,21 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		hidePlaneVisualization = hidePlaneVisualization,
 		getTerrainHitRaw = getTerrainHitRaw,
 		ChangeHistoryService = ChangeHistoryService,
+		toggleBrushLock = function()
+			S.brushLocked = not S.brushLocked
+			if S.brushLocked then
+				print("[TerrainEditor] Brush LOCKED - drag handles to rotate/resize, press R to unlock")
+			else
+				print("[TerrainEditor] Brush UNLOCKED - brush follows mouse")
+			end
+			if S.lockedBrushPosition then
+				updateBrushVisualization(S.lockedBrushPosition)
+			end
+		end,
 	})
 
 	local setStrengthValue = configResult.setStrengthValue
+	local updateLockButton = configResult.updateLockButton
 	updateConfigPanelVisibility = configResult.updateVisibility
 	local updateBridgeStatus = configResult.updateBridgeStatus
 	local updateBridgePreview = configResult.updateBridgePreview
@@ -1556,6 +1568,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			if S.lockedBrushPosition then
 				updateBrushVisualization(S.lockedBrushPosition)
 			end
+			updateLockButton()
 		end
 	end))
 

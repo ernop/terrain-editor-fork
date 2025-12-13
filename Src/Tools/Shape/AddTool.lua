@@ -81,6 +81,7 @@ AddTool.docs = {
 AddTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

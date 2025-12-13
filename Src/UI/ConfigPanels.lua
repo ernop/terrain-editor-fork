@@ -23,12 +23,14 @@ export type ConfigPanelsDeps = {
 	hidePlaneVisualization: () -> (),
 	getTerrainHitRaw: () -> Vector3?,
 	ChangeHistoryService: any,
+	toggleBrushLock: (() -> ())?, -- Optional callback to toggle brush lock
 }
 
 export type ConfigPanelsResult = {
 	panels: { [string]: Frame },
 	setStrengthValue: (value: number) -> (),
 	rebuildSizeSliders: () -> (),
+	updateLockButton: () -> (),
 	updateVisibility: () -> (),
 	updateBridgeStatus: () -> (),
 	updateBridgePreview: (hoverPoint: Vector3?) -> (),
@@ -48,6 +50,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		createBrushVisualization = deps.createBrushVisualization,
 		hidePlaneVisualization = deps.hidePlaneVisualization,
 		getTerrainHitRaw = deps.getTerrainHitRaw,
+		toggleBrushLock = deps.toggleBrushLock,
 	})
 	for k, v in pairs(coreResult.panels) do
 		allPanels[k] = v
@@ -95,6 +98,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		"bridgeInfo",
 		"brushShape",
 		"size",
+		"brushLock",
 		"strength",
 		"brushRate",
 		"pivot",
@@ -180,6 +184,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		panels = allPanels,
 		setStrengthValue = coreResult.setStrengthValue,
 		rebuildSizeSliders = coreResult.rebuildSizeSliders,
+		updateLockButton = coreResult.updateLockButton,
 		updateVisibility = updateVisibility,
 		updateBridgeStatus = bridgeResult.updateBridgeStatus,
 		updateBridgePreview = bridgeResult.updateBridgePreview,

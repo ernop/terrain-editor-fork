@@ -81,6 +81,7 @@ SmoothTool.docs = {
 SmoothTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

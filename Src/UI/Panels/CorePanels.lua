@@ -311,6 +311,17 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	})
 	falloffGroup.container.LayoutOrder = 2
 
+	-- Falloff Extent slider: how far the falloff region extends beyond the brush edge
+	-- 0% = falloff only within brush (original behavior)
+	-- 100% = falloff extends to 2x the brush radius
+	local _, extentContainer, _ = UIHelpers.createSlider(falloffPanel, "Extent", 0, 100, math.floor(S.falloffExtent * 100), function(val)
+		S.falloffExtent = val / 100
+		if deps.createBrushVisualization and S.brushPart then
+			deps.createBrushVisualization()
+		end
+	end)
+	extentContainer.LayoutOrder = 3
+
 	panels["falloff"] = falloffPanel
 
 	-- ========================================================================

@@ -89,6 +89,7 @@ MegarandomizeTool.docs = {
 MegarandomizeTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

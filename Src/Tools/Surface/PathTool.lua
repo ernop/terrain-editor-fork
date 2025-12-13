@@ -91,6 +91,7 @@ PathTool.docs = {
 PathTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"spin",

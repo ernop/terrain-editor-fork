@@ -83,6 +83,7 @@ GrowTool.docs = {
 GrowTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
