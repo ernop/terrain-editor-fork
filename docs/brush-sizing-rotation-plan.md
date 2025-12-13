@@ -59,8 +59,30 @@ Press **R** to lock the brush in place for handle interaction.
 | Key | Action |
 |-----|--------|
 | **R** | Toggle brush lock mode |
-| **Shift+Scroll** | Adjust brush size |
+| **Shift+Scroll** | Adjust primary dimension (or uniform) |
+| **Shift+Alt+Scroll** | Adjust secondary dimension |
 | **Ctrl+Scroll** | Adjust brush strength |
+
+#### Shape-Specific Scroll Behavior
+
+Each shape has intelligently chosen primary/secondary dimensions for quick resizing:
+
+| Shape | Shift+Scroll (Primary) | Shift+Alt+Scroll (Secondary) |
+|-------|------------------------|------------------------------|
+| Sphere | Size (all) | — |
+| Cube | XZ (footprint) | Y (height) |
+| Cylinder | Radius (X=Z) | Height (Y) |
+| Wedge | XZ (footprint) | Y (height) |
+| CornerWedge | XZ (footprint) | Y (height) |
+| Dome | Radius (X=Z) | Height (Y) |
+| Torus | Ring Radius (X) | Tube Radius (Y) |
+| Ring | Radius (X) | Thickness (Y) |
+| ZigZag | XZ (footprint) | Y (height) |
+| Sheet | Arc Radius (X) | Thickness (Y) |
+| Grid | Size (all) | — |
+| Stick | Length (Y) | Thickness (X=Z) |
+| Spinner | Size (all) | — |
+| Spikepad | Base Size (X=Z) | Spike Height (Y) |
 
 ---
 

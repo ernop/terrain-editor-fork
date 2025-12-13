@@ -116,4 +116,104 @@ function ToolRegistry.getToolIds(): { string }
 	return ids
 end
 
+-- ============================================
+-- TRAIT-BASED QUERIES
+-- ============================================
+
+-- Get traits for a tool
+function ToolRegistry.getTraits(toolId: string): ToolDocFormat.ToolTraits?
+	local tool = tools[toolId]
+	return tool and tool.traits or nil
+end
+
+-- Filter tools by a trait predicate
+function ToolRegistry.getToolsByTrait(predicate: (ToolDocFormat.ToolTraits) -> boolean): { ToolDocFormat.Tool }
+	local result = {}
+	for _, tool in pairs(tools) do
+		if tool.traits and predicate(tool.traits) then
+			table.insert(result, tool)
+		end
+	end
+	return result
+end
+
+-- Get tools by category (trait-based, not folder-based)
+function ToolRegistry.getToolsByTraitCategory(category: string): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.category == category
+	end)
+end
+
+-- Get tools that modify occupancy (terrain volume)
+function ToolRegistry.getShapeModifyingTools(): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.modifiesOccupancy == true
+	end)
+end
+
+-- Get tools that modify material only (no volume change)
+function ToolRegistry.getMaterialOnlyTools(): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.modifiesMaterial == true and traits.modifiesOccupancy == false
+	end)
+end
+
+-- Get analysis (non-modifying) tools
+function ToolRegistry.getAnalysisTools(): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.executionType == "uiOnly"
+	end)
+end
+
+-- Get tools with fast path optimization
+function ToolRegistry.getFastPathTools(): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.hasFastPath == true
+	end)
+end
+
+-- Get tools with large brush optimization
+function ToolRegistry.getLargeBrushTools(): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.hasLargeBrushPath == true
+	end)
+end
+
+-- Get tools requiring global state
+function ToolRegistry.getStatefulTools(): { ToolDocFormat.Tool }
+	return ToolRegistry.getToolsByTrait(function(traits)
+		return traits.requiresGlobalState == true
+	end)
+end
+
+-- Check if tool uses brush visualization
+function ToolRegistry.usesBrush(toolId: string): boolean
+	local traits = ToolRegistry.getTraits(toolId)
+	return traits ~= nil and traits.usesBrush == true
+end
+
+-- Check if tool uses strength slider
+function ToolRegistry.usesStrength(toolId: string): boolean
+	local traits = ToolRegistry.getTraits(toolId)
+	return traits ~= nil and traits.usesStrength == true
+end
+
+-- Check if tool needs material selection
+function ToolRegistry.needsMaterial(toolId: string): boolean
+	local traits = ToolRegistry.getTraits(toolId)
+	return traits ~= nil and traits.needsMaterial == true
+end
+
+-- Check if tool is analysis-only (no terrain modification)
+function ToolRegistry.isAnalysisTool(toolId: string): boolean
+	local traits = ToolRegistry.getTraits(toolId)
+	return traits ~= nil and traits.executionType == "uiOnly"
+end
+
+-- Get execution type for routing decisions
+function ToolRegistry.getExecutionType(toolId: string): string?
+	local traits = ToolRegistry.getTraits(toolId)
+	return traits and traits.executionType or nil
+end
+
 return ToolRegistry

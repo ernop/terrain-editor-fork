@@ -4,6 +4,7 @@
 
 local Theme = require(script.Parent.Parent.Util.Theme)
 local BrushData = require(script.Parent.Parent.Util.BrushData)
+local ToolRegistry = require(script.Parent.Parent.Tools.ToolRegistry)
 
 -- Panel modules
 local CorePanels = require(script.Parent.Panels.CorePanels)
@@ -27,6 +28,7 @@ export type ConfigPanelsDeps = {
 export type ConfigPanelsResult = {
 	panels: { [string]: Frame },
 	setStrengthValue: (value: number) -> (),
+	rebuildSizeSliders: () -> (),
 	updateVisibility: () -> (),
 	updateBridgeStatus: () -> (),
 	updateBridgePreview: (hoverPoint: Vector3?) -> (),
@@ -92,10 +94,12 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 	local panelOrder = {
 		"bridgeInfo",
 		"brushShape",
+		"size",
 		"strength",
 		"brushRate",
 		"pivot",
 		"hollow",
+		"falloff",
 		"spin",
 		"planeLock",
 		"flattenMode",
@@ -140,7 +144,8 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 
 	-- Visibility update function
 	local function updateVisibility()
-		local toolConfig = BrushData.ToolConfigs[S.currentTool]
+		-- Try to get config panels from ToolRegistry first, fallback to BrushData
+		local toolConfig = ToolRegistry.getConfigPanels(S.currentTool) or BrushData.ToolConfigs[S.currentTool]
 
 		-- Hide all panels first
 		for _, panel in pairs(allPanels) do
@@ -174,6 +179,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 	return {
 		panels = allPanels,
 		setStrengthValue = coreResult.setStrengthValue,
+		rebuildSizeSliders = coreResult.rebuildSizeSliders,
 		updateVisibility = updateVisibility,
 		updateBridgeStatus = bridgeResult.updateBridgeStatus,
 		updateBridgePreview = bridgeResult.updateBridgePreview,

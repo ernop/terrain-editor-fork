@@ -12,6 +12,12 @@
 		],
 		"luau-lsp.sourcemap.autogenerate": true,
 		"luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
-		"luau-lsp.sourcemap.rojoPath": "C:\\Users\\ernie\\.aftman\\bin\\rojo.exe"
+		"luau-lsp.sourcemap.rojoPath": "C:\\Users\\ernie\\.aftman\\bin\\rojo.exe",
+		"workbench.colorCustomizations": {
+			"diffEditor.insertedTextBackground": "#2ea04355",
+			"diffEditor.removedTextBackground": "#f8514955",
+			"diffEditor.insertedLineBackground": "#2ea04340",
+			"diffEditor.removedLineBackground": "#f8514940"
+		}
 	}
 }

@@ -64,6 +64,17 @@ TerrainEnums.ToolId = {
 	None = "None",
 }
 
+-- Tool categories (behavioral classification)
+-- Maps to folder organization after refactor
+TerrainEnums.ToolCategory = {
+	Shape = "Shape", -- Volume modification (Add, Subtract, Grow, Erode, Smooth, Flatten)
+	Surface = "Surface", -- Surface reshaping (Noise, Terrace, Cliff, Path, Blobify)
+	Material = "Material", -- Material painting (Paint, SlopePaint, Gradient, etc.)
+	Generator = "Generator", -- Procedural generation (Stalactite, Tendril, Growth, Grid)
+	Utility = "Utility", -- Special operations (Clone, Bridge, Symmetry, Melt)
+	Analysis = "Analysis", -- Read-only inspection (VoxelInspect, ComponentAnalyzer, Overlay)
+}
+
 -- TODO: Remove Build, Sculpt and Paint tabs when cleaning up
 -- They have been replaced by Edit
 -- Also remove them from the localization CSVs
@@ -101,6 +112,16 @@ TerrainEnums.SpinMode = {
 	Y = "Y",
 	Fast3D = "Fast3D",
 	XZFast = "XZFast",
+}
+
+-- Brush falloff curves - controls how brush strength fades from center to edge
+TerrainEnums.FalloffType = {
+	Cosine = "Cosine",       -- cos(d * π/2) - smooth S-curve (original behavior)
+	Linear = "Linear",       -- 1 - d, predictable even gradient
+	Plateau = "Plateau",     -- Flat full strength in center, sharp edge falloff
+	Gaussian = "Gaussian",   -- e^(-d² * 3), very soft organic falloff
+	Quadratic = "Quadratic", -- (1-d)², falls off fast from center
+	Sharp = "Sharp",         -- 1 - d³, strong center, steep edge
 }
 
 TerrainEnums.BrushShape = {

@@ -24,7 +24,7 @@ local powers = {
 
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
-local originalWalkSpeed = 16
+local originalWalkSpeed = 68
 local originalJumpPower = 50
 
 -- Constants
@@ -33,6 +33,8 @@ local HYPERSPEED_MULTIPLIER = 4
 local SUPER_JUMP_POWER = 100
 local TELEPORT_HOLD_TIME = 1
 local DIG_RADIUS = 8
+local WALK_SPEED = 68
+local MAX_ZOOM_DISTANCE = 10000
 
 -- Material colors for terrain detection display
 local MATERIAL_COLORS = {
@@ -61,13 +63,13 @@ local MATERIAL_COLORS = {
 	[Enum.Material.Air] = { color = Color3.fromRGB(80, 80, 80), name = "Air" },
 }
 
--- Button configs (first letter = keyboard shortcut)
+-- Button configs
 local BUTTON_CONFIGS = {
 	{ key = "fly", label = "FLY", color = Color3.fromRGB(66, 135, 245), hotkey = Enum.KeyCode.F },
-	{ key = "hyperspeed", label = "SPEED", color = Color3.fromRGB(255, 89, 38), hotkey = Enum.KeyCode.S },
-	{ key = "superJump", label = "JUMP", color = Color3.fromRGB(76, 153, 76), hotkey = Enum.KeyCode.J },
-	{ key = "teleport", label = "WARP", color = Color3.fromRGB(180, 100, 255), hotkey = Enum.KeyCode.W },
-	{ key = "dig", label = "DIG", color = Color3.fromRGB(139, 105, 73), hotkey = Enum.KeyCode.D },
+	{ key = "hyperspeed", label = "SPEED", color = Color3.fromRGB(255, 89, 38) },
+	{ key = "superJump", label = "JUMP", color = Color3.fromRGB(76, 153, 76) },
+	{ key = "teleport", label = "WARP", color = Color3.fromRGB(180, 100, 255) },
+	{ key = "dig", label = "DIG", color = Color3.fromRGB(139, 105, 73) },
 }
 
 -- Sound effects
@@ -222,28 +224,31 @@ local function createPowerButton(parent, config, index)
 	barCorner.CornerRadius = UDim.new(0, 2)
 	barCorner.Parent = bar
 
-	-- Hotkey indicator (shows the shortcut key)
-	local hotkeyLabel = Instance.new("TextLabel")
-	hotkeyLabel.Name = "Hotkey"
-	hotkeyLabel.Size = UDim2.new(0, 20, 0, 20)
-	hotkeyLabel.Position = UDim2.new(0, 14, 0.5, -10)
-	hotkeyLabel.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
-	hotkeyLabel.BackgroundTransparency = 0.5
-	hotkeyLabel.Text = config.label:sub(1, 1) -- First letter
-	hotkeyLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-	hotkeyLabel.TextSize = 14
-	hotkeyLabel.Font = Enum.Font.GothamBlack
-	hotkeyLabel.Parent = button
+	-- Hotkey indicator (shows the shortcut key, only if hotkey exists)
+	local hotkeyLabel = nil
+	if config.hotkey then
+		hotkeyLabel = Instance.new("TextLabel")
+		hotkeyLabel.Name = "Hotkey"
+		hotkeyLabel.Size = UDim2.new(0, 20, 0, 20)
+		hotkeyLabel.Position = UDim2.new(0, 14, 0.5, -10)
+		hotkeyLabel.BackgroundColor3 = Color3.fromRGB(50, 55, 65)
+		hotkeyLabel.BackgroundTransparency = 0.5
+		hotkeyLabel.Text = config.label:sub(1, 1) -- First letter
+		hotkeyLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+		hotkeyLabel.TextSize = 14
+		hotkeyLabel.Font = Enum.Font.GothamBlack
+		hotkeyLabel.Parent = button
 
-	local hotkeyCorner = Instance.new("UICorner")
-	hotkeyCorner.CornerRadius = UDim.new(0, 4)
-	hotkeyCorner.Parent = hotkeyLabel
+		local hotkeyCorner = Instance.new("UICorner")
+		hotkeyCorner.CornerRadius = UDim.new(0, 4)
+		hotkeyCorner.Parent = hotkeyLabel
+	end
 
 	-- Main label (bigger text)
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
 	label.Size = UDim2.new(1, -60, 1, 0)
-	label.Position = UDim2.new(0, 40, 0, 0)
+	label.Position = UDim2.new(0, config.hotkey and 40 or 14, 0, 0)
 	label.BackgroundTransparency = 1
 	label.Text = config.label
 	label.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -1150,11 +1155,26 @@ local function onCharacterAdded(character)
 	flyBodyVelocity = nil
 	flyBodyGyro = nil
 
+	-- Set walk speed
+	local humanoid = character:WaitForChild("Humanoid")
+	humanoid.WalkSpeed = WALK_SPEED
+
 	-- Give weapon on spawn
 	task.delay(0.5, giveWeapon)
 end
 
 player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Camera zoom distance
+player.CameraMaxZoomDistance = MAX_ZOOM_DISTANCE
+
+-- Apply walk speed to existing character
+if player.Character then
+	local humanoid = player.Character:FindFirstChild("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = WALK_SPEED
+	end
+end
 
 -- Initialize UI
 local screenGui, buttonList, swatch, materialLabel, countdownFrame, countdownLabel = createUI()
@@ -1243,12 +1263,14 @@ local function updateButtonVisual(refs, isActive)
 		TextSize = isActive and 20 or 18,
 	}):Play()
 
-	-- Animate hotkey (highlighted when on)
-	TweenService:Create(hotkeyLabel, TweenInfo.new(0.15), {
-		BackgroundColor3 = isActive and color or Color3.fromRGB(50, 55, 65),
-		TextColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180),
-		BackgroundTransparency = isActive and 0 or 0.5,
-	}):Play()
+	-- Animate hotkey (highlighted when on) - only if hotkeyLabel exists
+	if hotkeyLabel then
+		TweenService:Create(hotkeyLabel, TweenInfo.new(0.15), {
+			BackgroundColor3 = isActive and color or Color3.fromRGB(50, 55, 65),
+			TextColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180),
+			BackgroundTransparency = isActive and 0 or 0.5,
+		}):Play()
+	end
 
 	-- Animate button background
 	TweenService:Create(button, TweenInfo.new(0.15), {
@@ -1311,26 +1333,15 @@ for i, config in ipairs(BUTTON_CONFIGS) do
 	end)
 end
 
--- Keyboard shortcuts (F=Fly, S=Speed, J=Jump, W=Warp, D=Dig)
+-- Keyboard shortcut: F=Fly only
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return
 	end
 
-	for _, config in ipairs(BUTTON_CONFIGS) do
-		if input.KeyCode == config.hotkey then
-			local refs = buttonRefs[config.key]
-
-			if config.key == "teleport" then
-				-- Toggle teleport mode
-				powers.teleport = not powers.teleport
-				updateButtonVisual(refs, powers.teleport)
-			else
-				local isActive = powerActions[config.key]()
-				updateButtonVisual(refs, isActive)
-			end
-			break
-		end
+	if input.KeyCode == Enum.KeyCode.F then
+		local isActive = toggleFly()
+		updateButtonVisual(buttonRefs.fly, isActive)
 	end
 end)
 
@@ -1352,55 +1363,7 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 	end
 end)
 
--- Q key to turn off all powers
-local function turnOffAllPowers()
-	-- Turn off fly
-	if powers.fly then
-		toggleFly()
-		updateButtonVisual(buttonRefs.fly, false)
-	end
-
-	-- Turn off speed
-	if powers.hyperspeed then
-		toggleHyperspeed()
-		updateButtonVisual(buttonRefs.hyperspeed, false)
-	end
-
-	-- Turn off jump
-	if powers.superJump then
-		toggleSuperJump()
-		updateButtonVisual(buttonRefs.superJump, false)
-	end
-
-	-- Turn off teleport
-	powers.teleport = false
-	cancelTeleport()
-	updateButtonVisual(buttonRefs.teleport, false)
-
-	-- Turn off dig
-	if powers.dig then
-		toggleDig()
-		updateButtonVisual(buttonRefs.dig, false)
-	end
-end
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then
-		return
-	end
-
-	-- Q turns off all powers only when NOT flying (since Q is used for descend while flying)
-	if input.KeyCode == Enum.KeyCode.Q and not powers.fly then
-		turnOffAllPowers()
-	end
-
-	-- X always turns off all powers
-	if input.KeyCode == Enum.KeyCode.X then
-		turnOffAllPowers()
-	end
-end)
-
 -- Give weapon on load
 task.delay(1, giveWeapon)
 
-print("TerrainPowers loaded! F=Fly S=Speed J=Jump W=Warp D=Dig. Q=all off. Hold 1s to warp.")
+print("TerrainPowers loaded! F=Fly. Hold 1s to warp.")

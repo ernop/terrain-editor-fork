@@ -13,13 +13,13 @@ local applyPivot = require(Plugin.Src.Util.applyPivot)
 local OperationHelper = require(script.Parent.OperationHelper)
 local smartLargeSculptBrush = require(script.Parent.smartLargeSculptBrush)
 local smartColumnSculptBrush = require(script.Parent.smartColumnSculptBrush)
-local SculptOperations = require(script.Parent.SculptOperations)
+
+-- Tool Registry for unified tool execution
+local ToolRegistry = require(Plugin.Src.Tools.ToolRegistry)
 
 -- Air and water materials are frequently referenced in terrain brush
 local materialAir = Enum.Material.Air
 local materialWater = Enum.Material.Water
-
--- Patched: removed LastUsedModificationMethod (Roblox-internal property)
 
 -- Once the brush size > this, use the floodfill based large brush implementation
 local USE_LARGE_BRUSH_MIN_SIZE = 32
@@ -87,89 +87,51 @@ local function performOperation(terrain, opSet)
 	local hollowEnabled = opSet.hollowEnabled or false
 	local wallThickness = opSet.wallThickness or 0.2
 
+	-- Falloff curve type (controls how brush strength fades from center to edge)
+	local falloffType = opSet.falloffType or "Cosine"
+	-- Falloff extent: how far the falloff region extends beyond the brush edge
+	-- 0 = falloff only within brush, 1 = falloff extends 100% beyond brush radius
+	local falloffExtent = opSet.falloffExtent or 0
+
 	assert(terrain ~= nil, "performTerrainBrushOperation requires a terrain instance")
 	assert(tool ~= nil and type(tool) == "string", "performTerrainBrushOperation requires a currentTool parameter")
+
+	-- Get tool definition from registry
+	local toolDef = ToolRegistry.getTool(tool)
+
+	-- ============================================================================
+	-- Fast Path: Check if tool has a fast path and can use it
+	-- ============================================================================
+	if toolDef and toolDef.canUseFastPath and toolDef.fastPath then
+		if toolDef.canUseFastPath(opSet) then
+			local success = toolDef.fastPath(terrain, opSet)
+			if success then
+				return -- Fast path succeeded, we're done
+			end
+			-- Fast path returned false, fall through to per-voxel processing
+		end
+	end
 
 	-- Calculate bounds - for rotated brushes, we need a larger bounding box
 	-- Use the max of all radii to ensure we capture the full rotated brush
 	local maxRadius = math.max(radiusX, radiusY, radiusZ)
 	local boundsRadius = hasRotation and maxRadius or nil
 
+	-- Expand bounds to include falloff region (falloffExtent is 0-1, representing % of brush radius)
+	local falloffExpansionX = radiusX * falloffExtent
+	local falloffExpansionY = radiusY * falloffExtent
+	local falloffExpansionZ = radiusZ * falloffExtent
+
 	local minBounds = Vector3.new(
-		OperationHelper.clampDownToVoxel(centerPoint.x - (boundsRadius or radiusX)),
-		OperationHelper.clampDownToVoxel(centerPoint.y - (boundsRadius or radiusY)),
-		OperationHelper.clampDownToVoxel(centerPoint.z - (boundsRadius or radiusZ))
+		OperationHelper.clampDownToVoxel(centerPoint.x - (boundsRadius or radiusX) - falloffExpansionX),
+		OperationHelper.clampDownToVoxel(centerPoint.y - (boundsRadius or radiusY) - falloffExpansionY),
+		OperationHelper.clampDownToVoxel(centerPoint.z - (boundsRadius or radiusZ) - falloffExpansionZ)
 	)
 	local maxBounds = Vector3.new(
-		OperationHelper.clampUpToVoxel(centerPoint.x + (boundsRadius or radiusX)),
-		OperationHelper.clampUpToVoxel(centerPoint.y + (boundsRadius or radiusY)),
-		OperationHelper.clampUpToVoxel(centerPoint.z + (boundsRadius or radiusZ))
+		OperationHelper.clampUpToVoxel(centerPoint.x + (boundsRadius or radiusX) + falloffExpansionX),
+		OperationHelper.clampUpToVoxel(centerPoint.y + (boundsRadius or radiusY) + falloffExpansionY),
+		OperationHelper.clampUpToVoxel(centerPoint.z + (boundsRadius or radiusZ) + falloffExpansionZ)
 	)
-
-	-- LastUsedModificationMethod is a Roblox-internal property, skip it
-	-- (Original code tried to set terrain.LastUsedModificationMethod here)
-
-	-- Might be able to do a quick operation through an API call
-	-- Note: Quick path works for shapes that support rotated CFrame
-	local isUniformSize = (sizeX == sizeY) and (sizeY == sizeZ)
-	if (tool == ToolId.Add or (tool == ToolId.Subtract and not ignoreWater)) and not autoMaterial then
-		if tool == ToolId.Subtract then
-			desiredMaterial = materialAir
-		end
-
-		-- Build the rotated CFrame for fill operations
-		local fillCFrame = CFrame.new(centerPoint) * brushRotation
-
-		if brushShape == BrushShape.Sphere and isUniformSize and not hasRotation then
-			-- Only use FillBall for uniform, non-rotated spheres
-			terrain:FillBall(centerPoint, radiusX, desiredMaterial)
-			return
-		elseif brushShape == BrushShape.Cube then
-			-- FillBlock supports rotation via CFrame
-			terrain:FillBlock(fillCFrame, Vector3.new(sizeX, sizeY, sizeZ), desiredMaterial)
-			return
-		elseif brushShape == BrushShape.Cylinder then
-			-- Cylinder at Base Size 1 doesn't actually add anything into workspace
-			-- To combat this we will use a ballfill instead. At this size the user will see no difference
-			if (maxBounds - minBounds).x <= 2 * Constants.VOXEL_RESOLUTION then
-				terrain:FillBall(centerPoint, radiusX, desiredMaterial)
-				return
-			end
-
-			-- FillCylinder: height is sizeY, radius is radiusX (assuming X=Z for cylinder)
-			-- Apply rotation to the cylinder CFrame
-			terrain:FillCylinder(fillCFrame, sizeY, radiusX, desiredMaterial)
-			return
-		elseif brushShape == BrushShape.Wedge then
-			-- FillWedge: supports rotation via CFrame
-			terrain:FillWedge(fillCFrame, Vector3.new(sizeX, sizeY, sizeZ), desiredMaterial)
-			return
-		end
-
-		-- Shapes that need per-voxel processing:
-		-- - Non-uniform/rotated spheres (ellipsoids)
-		-- - CornerWedge, Dome (no native API)
-		-- - All creative shapes (Torus, Ring, ZigZag, Sheet, Grid, Stick, Spinner)
-		if brushShape == BrushShape.Sphere and (not isUniformSize or hasRotation) then
-			-- Fall through to main loop for ellipsoid/rotated sphere
-		elseif brushShape == BrushShape.CornerWedge or brushShape == BrushShape.Dome then
-			-- Fall through to main loop for custom shapes
-		elseif
-			brushShape == BrushShape.Torus
-			or brushShape == BrushShape.Ring
-			or brushShape == BrushShape.ZigZag
-			or brushShape == BrushShape.Sheet
-			or brushShape == BrushShape.Grid
-			or brushShape == BrushShape.Stick
-			or brushShape == BrushShape.Spinner
-		then
-			-- Fall through to main loop for creative shapes (all per-voxel)
-		else
-			-- Unknown shape
-			warn("Unknown brush shape in performTerrainBrushOperation: " .. tostring(brushShape))
-			return
-		end
-	end
 
 	local strength = opSet.strength
 
@@ -181,14 +143,15 @@ local function performOperation(terrain, opSet)
 	-- And a writeable copy
 	local writeMaterials, writeOccupancies = terrain:ReadVoxels(region, Constants.VOXEL_RESOLUTION)
 
+	-- Special handling for Flatten tool (uses column-based approach)
 	if tool == ToolId.Flatten then
 		smartColumnSculptBrush(opSet, minBounds, maxBounds, readMaterials, readOccupancies, writeMaterials, writeOccupancies)
 		terrain:WriteVoxels(region, Constants.VOXEL_RESOLUTION, writeMaterials, writeOccupancies)
 		return
-	elseif
-		selectionSize > USE_LARGE_BRUSH_MIN_SIZE
-		and (tool == ToolId.Grow or tool == ToolId.Erode or tool == ToolId.Flatten or tool == ToolId.Smooth)
-	then
+	end
+
+	-- Large brush optimization for specific tools
+	if selectionSize > USE_LARGE_BRUSH_MIN_SIZE and (tool == ToolId.Grow or tool == ToolId.Erode or tool == ToolId.Smooth) then
 		smartLargeSculptBrush(opSet, minBounds, maxBounds, readMaterials, readOccupancies, writeMaterials, writeOccupancies)
 		terrain:WriteVoxels(region, Constants.VOXEL_RESOLUTION, writeMaterials, writeOccupancies)
 		return
@@ -204,22 +167,20 @@ local function performOperation(terrain, opSet)
 	local minBoundsY = minBounds.y
 	local minBoundsZ = minBounds.z
 
-	local maxBoundsX = maxBounds.x
-
 	local airFillerMaterial = materialAir
 	local waterHeight = 0
 	if ignoreWater then
 		waterHeight, airFillerMaterial = OperationHelper.getWaterHeightAndAirFillerMaterial(readMaterials)
 	end
 
-	local voxelCountX = table.getn(readOccupancies)
-	local voxelCountY = table.getn(readOccupancies[1])
-	local voxelCountZ = table.getn(readOccupancies[1][1])
+	local voxelCountX = #readOccupancies
+	local voxelCountY = #readOccupancies[1]
+	local voxelCountZ = #readOccupancies[1][1]
 
-	-- For legacy compatibility in sculptSettings
-	local sizeX = voxelCountX
-	local sizeY = voxelCountY
-	local sizeZ = voxelCountZ
+	-- Region dimensions for tool settings
+	local regionSizeX = voxelCountX
+	local regionSizeY = voxelCountY
+	local regionSizeZ = voxelCountZ
 
 	local planeNormal = opSet.planeNormal
 	local planeNormalX = planeNormal.x
@@ -231,26 +192,99 @@ local function performOperation(terrain, opSet)
 	local planePointY = planePoint.y
 	local planePointZ = planePoint.z
 
-	-- Many of the sculpt settings are the same for each voxel, so precreate the table
-	-- Then for each voxel, set the voxel-specific properties
+	-- Get the tool's execute function from registry
+	local toolExecute = toolDef and toolDef.execute or nil
+
+	-- Base settings that are the same for each voxel
 	local sculptSettings = {
+		-- Read/Write buffers
 		readMaterials = readMaterials,
 		readOccupancies = readOccupancies,
 		writeMaterials = writeMaterials,
 		writeOccupancies = writeOccupancies,
-		sizeX = sizeX,
-		sizeY = sizeY,
-		sizeZ = sizeZ,
+
+		-- Region dimensions
+		sizeX = regionSizeX,
+		sizeY = regionSizeY,
+		sizeZ = regionSizeZ,
+
+		-- Brush/cursor size in voxels
+		cursorSizeX = opSet.cursorSizeX or opSet.cursorSize,
+		cursorSizeY = opSet.cursorSizeY or opSet.cursorHeight or opSet.cursorSize,
+		cursorSizeZ = opSet.cursorSizeZ or opSet.cursorSize,
+
+		-- Operation parameters
 		strength = strength,
 		ignoreWater = ignoreWater,
 		desiredMaterial = desiredMaterial,
 		autoMaterial = autoMaterial,
 		filterSize = 1,
 		maxOccupancy = 1,
+
+		-- Tool-specific parameters (pass everything from opSet)
+		noiseScale = opSet.noiseScale,
+		noiseIntensity = opSet.noiseIntensity,
+		noiseSeed = opSet.noiseSeed,
+		stepHeight = opSet.stepHeight,
+		stepSharpness = opSet.stepSharpness,
+		cliffAngle = opSet.cliffAngle,
+		cliffDirectionX = opSet.cliffDirectionX,
+		cliffDirectionZ = opSet.cliffDirectionZ,
+		pathDepth = opSet.pathDepth,
+		pathProfile = opSet.pathProfile,
+		pathDirectionX = opSet.pathDirectionX,
+		pathDirectionZ = opSet.pathDirectionZ,
+		blobIntensity = opSet.blobIntensity,
+		blobSmoothness = opSet.blobSmoothness,
+		slopeFlatMaterial = opSet.slopeFlatMaterial,
+		slopeSteepMaterial = opSet.slopeSteepMaterial,
+		slopeCliffMaterial = opSet.slopeCliffMaterial,
+		slopeThreshold1 = opSet.slopeThreshold1,
+		slopeThreshold2 = opSet.slopeThreshold2,
+		clusterSize = opSet.clusterSize,
+		materialPalette = opSet.materialPalette,
+		megarandomizeSeed = opSet.megarandomizeSeed,
+		cavitySensitivity = opSet.cavitySensitivity,
+		meltViscosity = opSet.meltViscosity,
+		gradientMaterial1 = opSet.gradientMaterial1,
+		gradientMaterial2 = opSet.gradientMaterial2,
+		gradientStartX = opSet.gradientStartX,
+		gradientStartZ = opSet.gradientStartZ,
+		gradientEndX = opSet.gradientEndX,
+		gradientEndZ = opSet.gradientEndZ,
+		gradientNoiseAmount = opSet.gradientNoiseAmount,
+		gradientSeed = opSet.gradientSeed or opSet.noiseSeed,
+		floodTargetMaterial = opSet.floodTargetMaterial,
+		floodSourceMaterial = opSet.floodSourceMaterial,
+		stalactiteDirection = opSet.stalactiteDirection,
+		stalactiteDensity = opSet.stalactiteDensity,
+		stalactiteLength = opSet.stalactiteLength,
+		stalactiteTaper = opSet.stalactiteTaper,
+		stalactiteSeed = opSet.stalactiteSeed or opSet.noiseSeed,
+		tendrilRadius = opSet.tendrilRadius,
+		tendrilBranches = opSet.tendrilBranches,
+		tendrilLength = opSet.tendrilLength,
+		tendrilCurl = opSet.tendrilCurl,
+		tendrilSeed = opSet.tendrilSeed or opSet.noiseSeed,
+		symmetryType = opSet.symmetryType,
+		symmetrySegments = opSet.symmetrySegments,
+		gridCellSize = opSet.gridCellSize,
+		gridVariation = opSet.gridVariation,
+		gridSeed = opSet.gridSeed,
+		growthRate = opSet.growthRate,
+		growthBias = opSet.growthBias,
+		growthPattern = opSet.growthPattern,
+		growthSeed = opSet.growthSeed,
+		cloneSourceBuffer = opSet.cloneSourceBuffer,
+		cloneSourceCenter = opSet.cloneSourceCenter,
+		sourceBuffer = opSet.cloneSourceBuffer, -- Legacy alias
+		sourceCenterX = opSet.cloneSourceCenter and opSet.cloneSourceCenter.X or nil,
+		sourceCenterY = opSet.cloneSourceCenter and opSet.cloneSourceCenter.Y or nil,
+		sourceCenterZ = opSet.cloneSourceCenter and opSet.cloneSourceCenter.Z or nil,
+		pathWidth = radiusX,
 	}
 
 	-- "planeDifference" is the distance from the voxel to the plane defined by planePoint and planeNormal
-	-- Calculated as (voxelPosition - planePoint):Dot(planeNormal)
 	for voxelX, occupanciesX in ipairs(readOccupancies) do
 		local worldVectorX = minBoundsX + ((voxelX - 0.5) * Constants.VOXEL_RESOLUTION)
 		local cellVectorX = worldVectorX - centerX
@@ -266,7 +300,7 @@ local function performOperation(terrain, opSet)
 				local cellVectorZ = worldVectorZ - centerZ
 				local planeDifference = planeDifferenceXY + ((worldVectorZ - planePointZ) * planeNormalZ)
 
-				-- Use per-axis radii and rotation for brush power calculation
+				-- Calculate brush influence at this voxel
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
 					cellVectorX,
 					cellVectorY,
@@ -279,7 +313,8 @@ local function performOperation(terrain, opSet)
 					not (tool == ToolId.Smooth),
 					brushRotation,
 					hollowEnabled,
-					wallThickness
+					wallThickness,
+					falloffType
 				)
 
 				local cellOccupancy = occupancy
@@ -292,6 +327,7 @@ local function performOperation(terrain, opSet)
 
 				airFillerMaterial = waterHeight >= voxelY and airFillerMaterial or materialAir
 
+				-- Update per-voxel settings
 				sculptSettings.x = voxelX
 				sculptSettings.y = voxelY
 				sculptSettings.z = voxelZ
@@ -301,221 +337,41 @@ local function performOperation(terrain, opSet)
 				sculptSettings.cellMaterial = cellMaterial
 				sculptSettings.airFillerMaterial = airFillerMaterial
 
-				if tool == ToolId.Add then
-					if brushOccupancy > cellOccupancy then
-						writeOccupancies[voxelX][voxelY][voxelZ] = brushOccupancy
-					end
-					if brushOccupancy >= 0.5 and cellMaterial == materialAir then
-						local targetMaterial = desiredMaterial
-						if autoMaterial then
-							targetMaterial = OperationHelper.getMaterialForAutoMaterial(
-								readMaterials,
-								voxelX,
-								voxelY,
-								voxelZ,
-								sizeX,
-								sizeY,
-								sizeZ,
-								cellMaterial
-							)
-						end
-						writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
-					end
-				elseif tool == ToolId.Subtract then
-					if cellMaterial ~= materialAir then
-						local desiredOccupancy = 1 - brushOccupancy
-						if desiredOccupancy < cellOccupancy then
-							if desiredOccupancy <= OperationHelper.one256th then
-								writeOccupancies[voxelX][voxelY][voxelZ] = airFillerMaterial == materialWater and 1 or 0
-								writeMaterials[voxelX][voxelY][voxelZ] = airFillerMaterial
-							else
-								writeOccupancies[voxelX][voxelY][voxelZ] = desiredOccupancy
-							end
-						end
-					end
-				elseif tool == ToolId.Grow then
-					SculptOperations.grow(sculptSettings)
-				elseif tool == ToolId.Erode then
-					SculptOperations.erode(sculptSettings)
-				elseif tool == ToolId.Flatten then
+				-- World coordinates
+				sculptSettings.worldX = worldVectorX
+				sculptSettings.worldY = worldVectorY
+				sculptSettings.worldZ = worldVectorZ
+
+				-- Center coordinates (for tools that need them)
+				sculptSettings.centerX = centerX
+				sculptSettings.centerY = centerY
+				sculptSettings.centerZ = centerZ
+				sculptSettings.centerPoint = centerPoint -- Vector3 for tools that need it
+
+				-- Cell vectors (offset from brush center)
+				sculptSettings.cellVectorX = cellVectorX
+				sculptSettings.cellVectorY = cellVectorY
+				sculptSettings.cellVectorZ = cellVectorZ
+
+				-- Clone tool target center
+				sculptSettings.targetCenterX = voxelX
+				sculptSettings.targetCenterY = voxelY
+				sculptSettings.targetCenterZ = voxelZ
+
+				-- For Flatten tool (handles its own grow/erode logic)
+				if tool == ToolId.Flatten then
 					sculptSettings.maxOccupancy = math.abs(planeDifference)
-					if planeDifference > Constants.FLATTEN_PLANE_TOLERANCE and flattenMode ~= FlattenMode.Grow then
-						SculptOperations.erode(sculptSettings)
-					elseif planeDifference < -Constants.FLATTEN_PLANE_TOLERANCE and flattenMode ~= FlattenMode.Erode then
-						SculptOperations.grow(sculptSettings)
+					-- Flatten is handled by smartColumnSculptBrush above, this is fallback
+				end
+
+				-- Execute the tool's operation via registry
+				if toolExecute then
+					toolExecute(sculptSettings)
+				else
+					-- Fallback warning for unregistered tools
+					if tool ~= ToolId.None then
+						warn("[TerrainBrush] No execute function found for tool:", tool)
 					end
-				elseif tool == ToolId.Paint then
-					if brushOccupancy > 0 and cellOccupancy > 0 then
-						writeMaterials[voxelX][voxelY][voxelZ] = desiredMaterial
-					end
-				elseif tool == ToolId.Replace then
-					--Using cellMaterial and cellOccupancy creates quirky behaviour with Air Material
-					local rawMaterial = readMaterials[voxelX][voxelY][voxelZ]
-					if brushOccupancy > 0 and rawMaterial == sourceMaterial then
-						writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
-						if rawMaterial == materialAir then
-							writeOccupancies[voxelX][voxelY][voxelZ] = brushOccupancy
-						end
-					end
-				elseif tool == ToolId.Smooth then
-					SculptOperations.smooth(sculptSettings)
-				elseif tool == ToolId.Noise then
-					-- Pass world coordinates for noise sampling
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.noiseScale = opSet.noiseScale
-					sculptSettings.noiseIntensity = opSet.noiseIntensity
-					sculptSettings.noiseSeed = opSet.noiseSeed
-					SculptOperations.noise(sculptSettings)
-				elseif tool == ToolId.Terrace then
-					-- Pass world Y coordinate and terrace parameters
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.stepHeight = opSet.stepHeight
-					sculptSettings.stepSharpness = opSet.stepSharpness
-					SculptOperations.terrace(sculptSettings)
-				elseif tool == ToolId.Cliff then
-					-- Pass cell offset from center and cliff parameters
-					sculptSettings.cellVectorX = cellVectorX
-					sculptSettings.cellVectorZ = cellVectorZ
-					sculptSettings.cliffAngle = opSet.cliffAngle
-					sculptSettings.cliffDirectionX = opSet.cliffDirectionX
-					sculptSettings.cliffDirectionZ = opSet.cliffDirectionZ
-					SculptOperations.cliff(sculptSettings)
-				elseif tool == ToolId.Path then
-					-- Pass cell offset, world position, and path parameters
-					sculptSettings.cellVectorX = cellVectorX
-					sculptSettings.cellVectorZ = cellVectorZ
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.centerY = centerPoint.Y
-					sculptSettings.pathDirectionX = opSet.pathDirectionX
-					sculptSettings.pathDirectionZ = opSet.pathDirectionZ
-					sculptSettings.pathDepth = opSet.pathDepth
-					sculptSettings.pathProfile = opSet.pathProfile
-					-- pathWidth is the half-width (radius) of the path in studs
-					sculptSettings.pathWidth = radiusX
-					SculptOperations.path(sculptSettings)
-				elseif tool == ToolId.Clone then
-					-- Pass clone source buffer and centers
-					if opSet.cloneSourceBuffer and opSet.cloneSourceCenter then
-						sculptSettings.sourceBuffer = opSet.cloneSourceBuffer
-						sculptSettings.sourceCenterX = opSet.cloneSourceCenter.X
-						sculptSettings.sourceCenterY = opSet.cloneSourceCenter.Y
-						sculptSettings.sourceCenterZ = opSet.cloneSourceCenter.Z
-						-- Target center is the current voxel position in the region
-						sculptSettings.targetCenterX = voxelX
-						sculptSettings.targetCenterY = voxelY
-						sculptSettings.targetCenterZ = voxelZ
-						SculptOperations.clone(sculptSettings)
-					end
-				elseif tool == ToolId.Blobify then
-					-- Pass cell offset and blob parameters
-					sculptSettings.cellVectorX = cellVectorX
-					sculptSettings.cellVectorY = cellVectorY
-					sculptSettings.cellVectorZ = cellVectorZ
-					sculptSettings.blobIntensity = opSet.blobIntensity
-					sculptSettings.blobSmoothness = opSet.blobSmoothness
-					SculptOperations.blobify(sculptSettings)
-				elseif tool == ToolId.SlopePaint then
-					-- Pass slope paint parameters
-					sculptSettings.slopeFlatMaterial = opSet.slopeFlatMaterial
-					sculptSettings.slopeSteepMaterial = opSet.slopeSteepMaterial
-					sculptSettings.slopeCliffMaterial = opSet.slopeCliffMaterial
-					sculptSettings.slopeThreshold1 = opSet.slopeThreshold1
-					sculptSettings.slopeThreshold2 = opSet.slopeThreshold2
-					SculptOperations.slopePaint(sculptSettings)
-				elseif tool == ToolId.Megarandomize then
-					-- Pass world coordinates and megarandomize parameters
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.clusterSize = opSet.clusterSize
-					sculptSettings.noiseSeed = opSet.megarandomizeSeed or 0
-					sculptSettings.materialPalette = opSet.materialPalette
-					SculptOperations.megarandomize(sculptSettings)
-				elseif tool == ToolId.CavityFill then
-					-- Pass cavity fill parameters
-					sculptSettings.cavitySensitivity = opSet.cavitySensitivity
-					SculptOperations.cavityFill(sculptSettings)
-				elseif tool == ToolId.Melt then
-					-- Pass melt parameters
-					sculptSettings.meltViscosity = opSet.meltViscosity
-					SculptOperations.melt(sculptSettings)
-				elseif tool == ToolId.GradientPaint then
-					-- Pass world coordinates and gradient parameters
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.gradientMaterial1 = opSet.gradientMaterial1
-					sculptSettings.gradientMaterial2 = opSet.gradientMaterial2
-					sculptSettings.gradientStartX = opSet.gradientStartX
-					sculptSettings.gradientStartZ = opSet.gradientStartZ
-					sculptSettings.gradientEndX = opSet.gradientEndX
-					sculptSettings.gradientEndZ = opSet.gradientEndZ
-					sculptSettings.gradientNoiseAmount = opSet.gradientNoiseAmount
-					sculptSettings.noiseSeed = opSet.noiseSeed
-					SculptOperations.gradientPaint(sculptSettings)
-				elseif tool == ToolId.FloodPaint then
-					-- Pass flood paint parameters
-					sculptSettings.floodTargetMaterial = opSet.floodTargetMaterial
-					sculptSettings.floodSourceMaterial = opSet.floodSourceMaterial
-					SculptOperations.floodPaint(sculptSettings)
-				elseif tool == ToolId.Stalactite then
-					-- Pass stalactite parameters
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.centerX = centerX
-					sculptSettings.centerY = centerY
-					sculptSettings.centerZ = centerZ
-					sculptSettings.stalactiteDirection = opSet.stalactiteDirection
-					sculptSettings.stalactiteDensity = opSet.stalactiteDensity
-					sculptSettings.stalactiteLength = opSet.stalactiteLength
-					sculptSettings.stalactiteTaper = opSet.stalactiteTaper
-					sculptSettings.noiseSeed = opSet.noiseSeed
-					SculptOperations.stalactite(sculptSettings)
-				elseif tool == ToolId.Tendril then
-					-- Pass tendril parameters
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.centerX = centerX
-					sculptSettings.centerY = centerY
-					sculptSettings.centerZ = centerZ
-					sculptSettings.tendrilRadius = opSet.tendrilRadius
-					sculptSettings.tendrilBranches = opSet.tendrilBranches
-					sculptSettings.tendrilLength = opSet.tendrilLength
-					sculptSettings.tendrilCurl = opSet.tendrilCurl
-					sculptSettings.noiseSeed = opSet.noiseSeed
-					SculptOperations.tendril(sculptSettings)
-				elseif tool == ToolId.Symmetry then
-					-- Pass symmetry parameters
-					-- Center is in voxel indices (relative to the read region)
-					sculptSettings.symmetryType = opSet.symmetryType
-					sculptSettings.symmetrySegments = opSet.symmetrySegments
-					sculptSettings.centerX = sizeX / 2
-					sculptSettings.centerY = sizeY / 2
-					sculptSettings.centerZ = sizeZ / 2
-					SculptOperations.symmetry(sculptSettings)
-				elseif tool == ToolId.VariationGrid then
-					-- Pass variation grid parameters
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.gridCellSize = opSet.gridCellSize
-					sculptSettings.gridVariation = opSet.gridVariation
-					sculptSettings.noiseSeed = opSet.gridSeed or 0
-					SculptOperations.variationGrid(sculptSettings)
-				elseif tool == ToolId.GrowthSim then
-					-- Pass growth simulation parameters
-					sculptSettings.worldX = worldVectorX
-					sculptSettings.worldY = worldVectorY
-					sculptSettings.worldZ = worldVectorZ
-					sculptSettings.growthRate = opSet.growthRate
-					sculptSettings.growthBias = opSet.growthBias
-					sculptSettings.growthPattern = opSet.growthPattern
-					sculptSettings.noiseSeed = opSet.growthSeed or 0
-					SculptOperations.growthSim(sculptSettings)
 				end
 			end
 		end

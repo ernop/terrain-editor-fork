@@ -44,6 +44,8 @@ Theme.Colors = {
 	-- Brush visualization
 	BrushNormal = Color3.fromRGB(0, 162, 255),
 	BrushLocked = Color3.fromRGB(255, 170, 0),
+	BrushEdge = Color3.fromRGB(0, 100, 160),           -- Darker edge lines for depth
+	BrushEdgeLocked = Color3.fromRGB(180, 100, 0),     -- Darker orange for locked edges
 	PlaneViz = Color3.fromRGB(0, 200, 100),
 	HandleRotation = Color3.fromRGB(255, 170, 0),
 	HandleSize = Color3.fromRGB(0, 200, 255),

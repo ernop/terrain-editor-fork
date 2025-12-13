@@ -12,6 +12,9 @@ local PivotType = TerrainEnums.PivotType
 local FlattenMode = TerrainEnums.FlattenMode
 local PlaneLockType = TerrainEnums.PlaneLockType
 local SpinMode = TerrainEnums.SpinMode
+local FalloffType = TerrainEnums.FalloffType
+
+local Constants = require(script.Parent.Parent.Parent.Util.Constants)
 
 local CorePanels = {}
 
@@ -21,11 +24,14 @@ export type CorePanelsDeps = {
 	createBrushVisualization: () -> (),
 	hidePlaneVisualization: () -> (),
 	getTerrainHitRaw: () -> Vector3?,
+	toggleBrushLock: (() -> ())?, -- Optional callback to toggle brush lock
 }
 
 export type CorePanelsResult = {
 	panels: { [string]: Frame },
 	setStrengthValue: (value: number) -> (),
+	rebuildSizeSliders: () -> (),
+	updateLockButton: () -> (), -- Update lock button visual state
 }
 
 function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
@@ -40,12 +46,85 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	local shapeHeader = UIHelpers.createHeader(shapePanel, "Brush Shape", UDim2.new(0, 0, 0, 0))
 	shapeHeader.LayoutOrder = 1
 
+	panels["brushShape"] = shapePanel
+
+	-- ========================================================================
+	-- Size Panel (dynamic sliders based on shape)
+	-- ========================================================================
+	local sizePanel = UIHelpers.createConfigPanel(deps.configContainer, "size")
+
+	local sizeHeader = UIHelpers.createHeader(sizePanel, "Brush Size", UDim2.new(0, 0, 0, 0))
+	sizeHeader.LayoutOrder = 1
+
+	-- Container for dynamic sliders
+	local sizeSliderContainer = UIHelpers.createAutoContainer(sizePanel, "SizeSliders")
+	sizeSliderContainer.LayoutOrder = 2
+
+	-- Store slider setters for external updates
+	local sizeSliderSetters: { [string]: (number) -> () } = {}
+
+	-- Function to rebuild sliders when shape changes
+	local function rebuildSizeSliders()
+		-- Clear existing sliders
+		for _, child in ipairs(sizeSliderContainer:GetChildren()) do
+			if not child:IsA("UIListLayout") then
+				child:Destroy()
+			end
+		end
+		sizeSliderSetters = {}
+
+		local shapeDims = BrushData.ShapeDimensions[S.brushShape]
+		if not shapeDims then
+			-- Fallback: single uniform slider
+			local _, _, setter = UIHelpers.createSlider(sizeSliderContainer, "Size", Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, S.brushSizeX, function(val)
+				S.brushSizeX = val
+				S.brushSizeY = val
+				S.brushSizeZ = val
+			end)
+			sizeSliderSetters["uniform"] = setter
+			return
+		end
+
+		-- Create a slider for each axis
+		for i, axis in ipairs(shapeDims.axes) do
+			-- Get current value from the first mapped axis
+			local currentVal = S.brushSizeX
+			if axis.maps[1] == "y" then
+				currentVal = S.brushSizeY
+			elseif axis.maps[1] == "z" then
+				currentVal = S.brushSizeZ
+			end
+
+			local _, sliderFrame, setter = UIHelpers.createSlider(sizeSliderContainer, axis.label, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, currentVal, function(val)
+				-- Apply to all mapped axes
+				for _, axisName in ipairs(axis.maps) do
+					if axisName == "x" then
+						S.brushSizeX = val
+					elseif axisName == "y" then
+						S.brushSizeY = val
+					elseif axisName == "z" then
+						S.brushSizeZ = val
+					end
+				end
+			end)
+			sliderFrame.LayoutOrder = i
+
+			-- Store setter by axis label for external updates
+			sizeSliderSetters[axis.label] = setter
+		end
+	end
+
+	-- Initial build
+	rebuildSizeSliders()
+
+	-- Now create the shape group with callback that rebuilds size sliders
 	local shapeGroup = UIComponents.createButtonGroup({
 		parent = shapePanel,
 		options = BrushData.Shapes,
 		initialValue = S.brushShape,
 		onChange = function(newShape)
 			S.brushShape = newShape
+			rebuildSizeSliders()
 			if S.brushPart then
 				deps.createBrushVisualization()
 			end
@@ -54,7 +133,52 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	})
 	shapeGroup.container.LayoutOrder = 2
 
-	panels["brushShape"] = shapePanel
+	panels["size"] = sizePanel
+
+	-- ========================================================================
+	-- Brush Lock Panel (prominent button to lock brush for adjustment)
+	-- ========================================================================
+	local lockPanel = UIHelpers.createConfigPanel(deps.configContainer, "brushLock")
+
+	-- Lock button - big and visible
+	local lockButton = Instance.new("TextButton")
+	lockButton.Name = "LockButton"
+	lockButton.Size = UDim2.new(1, 0, 0, 36)
+	lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	lockButton.BorderSizePixel = 0
+	lockButton.Font = Theme.Fonts.Bold
+	lockButton.TextSize = 13
+	lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lockButton.Text = "🔓 LOCK BRUSH TO ADJUST  [R]"
+	lockButton.Parent = lockPanel
+
+	local lockCorner = Instance.new("UICorner")
+	lockCorner.CornerRadius = UDim.new(0, 6)
+	lockCorner.Parent = lockButton
+
+	local function updateLockButton()
+		if S.brushLocked then
+			lockButton.Text = "🔒 BRUSH LOCKED — DRAG HANDLES  [R]"
+			lockButton.BackgroundColor3 = Color3.fromRGB(200, 120, 40) -- Orange when locked
+			lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		else
+			lockButton.Text = "🔓 LOCK BRUSH TO ADJUST  [R]"
+			lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			lockButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+		end
+	end
+
+	lockButton.MouseButton1Click:Connect(function()
+		if deps.toggleBrushLock then
+			deps.toggleBrushLock()
+			updateLockButton()
+		end
+	end)
+
+	-- Initial state
+	updateLockButton()
+
+	panels["brushLock"] = lockPanel
 
 	-- ========================================================================
 	-- Strength Panel
@@ -161,6 +285,35 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	panels["hollow"] = hollowPanel
 
 	-- ========================================================================
+	-- Falloff Curve Panel
+	-- ========================================================================
+	local falloffPanel = UIHelpers.createConfigPanel(deps.configContainer, "falloff")
+
+	local falloffHeader = UIHelpers.createHeader(falloffPanel, "Falloff Curve", UDim2.new(0, 0, 0, 0))
+	falloffHeader.LayoutOrder = 1
+
+	local falloffGroup = UIComponents.createButtonGroup({
+		parent = falloffPanel,
+		options = {
+			{ id = FalloffType.Cosine, name = "Cosine" },
+			{ id = FalloffType.Linear, name = "Linear" },
+			{ id = FalloffType.Plateau, name = "Plateau" },
+			{ id = FalloffType.Gaussian, name = "Gaussian" },
+			{ id = FalloffType.Quadratic, name = "Quadratic" },
+			{ id = FalloffType.Sharp, name = "Sharp" },
+		},
+		initialValue = S.falloffType,
+		onChange = function(newFalloff)
+			S.falloffType = newFalloff
+		end,
+		layout = "grid",
+		buttonSize = UDim2.new(0, 78, 0, 28),
+	})
+	falloffGroup.container.LayoutOrder = 2
+
+	panels["falloff"] = falloffPanel
+
+	-- ========================================================================
 	-- Spin Mode Panel
 	-- ========================================================================
 	local spinPanel = UIHelpers.createConfigPanel(deps.configContainer, "spin")
@@ -264,6 +417,8 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	return {
 		panels = panels,
 		setStrengthValue = setStrengthValue,
+		rebuildSizeSliders = rebuildSizeSliders,
+		updateLockButton = updateLockButton,
 	}
 end
 

@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.00000062"
+local VERSION = "0.0.00000067"
 
 local TerrainEditorModule = {}
 
@@ -34,6 +34,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local FlattenMode = TerrainEnums.FlattenMode
 	local PlaneLockType = TerrainEnums.PlaneLockType
 	local SpinMode = TerrainEnums.SpinMode
+	local FalloffType = TerrainEnums.FalloffType
 
 	-- Load terrain operations
 	local performTerrainBrushOperation = require(Src.TerrainOperations.performTerrainBrushOperation)
@@ -122,6 +123,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		growthBias = 0,
 		growthPattern = "organic",
 		growthSeed = 0,
+		-- Brush falloff curve (affects how brush strength fades from center to edge)
+		falloffType = "Cosine", -- Default: original behavior
+		falloffExtent = 0, -- How far falloff extends beyond brush edge (0 = none, 1 = 100% of brush radius)
 		-- Voxel Inspector state
 		voxelInspectLocked = false,
 		voxelInspectPosition = nil :: Vector3?,
@@ -136,6 +140,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		isMouseDown = false,
 		brushPart = nil :: BasePart?,
 		brushExtraParts = {} :: { BasePart },
+		brushSelectionBox = nil :: SelectionBox?,
+		extraSelectionBoxes = {} :: { SelectionBox },
+		handleAdorneePart = nil :: Part?, -- Invisible part for handles on composite shapes
 		planePart = nil :: Part?,
 		rotationHandles = nil :: ArcHandles?,
 		sizeHandles = nil :: Handles?,
@@ -227,6 +234,18 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	-- Brush Visualization
 	-- ============================================================================
+	local function createSelectionBox(adornee: BasePart): SelectionBox
+		local box = Instance.new("SelectionBox")
+		box.Name = "BrushEdgeBox"
+		box.Adornee = adornee
+		box.Color3 = S.brushLocked and Theme.Colors.BrushEdgeLocked or Theme.Colors.BrushEdge
+		box.LineThickness = 0.02
+		box.SurfaceColor3 = Color3.new(0, 0, 0)
+		box.SurfaceTransparency = 1 -- No surface fill, just edges
+		box.Parent = CoreGui
+		return box
+	end
+
 	local function createPreviewPart(shape: Enum.PartType?): Part
 		local part = Instance.new("Part")
 		part.Name = "TerrainBrushExtra"
@@ -241,6 +260,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			part.Shape = shape
 		end
 		part.Parent = workspace
+		-- Add edge highlighting
+		local selBox = createSelectionBox(part)
+		table.insert(S.extraSelectionBoxes, selBox)
 		return part
 	end
 
@@ -249,13 +271,31 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			part:Destroy()
 		end
 		S.brushExtraParts = {}
+		for _, box in ipairs(S.extraSelectionBoxes) do
+			box:Destroy()
+		end
+		S.extraSelectionBoxes = {}
 	end
 
 	local function createBrushVisualization()
 		if S.brushPart then
 			S.brushPart:Destroy()
 		end
+		if S.brushSelectionBox then
+			S.brushSelectionBox:Destroy()
+			S.brushSelectionBox = nil
+		end
+		if S.handleAdorneePart then
+			S.handleAdorneePart:Destroy()
+			S.handleAdorneePart = nil
+		end
 		clearExtraParts()
+
+		-- Check if this is a composite shape (main brushPart is hidden, uses extra parts)
+		-- Note: Spikepad has a visible base, so it's not fully composite
+		local isCompositeShape = S.brushShape == BrushShape.Torus or S.brushShape == BrushShape.Ring or S.brushShape == BrushShape.Grid
+		-- Spikepad needs handle adornee but base is visible so gets SelectionBox
+		local needsHandleAdornee = isCompositeShape or S.brushShape == BrushShape.Spikepad
 
 		if S.brushShape == BrushShape.Wedge then
 			S.brushPart = Instance.new("WedgePart")
@@ -295,6 +335,23 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			S.brushPart.Material = Enum.Material.Neon
 			S.brushPart.Color = Theme.Colors.BrushNormal
 			S.brushPart.Parent = workspace
+			-- Add edge highlighting (only for non-composite shapes where main part is visible)
+			if not isCompositeShape then
+				S.brushSelectionBox = createSelectionBox(S.brushPart)
+			end
+		end
+
+		-- Create invisible handle adornee part for shapes that need it
+		if needsHandleAdornee then
+			S.handleAdorneePart = Instance.new("Part")
+			S.handleAdorneePart.Name = "BrushHandleAdornee"
+			S.handleAdorneePart.Anchored = true
+			S.handleAdorneePart.CanCollide = false
+			S.handleAdorneePart.CanQuery = false
+			S.handleAdorneePart.CanTouch = false
+			S.handleAdorneePart.CastShadow = false
+			S.handleAdorneePart.Transparency = 1 -- Invisible
+			S.handleAdorneePart.Parent = workspace
 		end
 	end
 
@@ -310,7 +367,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		elseif spinMode == SpinMode.XZFast then
 			return CFrame.Angles(0, spinAngle * 2, 0)
 		end
-			return CFrame.new()
+		return CFrame.new()
 	end
 
 	local function updateSpinAngle(spinMode: string, currentAngle: number): number
@@ -382,6 +439,12 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					sphere.CFrame = CFrame.new(worldPos)
 					table.insert(S.brushExtraParts, sphere)
 				end
+				-- Update handle adornee part for proper handle sizing
+				if S.handleAdorneePart then
+					local totalDiameter = sizeX + sizeY -- Major radius + tube diameter
+					S.handleAdorneePart.Size = Vector3.new(totalDiameter, sizeY, totalDiameter)
+					S.handleAdorneePart.CFrame = finalCFrame
+				end
 			elseif S.brushShape == BrushShape.Ring then
 				S.brushPart.Transparency = 1
 				S.brushPart.Size = Vector3.new(1, 1, 1)
@@ -399,6 +462,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					seg.Size = Vector3.new(outerRadius * 0.4, thickness, outerRadius * 0.15)
 					seg.CFrame = CFrame.new(worldPos) * CFrame.Angles(0, -midAngle, 0)
 					table.insert(S.brushExtraParts, seg)
+				end
+				-- Update handle adornee part for proper handle sizing
+				if S.handleAdorneePart then
+					S.handleAdorneePart.Size = Vector3.new(sizeX, sizeY, sizeX)
+					S.handleAdorneePart.CFrame = finalCFrame
 				end
 			elseif S.brushShape == BrushShape.Grid then
 				S.brushPart.Transparency = 1
@@ -420,6 +488,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 							end
 						end
 					end
+				end
+				-- Update handle adornee part for proper handle sizing
+				if S.handleAdorneePart then
+					S.handleAdorneePart.Size = Vector3.new(sizeX, sizeX, sizeX) -- Grid is uniform
+					S.handleAdorneePart.CFrame = finalCFrame
 				end
 			elseif S.brushShape == BrushShape.Stick then
 				S.brushPart.Size = Vector3.new(sizeY, sizeX * 0.3, sizeX * 0.3)
@@ -451,8 +524,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 							wedge.CFrame = spikeBase * CFrame.new(0, spikeHeight * 0.5, 0) * CFrame.Angles(0, math.rad(90 * wedgeIdx), 0)
 							wedge.Parent = workspace
 							table.insert(S.brushExtraParts, wedge)
+							-- Add edge highlighting to wedge
+							local selBox = createSelectionBox(wedge)
+							table.insert(S.extraSelectionBoxes, selBox)
 						end
 					end
+				end
+				-- Update handle adornee part for proper handle sizing (full bounds including spikes)
+				if S.handleAdorneePart then
+					S.handleAdorneePart.Size = Vector3.new(sizeX, sizeY, sizeZ)
+					S.handleAdorneePart.CFrame = finalCFrame
 				end
 			else
 				-- Default fallback
@@ -464,12 +545,22 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				S.brushPart.Transparency = math.max(S.brushPart.Transparency, 0.7)
 			end
 
+			-- Update main SelectionBox color
+			if S.brushSelectionBox then
+				S.brushSelectionBox.Color3 = S.brushLocked and Theme.Colors.BrushEdgeLocked or Theme.Colors.BrushEdge
+			end
+
 			local extraColor = S.brushLocked and Theme.Colors.BrushLocked or Theme.Colors.BrushNormal
+			local extraEdgeColor = S.brushLocked and Theme.Colors.BrushEdgeLocked or Theme.Colors.BrushEdge
 			for _, extraPart in ipairs(S.brushExtraParts) do
 				extraPart.Color = extraColor
 				if S.hollowEnabled then
 					extraPart.Transparency = math.max(extraPart.Transparency, 0.7)
 				end
+			end
+			-- Update extra SelectionBox colors
+			for _, box in ipairs(S.extraSelectionBoxes) do
+				box.Color3 = extraEdgeColor
 			end
 
 			updateHandlesAdornee()
@@ -481,10 +572,22 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			S.brushPart:Destroy()
 			S.brushPart = nil
 		end
+		if S.brushSelectionBox then
+			S.brushSelectionBox:Destroy()
+			S.brushSelectionBox = nil
+		end
+		if S.handleAdorneePart then
+			S.handleAdorneePart:Destroy()
+			S.handleAdorneePart = nil
+		end
 		for _, part in ipairs(S.brushExtraParts) do
 			part:Destroy()
 		end
 		S.brushExtraParts = {}
+		for _, box in ipairs(S.extraSelectionBoxes) do
+			box:Destroy()
+		end
+		S.extraSelectionBoxes = {}
 		hideHandles()
 	end
 
@@ -542,30 +645,70 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				return
 			end
 			local deltaVoxels = distance / Constants.VOXEL_RESOLUTION
-			local sizingMode = BrushData.ShapeSizingMode[S.brushShape] or "uniform"
-			if sizingMode == "uniform" then
-				local newSize = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-				S.brushSizeX, S.brushSizeY, S.brushSizeZ = newSize, newSize, newSize
-			else
-				if face == Enum.NormalId.Right or face == Enum.NormalId.Left then
-					S.brushSizeX = math.clamp(dragStartSizeX + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-				elseif face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then
-					S.brushSizeY = math.clamp(dragStartSizeY + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+
+			-- Determine which axis the user is dragging
+			local draggedAxis = "x"
+			local dragStartVal = dragStartSizeX
+			if face == Enum.NormalId.Top or face == Enum.NormalId.Bottom then
+				draggedAxis = "y"
+				dragStartVal = dragStartSizeY
+			elseif face == Enum.NormalId.Front or face == Enum.NormalId.Back then
+				draggedAxis = "z"
+				dragStartVal = dragStartSizeZ
+			end
+
+			local newSize = math.clamp(dragStartVal + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+
+			-- Use ShapeDimensions to determine which axes to update
+			local shapeDims = BrushData.ShapeDimensions[S.brushShape]
+			if not shapeDims then
+				-- Fallback: update just the dragged axis
+				if draggedAxis == "x" then
+					S.brushSizeX = newSize
+				elseif draggedAxis == "y" then
+					S.brushSizeY = newSize
 				else
-					S.brushSizeZ = math.clamp(dragStartSizeZ + deltaVoxels, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+					S.brushSizeZ = newSize
+				end
+				return
+			end
+
+			-- Find which dimension the dragged axis belongs to, and update all linked axes
+			for _, axisDef in ipairs(shapeDims.axes) do
+				local containsDraggedAxis = false
+				for _, axisName in ipairs(axisDef.maps) do
+					if axisName == draggedAxis then
+						containsDraggedAxis = true
+						break
+					end
+				end
+				if containsDraggedAxis then
+					-- Update all axes in this dimension
+					for _, axisName in ipairs(axisDef.maps) do
+						if axisName == "x" then
+							S.brushSizeX = newSize
+						elseif axisName == "y" then
+							S.brushSizeY = newSize
+						elseif axisName == "z" then
+							S.brushSizeZ = newSize
+						end
+					end
+					break
 				end
 			end
 		end)
 	end
 
 	updateHandlesAdornee = function()
+		-- Use handleAdorneePart for composite shapes, brushPart for simple shapes
+		local adorneePart = S.handleAdorneePart or S.brushPart
 		if S.rotationHandles then
-			S.rotationHandles.Adornee = S.brushPart
-			S.rotationHandles.Visible = S.brushPart ~= nil and BrushData.ShapeSupportsRotation[S.brushShape] == true
+			S.rotationHandles.Adornee = adorneePart
+			S.rotationHandles.Visible = adorneePart ~= nil and BrushData.ShapeSupportsRotation[S.brushShape] == true
 		end
 		if S.sizeHandles then
-			S.sizeHandles.Adornee = S.brushPart
-			S.sizeHandles.Visible = S.brushPart ~= nil
+			S.sizeHandles.Adornee = adorneePart
+			S.sizeHandles.Visible = adorneePart ~= nil
 		end
 	end
 
@@ -805,6 +948,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			growthBias = S.growthBias,
 			growthPattern = S.growthPattern,
 			growthSeed = S.growthSeed,
+			falloffType = S.falloffType,
+			falloffExtent = S.falloffExtent,
 		}
 
 		local success, err = pcall(function()
@@ -856,13 +1001,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					S.lastBrushTime = now
 				elseif mouseMoved then
 					shouldActivate = true
-						S.lastBrushTime = now
+					S.lastBrushTime = now
 				end
 			else
 				local rateMap = { very_slow = 1, slow = 0.5, normal = 0.2, fast = 0.1 }
 				local brushCooldown = rateMap[S.brushRate] or 0.1
 				local minCooldown = 0.05
-				
+
 				if mouseMoved and timeSinceLastActivation >= minCooldown then
 					shouldActivate = true
 					S.lastBrushTime = now
@@ -997,70 +1142,126 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsPlaceholder.Text = "← Select a tool to see documentation"
 	docsPlaceholder.Parent = toolDocsContainer
 
-	-- Tool buttons
-	local sculptTools = {
-		{ id = ToolId.Add, name = "Add", row = 0, col = 0 },
-		{ id = ToolId.Subtract, name = "Subtract", row = 0, col = 1 },
-		{ id = ToolId.Grow, name = "Grow", row = 0, col = 2 },
-		{ id = ToolId.Erode, name = "Erode", row = 0, col = 3 },
-		{ id = ToolId.Smooth, name = "Smooth", row = 1, col = 0 },
-		{ id = ToolId.Flatten, name = "Flatten", row = 1, col = 1 },
-		{ id = ToolId.Noise, name = "Noise", row = 1, col = 2 },
-		{ id = ToolId.Terrace, name = "Terrace", row = 1, col = 3 },
-		{ id = ToolId.Cliff, name = "Cliff", row = 2, col = 0 },
-		{ id = ToolId.Path, name = "Path", row = 2, col = 1 },
-		{ id = ToolId.Clone, name = "Clone", row = 2, col = 2 },
-		{ id = ToolId.Blobify, name = "Blobify", row = 2, col = 3 },
-		{ id = ToolId.Paint, name = "Paint", row = 3, col = 0 },
-		{ id = ToolId.SlopePaint, name = "Slope Paint", row = 3, col = 1 },
-		{ id = ToolId.Megarandomize, name = "Randomize", row = 3, col = 2 },
-		{ id = ToolId.GradientPaint, name = "Gradient", row = 3, col = 3 },
-		{ id = ToolId.CavityFill, name = "Cavity Fill", row = 4, col = 0 },
-		{ id = ToolId.Melt, name = "Melt", row = 4, col = 1 },
-		{ id = ToolId.FloodPaint, name = "Flood", row = 4, col = 2 },
-		{ id = ToolId.Stalactite, name = "Stalactite", row = 4, col = 3 },
-		{ id = ToolId.Tendril, name = "Tendril", row = 5, col = 0 },
-		{ id = ToolId.Symmetry, name = "Symmetry", row = 5, col = 1 },
-		{ id = ToolId.VariationGrid, name = "Grid", row = 5, col = 2 },
-		{ id = ToolId.GrowthSim, name = "Growth", row = 5, col = 3 },
-		{ id = ToolId.Bridge, name = "Bridge", row = 6, col = 0 },
+	-- Tool categories with visual sections
+	-- Each category: { label, emoji, color, tools[] }
+	local toolCategories = {
+		{
+			label = "SHAPE",
+			emoji = "🔷",
+			color = Color3.fromRGB(100, 180, 255),
+			tools = {
+				{ id = ToolId.Add, name = "Add" },
+				{ id = ToolId.Subtract, name = "Subtract" },
+				{ id = ToolId.Grow, name = "Grow" },
+				{ id = ToolId.Erode, name = "Erode" },
+				{ id = ToolId.Smooth, name = "Smooth" },
+				{ id = ToolId.Flatten, name = "Flatten" },
+			},
+		},
+		{
+			label = "SURFACE",
+			emoji = "🌊",
+			color = Color3.fromRGB(120, 200, 160),
+			tools = {
+				{ id = ToolId.Noise, name = "Noise" },
+				{ id = ToolId.Terrace, name = "Terrace" },
+				{ id = ToolId.Cliff, name = "Cliff" },
+				{ id = ToolId.Path, name = "Path" },
+				{ id = ToolId.Blobify, name = "Blobify" },
+			},
+		},
+		{
+			label = "MATERIAL",
+			emoji = "🎨",
+			color = Color3.fromRGB(255, 180, 100),
+			tools = {
+				{ id = ToolId.Paint, name = "Paint" },
+				{ id = ToolId.SlopePaint, name = "Slope" },
+				{ id = ToolId.Megarandomize, name = "Random" },
+				{ id = ToolId.GradientPaint, name = "Gradient" },
+				{ id = ToolId.CavityFill, name = "Cavity" },
+				{ id = ToolId.FloodPaint, name = "Flood" },
+			},
+		},
+		{
+			label = "GENERATE",
+			emoji = "✨",
+			color = Color3.fromRGB(200, 150, 255),
+			tools = {
+				{ id = ToolId.Stalactite, name = "Stalactite" },
+				{ id = ToolId.Tendril, name = "Tendril" },
+				{ id = ToolId.VariationGrid, name = "Grid" },
+				{ id = ToolId.GrowthSim, name = "Growth" },
+			},
+		},
+		{
+			label = "UTILITY",
+			emoji = "🔧",
+			color = Color3.fromRGB(180, 180, 180),
+			tools = {
+				{ id = ToolId.Clone, name = "Clone" },
+				{ id = ToolId.Melt, name = "Melt" },
+				{ id = ToolId.Symmetry, name = "Symmetry" },
+				{ id = ToolId.Bridge, name = "Bridge" },
+			},
+		},
+		{
+			label = "ANALYSIS",
+			emoji = "🔍",
+			color = Color3.fromRGB(150, 200, 255),
+			btnColor = Color3.fromRGB(40, 60, 80),
+			tools = {
+				{ id = ToolId.VoxelInspect, name = "Inspect" },
+				{ id = ToolId.ComponentAnalyzer, name = "Islands" },
+				{ id = ToolId.OccupancyOverlay, name = "Overlay" },
+			},
+		},
 	}
 
-	for _, toolInfo in ipairs(sculptTools) do
-		local pos = UDim2.new(0, toolInfo.col * 78, 0, toolInfo.row * 38)
-		local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, pos)
-		toolButtons[toolInfo.id] = btn
-		btn.MouseButton1Click:Connect(function()
-			selectTool(toolInfo.id)
-		end)
-	end
+	-- Layout constants
+	local BUTTON_WIDTH = 78
+	local BUTTON_HEIGHT = 32
+	local BUTTON_SPACING = 4
+	local HEADER_HEIGHT = 16
+	local SECTION_GAP = 6
+	local COLS = 4
 
-	-- Analysis Tools section (row 7)
-	local analysisLabel = Instance.new("TextLabel")
-	analysisLabel.BackgroundTransparency = 1
-	analysisLabel.Position = UDim2.new(0, 0, 0, 7 * 38 + 5)
-	analysisLabel.Size = UDim2.new(1, 0, 0, 18)
-	analysisLabel.Font = Enum.Font.GothamBold
-	analysisLabel.TextSize = 11
-	analysisLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
-	analysisLabel.TextXAlignment = Enum.TextXAlignment.Left
-	analysisLabel.Text = "🔍 ANALYSIS"
-	analysisLabel.Parent = toolButtonsContainer
+	local currentY = 0
 
-	local analysisTools = {
-		{ id = ToolId.VoxelInspect, name = "Inspect", row = 0, col = 0 },
-		{ id = ToolId.ComponentAnalyzer, name = "Islands", row = 0, col = 1 },
-		{ id = ToolId.OccupancyOverlay, name = "Overlay", row = 0, col = 2 },
-	}
+	for _, category in ipairs(toolCategories) do
+		-- Section header
+		local header = Instance.new("TextLabel")
+		header.Name = category.label .. "Header"
+		header.BackgroundTransparency = 1
+		header.Position = UDim2.new(0, 0, 0, currentY)
+		header.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
+		header.Font = Enum.Font.GothamBold
+		header.TextSize = 10
+		header.TextColor3 = category.color
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.Text = category.emoji .. " " .. category.label
+		header.Parent = toolButtonsContainer
 
-	for _, toolInfo in ipairs(analysisTools) do
-		local pos = UDim2.new(0, toolInfo.col * 78, 0, 7 * 38 + 25 + toolInfo.row * 38)
-		local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, pos)
-		btn.BackgroundColor3 = Color3.fromRGB(40, 60, 80)  -- Slightly different color for analysis tools
-		toolButtons[toolInfo.id] = btn
-		btn.MouseButton1Click:Connect(function()
-			selectTool(toolInfo.id)
-		end)
+		currentY = currentY + HEADER_HEIGHT + 2
+
+		-- Tool buttons for this category
+		for i, toolInfo in ipairs(category.tools) do
+			local col = (i - 1) % COLS
+			local row = math.floor((i - 1) / COLS)
+			local pos = UDim2.new(0, col * BUTTON_WIDTH, 0, currentY + row * (BUTTON_HEIGHT + BUTTON_SPACING))
+			local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, pos)
+			if category.btnColor then
+				btn.BackgroundColor3 = category.btnColor
+			end
+			toolButtons[toolInfo.id] = btn
+			btn.MouseButton1Click:Connect(function()
+				selectTool(toolInfo.id)
+			end)
+		end
+
+		-- Calculate rows used by this category
+		local rowsUsed = math.ceil(#category.tools / COLS)
+		currentY = currentY + rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) + SECTION_GAP
 	end
 
 	-- Initialize tool documentation registry
@@ -1118,7 +1319,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local updateBridgePreview = configResult.updateBridgePreview
 	local buildBridge = configResult.buildBridge
 
-		updateConfigPanelVisibility()
+	updateConfigPanelVisibility()
 	updateToolButtonVisuals()
 	updateToolDocs()
 	pluginInstance:Activate(true)
@@ -1267,17 +1468,71 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		local scrollUp = input.Position.Z > 0
 		local ctrlHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
 		local shiftHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+		local altHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt) or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
 
-		if shiftHeld then
-			local increment = S.brushSizeX < 10 and 1 or (S.brushSizeX < 30 and 2 or 4)
+		if shiftHeld and not ctrlHeld then
+			-- Shift + Scroll = primary axis (or uniform for multi-axis shapes)
+			-- Shift + Alt + Scroll = secondary axis
+			local referenceSize = S.brushSizeX
+			local increment = referenceSize < 10 and 1 or (referenceSize < 30 and 2 or 4)
 			local delta = scrollUp and increment or -increment
-			local newSize = math.clamp(S.brushSizeX + delta, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
-			S.brushSizeX = newSize
-			local sizingMode = BrushData.ShapeSizingMode[S.brushShape] or "uniform"
-			if sizingMode == "uniform" then
-				S.brushSizeY, S.brushSizeZ = newSize, newSize
+
+			if altHeld then
+				-- Secondary axis
+				local secondaryAxis = BrushData.getSecondaryAxis(S.brushShape)
+				if secondaryAxis then
+					local currentVal = S.brushSizeY -- Get current value from first mapped axis
+					if secondaryAxis.maps[1] == "x" then
+						currentVal = S.brushSizeX
+					elseif secondaryAxis.maps[1] == "z" then
+						currentVal = S.brushSizeZ
+					end
+					local newSize = math.clamp(currentVal + delta, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+					-- Apply to all mapped axes
+					for _, axis in ipairs(secondaryAxis.maps) do
+						if axis == "x" then
+							S.brushSizeX = newSize
+						elseif axis == "y" then
+							S.brushSizeY = newSize
+						elseif axis == "z" then
+							S.brushSizeZ = newSize
+						end
+					end
+				end
+			else
+				-- Primary axis (or uniform for scrollUniform shapes)
+				if BrushData.usesUniformScroll(S.brushShape) then
+					-- Scale all axes uniformly
+					local newSize = math.clamp(S.brushSizeX + delta, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+					S.brushSizeX, S.brushSizeY, S.brushSizeZ = newSize, newSize, newSize
+				else
+					-- Use primary axis
+					local primaryAxis = BrushData.getPrimaryAxis(S.brushShape)
+					if primaryAxis then
+						local currentVal = S.brushSizeX
+						if primaryAxis.maps[1] == "y" then
+							currentVal = S.brushSizeY
+						elseif primaryAxis.maps[1] == "z" then
+							currentVal = S.brushSizeZ
+						end
+						local newSize = math.clamp(currentVal + delta, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+						-- Apply to all mapped axes
+						for _, axis in ipairs(primaryAxis.maps) do
+							if axis == "x" then
+								S.brushSizeX = newSize
+							elseif axis == "y" then
+								S.brushSizeY = newSize
+							elseif axis == "z" then
+								S.brushSizeZ = newSize
+							end
+						end
+					else
+						-- Fallback: adjust X only
+						S.brushSizeX = math.clamp(S.brushSizeX + delta, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE)
+					end
+				end
 			end
-		elseif ctrlHeld then
+		elseif ctrlHeld and not shiftHeld then
 			local delta = scrollUp and 10 or -10
 			local newStrength = math.clamp(math.floor(S.brushStrength * 100) + delta, 1, 100)
 			setStrengthValue(newStrength)
@@ -1383,7 +1638,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 						S.voxelInspectHighlight = highlight
 					end
 
-					S.voxelInspectHighlight.Position = voxelMin + Vector3.new(VOXEL_SIZE/2, VOXEL_SIZE/2, VOXEL_SIZE/2)
+					S.voxelInspectHighlight.Position = voxelMin + Vector3.new(VOXEL_SIZE / 2, VOXEL_SIZE / 2, VOXEL_SIZE / 2)
 					S.voxelInspectHighlight.Transparency = 0.7
 
 					if S.updateVoxelInspectDisplay then
@@ -1455,4 +1710,4 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end
 end
 
-	return TerrainEditorModule
+return TerrainEditorModule

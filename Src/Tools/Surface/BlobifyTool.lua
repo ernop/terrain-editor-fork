@@ -1,0 +1,132 @@
+--!strict
+--[[
+	BlobifyTool.lua - Add organic blob-like deformation
+	
+	Applies smooth, organic distortion to terrain surfaces,
+	creating natural-looking bulges and indentations.
+]]
+
+local Plugin = script.Parent.Parent.Parent.Parent
+local Noise = require(Plugin.Src.Util.Noise)
+local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+
+type SculptSettings = ToolDocFormat.SculptSettings
+
+local BlobifyTool = {}
+
+-- ============================================
+-- IDENTITY
+-- ============================================
+BlobifyTool.id = "Blobify"
+BlobifyTool.name = "Blobify"
+BlobifyTool.category = "Surface"
+BlobifyTool.buttonLabel = "Blobify"
+
+-- ============================================
+-- TRAITS
+-- ============================================
+BlobifyTool.traits = {
+	category = "Surface",
+	executionType = "perVoxel",
+	modifiesOccupancy = true,
+	modifiesMaterial = false,
+	hasFastPath = false,
+	hasLargeBrushPath = false,
+	requiresGlobalState = false,
+	usesBrush = true,
+	usesStrength = true,
+	needsMaterial = false,
+}
+
+-- ============================================
+-- DOCUMENTATION
+-- ============================================
+BlobifyTool.docs = {
+	title = "Blobify",
+	subtitle = "Add organic blob distortion",
+	
+	description = "Applies smooth, bulging deformation using layered noise. Creates organic, melted-looking surfaces.",
+	
+	sections = {
+		{
+			heading = "Settings",
+			bullets = {
+				"**Intensity** — Blob displacement amount",
+				"**Smoothness** — Blob roundness (low = lumpy)",
+			},
+		},
+		{
+			heading = "Algorithm",
+			bullets = {
+				"For each voxel at world position:",
+				"  scale = 0.1 × (1.1 - smoothness)",
+				"  blobNoise = fbm3D(x×scale, y×scale, z×scale, 2 octaves)",
+				"  displacement = blobNoise × intensity × brushOcc",
+				"  cellOcc += displacement",
+			},
+		},
+		{
+			heading = "Behavior",
+			content = "Lower smoothness = higher frequency noise = more lumpy detail. Higher smoothness = low frequency = broad, gentle bulges. Intensity controls magnitude of displacement. FBM with 2 octaves keeps blobs smooth.",
+		},
+	},
+	
+	quickTips = {
+		"Shift+Scroll — Resize brush",
+		"Ctrl+Scroll — Adjust strength",
+		"R — Lock brush position",
+	},
+	
+	docVersion = "2.1",
+}
+
+-- ============================================
+-- CONFIGURATION
+-- ============================================
+BlobifyTool.configPanels = {
+	"brushShape",
+	"size",
+	"strength",
+	"brushRate",
+	"pivot",
+	"spin",
+	"blobIntensity",
+	"blobSmoothness",
+}
+
+-- ============================================
+-- OPERATION
+-- ============================================
+function BlobifyTool.execute(options: SculptSettings)
+	local writeOccupancies = options.writeOccupancies
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+	local brushOccupancy = options.brushOccupancy
+	local cellOccupancy = options.cellOccupancy
+	local worldX, worldY, worldZ = options.worldX, options.worldY, options.worldZ
+	local blobIntensity = options.blobIntensity or 0.5
+	local blobSmoothness = options.blobSmoothness or 0.7
+	
+	-- Only affect cells within brush
+	if brushOccupancy < 0.01 then
+		return
+	end
+	
+	-- Generate blob noise
+	local scale = 0.1 * (1.1 - blobSmoothness)
+	local blobNoise = Noise.fbm3D(
+		worldX * scale,
+		worldY * scale,
+		worldZ * scale,
+		0, -- seed
+		2 -- octaves for smooth blobs
+	)
+	
+	-- Apply blob deformation
+	local displacement = blobNoise * blobIntensity * brushOccupancy
+	local newOccupancy = math.clamp(cellOccupancy + displacement, 0, 1)
+	
+	writeOccupancies[voxelX][voxelY][voxelZ] = newOccupancy
+end
+
+return BlobifyTool
+

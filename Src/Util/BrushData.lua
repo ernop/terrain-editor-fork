@@ -27,254 +27,205 @@ BrushData.ShapeSupportsRotation = {
 }
 
 -- Shape sizing modes: "uniform" = single size, "box" = X, Y, Z independent
+-- DEPRECATED: Use ShapeDimensions for proper per-shape axis definitions
 BrushData.ShapeSizingMode = {
 	[BrushShape.Sphere] = "uniform",
 	[BrushShape.Cube] = "box",
-	[BrushShape.Cylinder] = "box",
+	[BrushShape.Cylinder] = "cylinder",
 	[BrushShape.Wedge] = "box",
 	[BrushShape.CornerWedge] = "box",
-	[BrushShape.Dome] = "box",
-	[BrushShape.Torus] = "box",
-	[BrushShape.Ring] = "box",
+	[BrushShape.Dome] = "cylinder",
+	[BrushShape.Torus] = "torus",
+	[BrushShape.Ring] = "ring",
 	[BrushShape.ZigZag] = "box",
-	[BrushShape.Sheet] = "box",
-	[BrushShape.Grid] = "box",
-	[BrushShape.Stick] = "box",
-	[BrushShape.Spinner] = "box",
-	[BrushShape.Spikepad] = "box",
+	[BrushShape.Sheet] = "sheet",
+	[BrushShape.Grid] = "uniform",
+	[BrushShape.Stick] = "stick",
+	[BrushShape.Spinner] = "uniform",
+	[BrushShape.Spikepad] = "spikepad",
 }
 
--- Tool config definitions: which settings each tool needs
--- Rationale:
--- - Material: Only for tools that CREATE/CHANGE terrain material (Add, Paint, Bridge)
--- - Hollow: Only for tools that create/remove volume (Add, Subtract, Clone)
--- - Plane Lock: Useful for most tools, especially Flatten
--- - Pivot: Useful for positioning brush in most tools
+--[[
+	ShapeDimensions - Defines the sizing axes for each brush shape
+	
+	Each shape defines:
+	- axes: Array of dimension definitions
+	  - label: UI label for the slider
+	  - maps: Which state vars this dimension controls ("x", "y", "z")
+	  - primary: true if this is the Shift+Scroll dimension
+	  - secondary: true if this is the Shift+Alt+Scroll dimension
+	
+	When maps has multiple values (e.g., {"x", "z"}), they're kept equal.
+	
+	Keyboard shortcuts:
+	- Shift + Scroll = primary axis (overall size / most impactful)
+	- Shift + Alt + Scroll = secondary axis
+	- For shapes with 3 independent axes, primary scales uniformly
+]]
+BrushData.ShapeDimensions = {
+	[BrushShape.Sphere] = {
+		-- Sphere: single radius (all axes equal)
+		axes = {
+			{ label = "Size", maps = { "x", "y", "z" }, primary = true },
+		},
+	},
+	[BrushShape.Cube] = {
+		-- Cube: 3 independent axes
+		-- Shift+Scroll = XZ (horizontal footprint), Shift+Alt+Scroll = Y (height)
+		axes = {
+			{ label = "X", maps = { "x" } },
+			{ label = "Y", maps = { "y" }, secondary = true },
+			{ label = "Z", maps = { "z" } },
+		},
+		-- Primary is XZ together (horizontal plane)
+		primaryMaps = { "x", "z" },
+	},
+	[BrushShape.Cylinder] = {
+		-- Cylinder: radius (X=Z) and height (Y)
+		axes = {
+			{ label = "Radius", maps = { "x", "z" }, primary = true },
+			{ label = "Height", maps = { "y" }, secondary = true },
+		},
+	},
+	[BrushShape.Wedge] = {
+		-- Wedge: 3 independent axes
+		-- Shift+Scroll = XZ (footprint), Shift+Alt+Scroll = Y (height)
+		axes = {
+			{ label = "X", maps = { "x" } },
+			{ label = "Y", maps = { "y" }, secondary = true },
+			{ label = "Z", maps = { "z" } },
+		},
+		primaryMaps = { "x", "z" },
+	},
+	[BrushShape.CornerWedge] = {
+		-- CornerWedge: 3 independent axes
+		-- Shift+Scroll = XZ (footprint), Shift+Alt+Scroll = Y (height)
+		axes = {
+			{ label = "X", maps = { "x" } },
+			{ label = "Y", maps = { "y" }, secondary = true },
+			{ label = "Z", maps = { "z" } },
+		},
+		primaryMaps = { "x", "z" },
+	},
+	[BrushShape.Dome] = {
+		-- Dome: radius (X=Z) and height (Y)
+		axes = {
+			{ label = "Radius", maps = { "x", "z" }, primary = true },
+			{ label = "Height", maps = { "y" }, secondary = true },
+		},
+	},
+	[BrushShape.Torus] = {
+		-- Torus: ring radius (major) and tube radius
+		-- X = major radius (ring size), Y = tube radius (thickness)
+		axes = {
+			{ label = "Ring Radius", maps = { "x" }, primary = true },
+			{ label = "Tube Radius", maps = { "y" }, secondary = true },
+		},
+		-- Z is unused for torus
+	},
+	[BrushShape.Ring] = {
+		-- Ring: outer radius and thickness (height of the ring)
+		-- X = outer radius, Y = thickness
+		axes = {
+			{ label = "Radius", maps = { "x" }, primary = true },
+			{ label = "Thickness", maps = { "y" }, secondary = true },
+		},
+	},
+	[BrushShape.ZigZag] = {
+		-- ZigZag: 3 independent axes
+		-- Shift+Scroll = XZ (footprint), Shift+Alt+Scroll = Y (height)
+		axes = {
+			{ label = "X", maps = { "x" } },
+			{ label = "Y", maps = { "y" }, secondary = true },
+			{ label = "Z", maps = { "z" } },
+		},
+		primaryMaps = { "x", "z" },
+	},
+	[BrushShape.Sheet] = {
+		-- Sheet: arc radius (curve), thickness, and height
+		axes = {
+			{ label = "Arc Radius", maps = { "x" }, primary = true },
+			{ label = "Thickness", maps = { "y" }, secondary = true },
+			{ label = "Height", maps = { "z" } },
+		},
+	},
+	[BrushShape.Grid] = {
+		-- Grid: uniform cell size
+		axes = {
+			{ label = "Size", maps = { "x", "y", "z" }, primary = true },
+		},
+	},
+	[BrushShape.Stick] = {
+		-- Stick: length (Y) and thickness (X=Z)
+		axes = {
+			{ label = "Length", maps = { "y" }, primary = true },
+			{ label = "Thickness", maps = { "x", "z" }, secondary = true },
+		},
+	},
+	[BrushShape.Spinner] = {
+		-- Spinner: uniform size (rotating cube)
+		axes = {
+			{ label = "Size", maps = { "x", "y", "z" }, primary = true },
+		},
+	},
+	[BrushShape.Spikepad] = {
+		-- Spikepad: base size (X=Z) and spike height (Y)
+		axes = {
+			{ label = "Base Size", maps = { "x", "z" }, primary = true },
+			{ label = "Spike Height", maps = { "y" }, secondary = true },
+		},
+	},
+}
+
+-- Helper function: Get the primary axis definition for a shape
+-- Returns { maps = {...} } - may be from primaryMaps or an axis marked primary
+function BrushData.getPrimaryAxis(shape: string): { label: string?, maps: { string } }?
+	local dims = BrushData.ShapeDimensions[shape]
+	if not dims then
+		return nil
+	end
+	-- Check for explicit primaryMaps first (for shapes like Cube with XZ primary)
+	if dims.primaryMaps then
+		return { maps = dims.primaryMaps }
+	end
+	-- Otherwise look for an axis marked primary
+	for _, axis in ipairs(dims.axes) do
+		if axis.primary then
+			return axis
+		end
+	end
+	-- Fallback to first axis
+	return dims.axes[1]
+end
+
+-- Helper function: Get the secondary axis definition for a shape
+function BrushData.getSecondaryAxis(shape: string): { label: string, maps: { string } }?
+	local dims = BrushData.ShapeDimensions[shape]
+	if not dims then
+		return nil
+	end
+	for _, axis in ipairs(dims.axes) do
+		if axis.secondary then
+			return axis
+		end
+	end
+	return nil
+end
+
+-- Helper function: Check if shape uses uniform scroll (scales all axes together)
+function BrushData.usesUniformScroll(shape: string): boolean
+	local dims = BrushData.ShapeDimensions[shape]
+	if not dims then
+		return false
+	end
+	return dims.scrollUniform == true
+end
+
+-- Tool config definitions: FALLBACK for tools not in ToolRegistry
+-- Primary configs now live in each tool's .configPanels field (Src/Tools/*/*.lua)
+-- This is only used for tools that don't have tool files yet (analysis tools)
 BrushData.ToolConfigs = {
-	-- Add: Creates new terrain - needs material picker and hollow mode
-	[ToolId.Add] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"hollow",
-		"planeLock",
-		"spin",
-		"material",
-	},
-	-- Subtract: Removes terrain - needs hollow mode, no material
-	[ToolId.Subtract] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"hollow",
-		"planeLock",
-		"spin",
-	},
-	-- Grow: Grows existing terrain - no material, no hollow
-	[ToolId.Grow] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"planeLock",
-		"spin",
-	},
-	-- Erode: Wears terrain down - no material, no hollow
-	[ToolId.Erode] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"planeLock",
-		"spin",
-	},
-	-- Smooth: Smooths surface - no material, no hollow
-	[ToolId.Smooth] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"planeLock",
-		"spin",
-	},
-	-- Flatten: Levels terrain - needs flatten mode, plane lock is very useful
-	[ToolId.Flatten] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"planeLock",
-		"flattenMode",
-		"spin",
-	},
-	-- Noise: Adds procedural noise - no material, no hollow
-	[ToolId.Noise] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		-- Note: noiseScale, noiseIntensity, noiseSeed panels not yet implemented
-	},
-	-- Terrace: Creates stepped terraces - no material, no hollow
-	[ToolId.Terrace] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		-- Note: stepHeight, stepSharpness panels not yet implemented
-	},
-	-- Cliff: Creates cliff faces - no material, no hollow
-	[ToolId.Cliff] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		-- Note: cliffAngle, cliffDirectionInfo panels not yet implemented
-	},
-	-- Path: Carves a path/channel - no material, no hollow (it's already a channel)
-	[ToolId.Path] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"spin",
-		"pathDepth",
-		"pathProfile",
-		"pathDirectionInfo",
-	},
-	-- Clone: Copies terrain - hollow might be useful for copying hollow structures
-	[ToolId.Clone] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"hollow",
-		"spin",
-		"cloneInfo",
-	},
-	-- Blobify: Creates organic blobs - no material, no hollow
-	[ToolId.Blobify] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		"blobIntensity",
-		"blobSmoothness",
-	},
-	-- Paint: Changes material only - needs material picker, no hollow or pivot needed
-	[ToolId.Paint] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"spin",
-		"material",
-		-- Note: autoMaterial panel not yet implemented
-	},
-	-- Bridge: Creates bridge terrain - needs material, special bridge controls
-	[ToolId.Bridge] = {
-		"bridgeInfo",
-		"strength",
-		"material",
-	},
-	-- Slope Paint: Auto-textures terrain based on surface angle
-	[ToolId.SlopePaint] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		"slopeMaterials",
-	},
-	-- Megarandomize: Applies multiple materials with weighted randomness
-	[ToolId.Megarandomize] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		"megarandomizeSettings",
-	},
-	-- Cavity Fill: Intelligently fills terrain depressions
-	[ToolId.CavityFill] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		"cavitySensitivity",
-	},
-	-- Melt: Simulates terrain melting/flowing downward
-	[ToolId.Melt] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		"meltViscosity",
-	},
-	-- Gradient Paint: Creates material transitions between two points
-	[ToolId.GradientPaint] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"spin",
-		"gradientSettings",
-	},
-	-- Flood Paint: Surface-aware flood fill for materials
-	[ToolId.FloodPaint] = {
-		"brushShape",
-		"floodSettings",
-		"material",
-	},
-	-- Stalactite: Creates hanging spike formations
-	[ToolId.Stalactite] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"stalactiteSettings",
-		"material",
-	},
-	-- Tendril: Creates organic branching structures
-	[ToolId.Tendril] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"tendrilSettings",
-		"material",
-	},
-	-- Symmetry: Creates symmetric copies
-	[ToolId.Symmetry] = {
-		"brushShape",
-		"brushRate",
-		"pivot",
-		"symmetrySettings",
-	},
-	-- Variation Grid: Creates grid pattern with variations
-	[ToolId.VariationGrid] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"gridSettings",
-		"material",
-	},
-	-- Growth Simulation: Organic terrain expansion
-	[ToolId.GrowthSim] = {
-		"brushShape",
-		"strength",
-		"brushRate",
-		"pivot",
-		"growthSettings",
-	},
-	-- Analysis Tools (no brush settings needed)
+	-- Analysis Tools (no tool files yet - these are UI-only)
 	[ToolId.VoxelInspect] = {
 		"voxelInspectPanel",
 	},

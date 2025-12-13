@@ -150,10 +150,28 @@ The locked plane shows as a green disc.
 | Key | Action |
 |-----|--------|
 | **R** | Lock/unlock brush in place |
-| **Shift + Scroll** | Adjust brush size |
+| **Shift + Scroll** | Adjust primary brush dimension |
+| **Shift + Alt + Scroll** | Adjust secondary brush dimension |
 | **Ctrl + Scroll** | Adjust brush strength |
 | **Ctrl + Click** | Set clone source / gradient start |
 | **Alt + Click** | Sample material from terrain |
+
+### Shape-Specific Sizing
+
+Different shapes have different sizing axes:
+
+| Shape | Primary (Shift+Scroll) | Secondary (Shift+Alt+Scroll) |
+|-------|------------------------|------------------------------|
+| **Sphere** | Size (uniform) | — |
+| **Cube** | XZ (footprint) | Y (height) |
+| **Cylinder** | Radius | Height |
+| **Wedge** | XZ (footprint) | Y (height) |
+| **CornerWedge** | XZ (footprint) | Y (height) |
+| **Dome** | Radius | Height |
+| **Torus** | Ring Radius | Tube Radius |
+| **Ring** | Radius | Thickness |
+| **Stick** | Length | Thickness |
+| **Spikepad** | Base Size | Spike Height |
 
 ### When Brush is Locked
 

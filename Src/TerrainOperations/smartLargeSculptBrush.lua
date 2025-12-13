@@ -75,9 +75,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	end
 
 	-- Voxel counts for array indexing
-	local voxelCountX = table.getn(readOccupancies)
-	local voxelCountY = table.getn(readOccupancies[1])
-	local voxelCountZ = table.getn(readOccupancies[1][1])
+	local voxelCountX = #readOccupancies
+	local voxelCountY = #readOccupancies[1]
+	local voxelCountZ = #readOccupancies[1][1]
 	
 	-- For sculptSettings compatibility
 	local sizeX = voxelCountX

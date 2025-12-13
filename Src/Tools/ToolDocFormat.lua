@@ -1,12 +1,84 @@
 --!strict
 --[[
-	ToolDocFormat.lua - Type definitions for tool documentation
+	ToolDocFormat.lua - Type definitions for tool documentation and traits
 	
-	Every tool MUST have a docs table following this format.
-	This ensures consistent, rich documentation across all tools.
+	Every tool MUST have:
+	- docs table (documentation)
+	- traits table (behavior classification)
+	- execute function (per-voxel operation)
+	- configPanels array (UI panels)
+	
+	This ensures consistent, well-documented tools across the system.
 ]]
 
 local ToolDocFormat = {}
+
+-- ============================================================================
+-- TOOL CATEGORIES
+-- ============================================================================
+-- Primary function of the tool
+ToolDocFormat.Category = {
+	Shape = "Shape",         -- Modify terrain volume (Add, Subtract, Grow, Erode, Smooth, Flatten)
+	Surface = "Surface",     -- Reshape surface (Noise, Terrace, Cliff, Path, Blobify)
+	Material = "Material",   -- Change material only (Paint, SlopePaint, Gradient, Flood, etc.)
+	Generator = "Generator", -- Create procedural shapes (Stalactite, Tendril, Growth, Grid)
+	Utility = "Utility",     -- Special operations (Clone, Bridge, Symmetry, Melt)
+	Analysis = "Analysis",   -- Read-only inspection (VoxelInspect, ComponentAnalyzer, Overlay)
+}
+
+-- ============================================================================
+-- EXECUTION TYPES
+-- ============================================================================
+-- How the tool processes terrain
+ToolDocFormat.ExecutionType = {
+	PerVoxel = "perVoxel",       -- Iterates over each voxel in brush region
+	ColumnBased = "columnBased", -- Processes columns (Flatten)
+	PointToPoint = "pointToPoint", -- Connects two points (Bridge)
+	UIOnly = "uiOnly",           -- No terrain modification (Analysis tools)
+}
+
+-- ============================================================================
+-- TOOL TRAITS TYPE
+-- ============================================================================
+--[[
+	ToolTraits: Behavioral classification for routing and UI decisions
+	
+	Example:
+	{
+		category = "Shape",
+		executionType = "perVoxel",
+		modifiesOccupancy = true,
+		modifiesMaterial = true,
+		hasFastPath = true,
+		hasLargeBrushPath = false,
+		requiresGlobalState = false,
+		usesBrush = true,
+		usesStrength = true,
+		needsMaterial = true,
+	}
+]]
+export type ToolTraits = {
+	-- Classification
+	category: string,       -- Category.Shape | Surface | Material | Generator | Utility | Analysis
+	executionType: string,  -- ExecutionType.PerVoxel | ColumnBased | PointToPoint | UIOnly
+	
+	-- Modification flags
+	modifiesOccupancy: boolean,  -- Changes terrain volume
+	modifiesMaterial: boolean,   -- Changes terrain material
+	
+	-- Execution paths
+	hasFastPath: boolean?,       -- Can use native Terrain API shortcuts
+	hasLargeBrushPath: boolean?, -- Has optimized path for large brushes
+	
+	-- State requirements
+	requiresGlobalState: boolean?, -- Needs persistent state (buffer, points)
+	globalStateKeys: { string }?,  -- Which state keys it uses
+	
+	-- UI requirements
+	usesBrush: boolean?,      -- Shows brush visualization
+	usesStrength: boolean?,   -- Strength slider affects operation
+	needsMaterial: boolean?,  -- Requires material selection
+}
 
 --[[
 	DocSection: A section within the documentation
@@ -154,14 +226,17 @@ export type Tool = {
 	name: string,
 	category: string,
 	
+	-- Traits (required) - behavioral classification
+	traits: ToolTraits,
+	
 	-- Documentation (required)
 	docs: ToolDocs,
 	
 	-- Configuration (required)
 	configPanels: { string },
 	
-	-- Operation (required) - called for each voxel
-	execute: (settings: SculptSettings) -> (),
+	-- Operation (required for non-UIOnly tools) - called for each voxel
+	execute: ((settings: SculptSettings) -> ())?,
 	
 	-- Optional hooks
 	setup: ((opSet: OperationSet) -> OperationSet)?,
@@ -173,7 +248,7 @@ export type Tool = {
 	buttonLabel: string?,
 }
 
--- Validation function to check if a tool has proper documentation
+-- Validation function to check if a tool has proper documentation and traits
 function ToolDocFormat.validate(tool: any): (boolean, string?)
 	if type(tool) ~= "table" then
 		return false, "Tool must be a table"
@@ -203,11 +278,96 @@ function ToolDocFormat.validate(tool: any): (boolean, string?)
 		return false, "Tool must have 'configPanels' array"
 	end
 	
-	if not tool.execute or type(tool.execute) ~= "function" then
-		return false, "Tool must have an 'execute' function"
+	-- Validate traits (required)
+	if not tool.traits then
+		return false, "Tool must have 'traits' (behavioral classification)"
+	end
+	
+	if not tool.traits.category or type(tool.traits.category) ~= "string" then
+		return false, "Tool traits must have a 'category'"
+	end
+	
+	if not tool.traits.executionType or type(tool.traits.executionType) ~= "string" then
+		return false, "Tool traits must have an 'executionType'"
+	end
+	
+	-- Execute function required for non-UIOnly tools
+	local isUIOnly = tool.traits.executionType == ToolDocFormat.ExecutionType.UIOnly
+	if not isUIOnly and (not tool.execute or type(tool.execute) ~= "function") then
+		return false, "Non-UIOnly tool must have an 'execute' function"
 	end
 	
 	return true, nil
+end
+
+-- Helper to create default traits for a tool category
+function ToolDocFormat.createTraits(category: string, overrides: ToolTraits?): ToolTraits
+	local defaults = {
+		Shape = {
+			category = "Shape",
+			executionType = "perVoxel",
+			modifiesOccupancy = true,
+			modifiesMaterial = true,
+			usesBrush = true,
+			usesStrength = true,
+			needsMaterial = true,
+		},
+		Surface = {
+			category = "Surface",
+			executionType = "perVoxel",
+			modifiesOccupancy = true,
+			modifiesMaterial = false,
+			usesBrush = true,
+			usesStrength = true,
+			needsMaterial = false,
+		},
+		Material = {
+			category = "Material",
+			executionType = "perVoxel",
+			modifiesOccupancy = false,
+			modifiesMaterial = true,
+			usesBrush = true,
+			usesStrength = true,
+			needsMaterial = true,
+		},
+		Generator = {
+			category = "Generator",
+			executionType = "perVoxel",
+			modifiesOccupancy = true,
+			modifiesMaterial = true,
+			usesBrush = true,
+			usesStrength = true,
+			needsMaterial = true,
+		},
+		Utility = {
+			category = "Utility",
+			executionType = "perVoxel",
+			modifiesOccupancy = true,
+			modifiesMaterial = true,
+			usesBrush = true,
+			usesStrength = true,
+			needsMaterial = false,
+		},
+		Analysis = {
+			category = "Analysis",
+			executionType = "uiOnly",
+			modifiesOccupancy = false,
+			modifiesMaterial = false,
+			usesBrush = false,
+			usesStrength = false,
+			needsMaterial = false,
+		},
+	}
+	
+	local base = defaults[category] or defaults.Utility
+	
+	if overrides then
+		for key, value in pairs(overrides) do
+			base[key] = value
+		end
+	end
+	
+	return base
 end
 
 return ToolDocFormat

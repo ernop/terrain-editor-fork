@@ -19,6 +19,56 @@ OperationHelper.zOffset = { 0, 0, 0, 0, 1, -1 }
 -- This is causing small occupancies to become air
 OperationHelper.one256th = 1 / 256
 
+-- ============================================================================
+-- FALLOFF CURVES
+-- These control how brush strength fades from center (d=0) to edge (d=1)
+-- Each function takes normalized distance d [0,1] and returns strength [0,1]
+-- ============================================================================
+local FalloffFunctions = {}
+
+-- Cosine falloff (original): cos(d * π/2) - smooth S-curve
+function FalloffFunctions.Cosine(d)
+	return math.cos(math.min(1, d) * math.pi * 0.5)
+end
+
+-- Linear falloff: 1 - d, predictable even gradient
+function FalloffFunctions.Linear(d)
+	return math.max(0, 1 - d)
+end
+
+-- Plateau falloff: flat full strength in center (~60%), then sharp edge falloff
+function FalloffFunctions.Plateau(d)
+	if d < 0.6 then
+		return 1.0
+	end
+	local t = (d - 0.6) / 0.4 -- Remap 0.6-1.0 to 0-1
+	return 1 - t * t * (3 - 2 * t) -- Smoothstep for the edge
+end
+
+-- Gaussian falloff: e^(-d² * 3), very soft organic falloff
+function FalloffFunctions.Gaussian(d)
+	return math.exp(-d * d * 3)
+end
+
+-- Quadratic falloff: (1-d)², falls off fast from center
+function FalloffFunctions.Quadratic(d)
+	local t = math.max(0, 1 - d)
+	return t * t
+end
+
+-- Sharp falloff: 1 - d³, strong center, steep edge
+function FalloffFunctions.Sharp(d)
+	return math.max(0, 1 - d * d * d)
+end
+
+-- Helper to get falloff function by name (with fallback to Cosine)
+local function getFalloffFunction(falloffType)
+	return FalloffFunctions[falloffType] or FalloffFunctions.Cosine
+end
+
+-- Export for testing/introspection
+OperationHelper.FalloffFunctions = FalloffFunctions
+
 function OperationHelper.clampDownToVoxel(p)
 	return math.floor(p / Constants.VOXEL_RESOLUTION) * Constants.VOXEL_RESOLUTION
 end
@@ -82,6 +132,7 @@ end
 
 -- New function supporting per-axis radii and rotation for ellipsoid/box brushes
 -- brushRotation: CFrame representing the brush orientation (or nil for no rotation)
+-- falloffType: string key for falloff function ("Cosine", "Linear", "Plateau", etc.)
 function OperationHelper.calculateBrushPowerForCellRotated(
 	cellVectorX,
 	cellVectorY,
@@ -94,7 +145,8 @@ function OperationHelper.calculateBrushPowerForCellRotated(
 	scaleMagnitudePercent,
 	brushRotation,
 	hollowEnabled,
-	wallThickness
+	wallThickness,
+	falloffType
 )
 	-- Transform world-space cell offset into brush-local space if rotation is provided
 	local localX, localY, localZ = cellVectorX, cellVectorY, cellVectorZ
@@ -118,11 +170,13 @@ function OperationHelper.calculateBrushPowerForCellRotated(
 		selectionSize,
 		scaleMagnitudePercent,
 		hollowEnabled,
-		wallThickness
+		wallThickness,
+		falloffType
 	)
 end
 
 -- New function supporting per-axis radii for ellipsoid/box brushes
+-- falloffType: string key for falloff function ("Cosine", "Linear", "Plateau", etc.)
 function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	cellVectorX,
 	cellVectorY,
@@ -134,7 +188,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	selectionSize,
 	scaleMagnitudePercent,
 	hollowEnabled,
-	wallThickness
+	wallThickness,
+	falloffType
 )
 	local brushOccupancy = 1
 	local magnitudePercent = 1
@@ -142,6 +197,9 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	-- Default hollow parameters if not provided
 	hollowEnabled = hollowEnabled or false
 	wallThickness = wallThickness or 0.2
+
+	-- Get the falloff function for this operation
+	local falloff = getFalloffFunction(falloffType)
 
 	-- Use the average radius for edge falloff calculation
 	local avgRadius = (radiusX + radiusY + radiusZ) / 3
@@ -155,7 +213,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local normZ = cellVectorZ / radiusZ
 			local normalizedDistance = math.sqrt(normX * normX + normY * normY + normZ * normZ)
 
-			magnitudePercent = math.cos(math.min(1, normalizedDistance) * math.pi * 0.5)
+			magnitudePercent = falloff(normalizedDistance)
 			-- Edge falloff: 1.0 at center, 0.0 at edge (normalizedDistance = 1)
 			brushOccupancy = math.max(0, math.min(1, (1 - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
 			-- Clamp brushOccupancy to [0, 1] based on whether we're inside
@@ -174,7 +232,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local insideHeight = normY <= 1
 
 			if insideHeight then
-				magnitudePercent = math.cos(math.min(1, radialDistance) * math.pi * 0.5)
+				magnitudePercent = falloff(radialDistance)
 				brushOccupancy = math.max(0, math.min(1, (1 - radialDistance) * radiusX / Constants.VOXEL_RESOLUTION))
 				if radialDistance <= 1 then
 					brushOccupancy = math.max(brushOccupancy, 0.01)
@@ -192,7 +250,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if maxNorm <= 1 then
 				-- Inside the box
-				magnitudePercent = math.cos(math.min(1, maxNorm) * math.pi * 0.5)
+				magnitudePercent = falloff(maxNorm)
 				brushOccupancy = math.max(0, math.min(1, (1 - maxNorm) * avgRadius / Constants.VOXEL_RESOLUTION))
 				brushOccupancy = math.max(brushOccupancy, 0.01)
 			else
@@ -214,7 +272,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if normX <= 1 and normY >= 0 and normY <= maxAllowedY and normZ >= 0 and normZ <= 1 then
 				local edgeDist = math.min(1 - normX, normY, maxAllowedY - normY, normZ, 1 - normZ)
-				magnitudePercent = math.cos(math.min(1, 1 - edgeDist) * math.pi * 0.5)
+				magnitudePercent = falloff(1 - edgeDist)
 				brushOccupancy = math.max(0.01, math.min(1, edgeDist * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -232,7 +290,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if normX >= 0 and normX <= 1 and normY >= 0 and normY <= maxAllowedY and normZ >= 0 and normZ <= 1 then
 				local edgeDist = math.min(normX, 1 - normX, normY, maxAllowedY - normY, normZ, 1 - normZ)
-				magnitudePercent = math.cos(math.min(1, 1 - edgeDist) * math.pi * 0.5)
+				magnitudePercent = falloff(1 - edgeDist)
 				brushOccupancy = math.max(0.01, math.min(1, edgeDist * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -248,7 +306,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			-- Only include top half (Y >= 0 in local space)
 			if cellVectorY >= 0 and normalizedDistance <= 1 then
-				magnitudePercent = math.cos(math.min(1, normalizedDistance) * math.pi * 0.5)
+				magnitudePercent = falloff(normalizedDistance)
 				brushOccupancy = math.max(0, math.min(1, (1 - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
 				brushOccupancy = math.max(brushOccupancy, 0.01)
 			else
@@ -275,7 +333,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local normalizedTubeDistance = tubeDistance / minorRadius
 
 			if normalizedTubeDistance <= 1 then
-				magnitudePercent = math.cos(math.min(1, normalizedTubeDistance) * math.pi * 0.5)
+				magnitudePercent = falloff(normalizedTubeDistance)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - normalizedTubeDistance) * minorRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -297,7 +355,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 				-- Edge falloff
 				local radialPos = (distFromAxis - innerRadius) / (outerRadius - innerRadius)
 				local edgeDist = math.min(radialPos, 1 - radialPos, (thickness - math.abs(cellVectorY)) / thickness)
-				magnitudePercent = math.cos(math.min(1, 1 - edgeDist) * math.pi * 0.5)
+				magnitudePercent = falloff(1 - edgeDist)
 				brushOccupancy = math.max(0.01, math.min(1, edgeDist * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -357,7 +415,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if onSurface and withinHeight and withinArc then
 				local surfaceDist = math.abs(distFromAxis - curveRadius) / sheetThickness
-				magnitudePercent = math.cos(math.min(1, surfaceDist) * math.pi * 0.5)
+				magnitudePercent = falloff(surfaceDist)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - surfaceDist)))
 			else
 				brushOccupancy = 0
@@ -400,7 +458,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local withinLength = math.abs(cellVectorY) <= stickLength
 
 			if normalizedDist <= 1 and withinLength then
-				magnitudePercent = math.cos(math.min(1, normalizedDist) * math.pi * 0.5)
+				magnitudePercent = falloff(normalizedDist)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - normalizedDist) * stickRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -416,7 +474,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local maxNorm = math.max(normX, normY, normZ)
 
 			if maxNorm <= 1 then
-				magnitudePercent = math.cos(math.min(1, maxNorm) * math.pi * 0.5)
+				magnitudePercent = falloff(maxNorm)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - maxNorm) * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
