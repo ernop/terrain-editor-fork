@@ -109,27 +109,27 @@ TerrainEnums.FlattenMode = {
 TerrainEnums.SpinMode = {
 	Off = "Off",
 	-- World-relative modes (rotate around world axes regardless of brush orientation)
-	WorldY = "WorldY",           -- Spin around world Y axis (like a pottery wheel)
-	WorldYFast = "WorldYFast",   -- Same but faster
-	World3D = "World3D",         -- Tumble around all world axes
+	WorldY = "WorldY", -- Spin around world Y axis (like a pottery wheel)
+	WorldYFast = "WorldYFast", -- Same but faster
+	World3D = "World3D", -- Tumble around all world axes
 	World3DFast = "World3DFast", -- Same but faster
 	-- Shape-relative modes (rotate around shape's local axes)
-	ShapeY = "ShapeY",           -- Spin around shape's local Y axis (top spins on its own axis)
-	Shape3D = "Shape3D",         -- Full 3D tumble in shape's local space
+	ShapeY = "ShapeY", -- Spin around shape's local Y axis (top spins on its own axis)
+	Shape3D = "Shape3D", -- Full 3D tumble in shape's local space
 	-- Special effect modes
-	Roll = "Roll",               -- Roll around X axis (barrel roll)
-	Wobble = "Wobble",           -- Oscillating tilt (pendulum-like)
-	Spiral = "Spiral",           -- Y spin + gradual tilt increase (corkscrew)
+	Roll = "Roll", -- Roll around X axis (barrel roll)
+	Wobble = "Wobble", -- Oscillating tilt (pendulum-like)
+	Spiral = "Spiral", -- Y spin + gradual tilt increase (corkscrew)
 }
 
 -- Brush falloff curves - controls how brush strength fades from center to edge
 TerrainEnums.FalloffType = {
-	Cosine = "Cosine",       -- cos(d * π/2) - smooth S-curve (original behavior)
-	Linear = "Linear",       -- 1 - d, predictable even gradient
-	Plateau = "Plateau",     -- Flat full strength in center, sharp edge falloff
-	Gaussian = "Gaussian",   -- e^(-d² * 3), very soft organic falloff
+	Cosine = "Cosine", -- cos(d * π/2) - smooth S-curve (original behavior)
+	Linear = "Linear", -- 1 - d, predictable even gradient
+	Plateau = "Plateau", -- Flat full strength in center, sharp edge falloff
+	Gaussian = "Gaussian", -- e^(-d² * 3), very soft organic falloff
 	Quadratic = "Quadratic", -- (1-d)², falls off fast from center
-	Sharp = "Sharp",         -- 1 - d³, strong center, steep edge
+	Sharp = "Sharp", -- 1 - d³, strong center, steep edge
 }
 
 TerrainEnums.BrushShape = {

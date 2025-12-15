@@ -269,6 +269,13 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			return
 		end
 		
+		-- Validate docs has required fields
+		if not docs.title or type(docs.title) ~= "string" then
+			warn("[ToolDocsPanel] Tool", toolId, "has invalid docs.title:", docs.title)
+			container.Visible = false
+			return
+		end
+		
 		container.Visible = true
 		local order = 0
 		

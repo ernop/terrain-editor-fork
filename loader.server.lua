@@ -56,14 +56,14 @@ local function loadPlugin()
 	currentGui.Title = "Terrain Editor (Fork) - LIVE DEV"
 
 	-- Try to load and run the cloned module
-	local success, err = pcall(function()
+	local success, err = xpcall(function()
 		local MainModule = require(moduleClone)
 		if type(MainModule) == "function" then
 			currentCleanup = MainModule(plugin, currentGui)
 		elseif type(MainModule) == "table" and MainModule.init then
 			currentCleanup = MainModule.init(plugin, currentGui)
 		end
-	end)
+	end, debug.traceback)
 
 	-- Clean up the clone after loading (it's cached in memory now)
 	task.defer(function()

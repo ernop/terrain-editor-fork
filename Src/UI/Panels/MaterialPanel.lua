@@ -34,11 +34,11 @@ function MaterialPanel.create(deps: MaterialPanelDeps): MaterialPanelResult
 
 	local autoMatToggle = UIComponents.createLabeledToggle({
 		parent = autoMatPanel,
-		labelText = "Auto",
+		label = "Auto",
 		initialState = S.autoMaterial,
 		textOn = "Match Terrain",
 		textOff = "Use Selected",
-		onToggle = function(isAuto)
+		onChange = function(isAuto)
 			S.autoMaterial = isAuto
 			-- Dim the material picker when auto is enabled
 			if materialPickerRef and materialPickerRef.container then

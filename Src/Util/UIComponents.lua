@@ -309,7 +309,7 @@ function UIComponents.createMaterialPicker(config: MaterialPickerConfig): Materi
 	local currentMaterial = config.initialMaterial
 	local materialButtons: { [Enum.Material]: Frame } = {}
 
-	local container = Instance.new("Frame")
+	local container = Instance.new("CanvasGroup")
 	container.Name = "MaterialGrid"
 	container.BackgroundTransparency = 1
 	container.Size = UDim2.new(1, 0, 0, 0)

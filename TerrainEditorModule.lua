@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.00000079"
+local VERSION = "0.0.00000082"
 
 local TerrainEditorModule = {}
 
@@ -41,6 +41,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 	-- Load terrain operations
 	local performTerrainBrushOperation = require(Src.TerrainOperations.performTerrainBrushOperation)
+
+	print("[DEBUG] Reached A - Requires loaded")
 
 	-- ============================================================================
 	-- State Table
@@ -148,11 +150,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		brushExtraParts = {} :: { BasePart },
 		brushSelectionBox = nil :: SelectionBox?,
 		extraSelectionBoxes = {} :: { SelectionBox },
-		torusWireframeParts = {} :: { Part },  -- Torus mesh wireframe parts
-		torusLastMajorRadius = 0,  -- Cache for detecting size changes
+		torusWireframeParts = {} :: { Part }, -- Torus mesh wireframe parts
+		torusLastMajorRadius = 0, -- Cache for detecting size changes
 		torusLastMinorRadius = 0,
-		domeWireframeParts = {} :: { Part },  -- Dome mesh wireframe parts
-		domeLastRadiusX = 0,  -- Cache for detecting size changes
+		domeWireframeParts = {} :: { Part }, -- Dome mesh wireframe parts
+		domeLastRadiusX = 0, -- Cache for detecting size changes
 		domeLastRadiusY = 0,
 		domeLastRadiusZ = 0,
 		domeLastIsRotated = false,
@@ -178,6 +180,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		showDocsPanel = true, -- Toggle for tool documentation panel visibility
 	}
 	local mouse = pluginInstance:GetMouse()
+
+	print("[DEBUG] Reached B - State table created")
 
 	-- Forward declarations
 	local updateHandlesAdornee: () -> ()
@@ -327,8 +331,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 		-- Check if this is a composite shape (main brushPart is hidden, uses extra parts)
 		-- Note: Spikepad has a visible base, so it's not fully composite
-		local isCompositeShape = S.brushShape == BrushShape.Torus or S.brushShape == BrushShape.Ring 
-			or S.brushShape == BrushShape.Grid or S.brushShape == BrushShape.RotatedDome
+		local isCompositeShape = S.brushShape == BrushShape.Torus
+			or S.brushShape == BrushShape.Ring
+			or S.brushShape == BrushShape.Grid
+			or S.brushShape == BrushShape.RotatedDome
 		-- Cylinder: brushPart has 90° Z rotation for visual alignment, but handles need unrotated adornee
 		-- Spikepad: needs handle adornee but base is visible so gets SelectionBox
 		local needsHandleAdornee = isCompositeShape or S.brushShape == BrushShape.Spikepad or S.brushShape == BrushShape.Cylinder
@@ -459,18 +465,18 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			Vector3.new(centerX, 0, centerZ + radiusZ * 0.7), -- Front
 			Vector3.new(centerX, 0, centerZ - radiusZ * 0.7), -- Back
 		}
-		
+
 		local maxHeight: number? = nil
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterType = Enum.RaycastFilterType.Include
 		raycastParams.FilterDescendantsInstances = { S.terrain }
-		
+
 		for _, point in ipairs(samplePoints) do
 			-- Cast ray downward from above to find terrain surface
 			local rayOrigin = Vector3.new(point.X, 10000, point.Z)
 			local rayDirection = Vector3.new(0, -20000, 0)
 			local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-			
+
 			if result and result.Instance == S.terrain then
 				local hitY = result.Position.Y
 				if maxHeight == nil or hitY > maxHeight then
@@ -478,7 +484,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				end
 			end
 		end
-		
+
 		return maxHeight
 	end
 
@@ -561,20 +567,20 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				S.brushPart.Transparency = 1
 				S.brushPart.Size = Vector3.new(1, 1, 1)
 				S.brushPart.CFrame = finalCFrame
-				
+
 				-- Dome radii: X=Y for circular face, Z for depth
 				local domeRadiusX = sizeX * 0.5
-				local domeRadiusY = sizeX * 0.5  -- Match X for circular face
+				local domeRadiusY = sizeX * 0.5 -- Match X for circular face
 				local domeRadiusZ = sizeZ * 0.5
 				local domeColor = S.brushLocked and Theme.Colors.BrushLocked or Theme.Colors.BrushNormal
-				
+
 				-- Check if we need to regenerate the wireframe (size changed or first time)
-				local sizeChanged = math.abs(domeRadiusX - S.domeLastRadiusX) > 0.1 
+				local sizeChanged = math.abs(domeRadiusX - S.domeLastRadiusX) > 0.1
 					or math.abs(domeRadiusY - S.domeLastRadiusY) > 0.1
 					or math.abs(domeRadiusZ - S.domeLastRadiusZ) > 0.1
 					or S.domeLastIsRotated ~= true
 				local needsRegenerate = #S.domeWireframeParts == 0 or sizeChanged
-				
+
 				if needsRegenerate then
 					-- Clear old wireframe
 					DomeMeshGenerator.destroyWireframe(S.domeWireframeParts)
@@ -583,7 +589,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 						domeRadiusX,
 						domeRadiusY,
 						domeRadiusZ,
-						true,  -- isRotated = true for forward-facing dome
+						true, -- isRotated = true for forward-facing dome
 						domeColor,
 						Theme.Transparency.BrushExtra
 					)
@@ -597,10 +603,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					-- Just update position (much faster)
 					DomeMeshGenerator.updateWireframeCFrame(S.domeWireframeParts, finalCFrame, domeRadiusX, domeRadiusY, domeRadiusZ, true)
 				end
-				
+
 				-- Always update color (for locked/unlocked state)
 				DomeMeshGenerator.updateWireframeColor(S.domeWireframeParts, domeColor)
-				
+
 				-- Update handle adornee part for proper handle sizing
 				if S.handleAdorneePart then
 					S.handleAdorneePart.Size = Vector3.new(sizeX, sizeX, sizeZ)
@@ -610,26 +616,22 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				S.brushPart.Transparency = 1
 				S.brushPart.Size = Vector3.new(1, 1, 1)
 				S.brushPart.CFrame = finalCFrame
-				
+
 				local majorRadius = sizeX * 0.5
 				local tubeRadius = sizeY * 0.5
 				local torusColor = S.brushLocked and Theme.Colors.BrushLocked or Theme.Colors.BrushNormal
-				
+
 				-- Check if we need to regenerate the wireframe (size changed or first time)
-				local sizeChanged = math.abs(majorRadius - S.torusLastMajorRadius) > 0.1 
+				local sizeChanged = math.abs(majorRadius - S.torusLastMajorRadius) > 0.1
 					or math.abs(tubeRadius - S.torusLastMinorRadius) > 0.1
 				local needsRegenerate = #S.torusWireframeParts == 0 or sizeChanged
-				
+
 				if needsRegenerate then
 					-- Clear old wireframe
 					TorusMeshGenerator.destroyWireframe(S.torusWireframeParts)
 					-- Generate new wireframe (light version for performance)
-					S.torusWireframeParts = TorusMeshGenerator.createLightWireframe(
-						majorRadius,
-						tubeRadius,
-						torusColor,
-						Theme.Transparency.BrushExtra
-					)
+					S.torusWireframeParts =
+						TorusMeshGenerator.createLightWireframe(majorRadius, tubeRadius, torusColor, Theme.Transparency.BrushExtra)
 					TorusMeshGenerator.parentWireframe(S.torusWireframeParts, workspace)
 					-- Cache the size
 					S.torusLastMajorRadius = majorRadius
@@ -638,10 +640,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					-- Just update position and color (much faster)
 					TorusMeshGenerator.updateWireframeCFrame(S.torusWireframeParts, finalCFrame, majorRadius, tubeRadius)
 				end
-				
+
 				-- Always update color (for locked/unlocked state)
 				TorusMeshGenerator.updateWireframeColor(S.torusWireframeParts, torusColor)
-				
+
 				-- Update handle adornee part for proper handle sizing
 				if S.handleAdorneePart then
 					local totalDiameter = sizeX + sizeY -- Major radius + tube diameter
@@ -1287,6 +1289,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		-- and start of the next are at the same terrain state), causing extra undo steps.
 
 		S.brushConnection = RunService.Heartbeat:Connect(function()
+			-- Don't run during play test
+			if not RunService:IsEdit() then
+				return
+			end
+
 			if not S.isMouseDown or S.currentTool == ToolId.None or S.isHandleDragging or S.brushLocked then
 				return
 			end
@@ -1370,6 +1377,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	-- Build UI
 	-- ============================================================================
+	print("[DEBUG] Reached C - Starting Build UI")
 	local mainFrame = Instance.new("ScrollingFrame")
 	mainFrame.Name = "MainFrame"
 	mainFrame.Size = UDim2.fromScale(1, 1)
@@ -1494,6 +1502,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		setDocsPanelVisible(false)
 	end)
 
+	print("[DEBUG] Reached D - About to create tool categories")
+
 	-- Tool categories with visual sections
 	-- Each category: { label, emoji, color, tools[] }
 	local toolCategories = {
@@ -1616,11 +1626,15 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		currentY = currentY + rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) + SECTION_GAP
 	end
 
+	print("[DEBUG] Reached E - Tool buttons created")
+
 	-- Initialize tool documentation registry
 	local toolsFolder = Src.Tools
 	if toolsFolder then
 		ToolRegistry.init(toolsFolder)
 	end
+
+	print("[DEBUG] Reached F - ToolRegistry initialized")
 
 	-- Create tool documentation panel (in the right side container)
 	local toolDocsResult = ToolDocsPanel.create({
@@ -1629,6 +1643,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			return ToolRegistry.getDocs(toolId)
 		end,
 	})
+
+	print("[DEBUG] Reached G - ToolDocsPanel created")
 
 	-- Assign the updateToolDocs function (forward declared earlier)
 	updateToolDocs = function()
@@ -1676,6 +1692,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		end,
 	})
 
+	print("[DEBUG] Reached H - ConfigPanels created")
+
 	local setStrengthValue = configResult.setStrengthValue
 	local updateLockButton = configResult.updateLockButton
 	updateConfigPanelVisibility = configResult.updateVisibility
@@ -1683,9 +1701,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local updateBridgePreview = configResult.updateBridgePreview
 	local buildBridge = configResult.buildBridge
 
+	print("[DEBUG] Reached I - About to call updateConfigPanelVisibility")
 	updateConfigPanelVisibility()
+	print("[DEBUG] Reached J - About to call updateToolButtonVisuals")
 	updateToolButtonVisuals()
+	print("[DEBUG] Reached K - About to call updateToolDocs")
 	updateToolDocs()
+	print("[DEBUG] Reached L - updateToolDocs completed")
 	pluginInstance:Activate(true)
 
 	-- ============================================================================
@@ -2155,6 +2177,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end))
 
 	S.renderConnection = RunService.RenderStepped:Connect(function()
+		-- Don't run plugin logic during play test
+		if not RunService:IsEdit() then
+			hideBrushVisualization()
+			hidePlaneVisualization()
+			return
+		end
+
 		local gui = parentGui :: GuiObject
 		local isVisible = if gui:IsA("ScreenGui") then (gui :: ScreenGui).Enabled else true
 
