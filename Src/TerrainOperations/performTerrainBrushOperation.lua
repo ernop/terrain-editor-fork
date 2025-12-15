@@ -87,10 +87,11 @@ local function performOperation(terrain, opSet)
 	local hollowEnabled = opSet.hollowEnabled or false
 	local wallThickness = opSet.wallThickness or 0.2
 
-	-- Falloff curve type (controls how brush strength fades from center to edge)
+	-- Falloff curve type (controls the shape of the falloff gradient)
 	local falloffType = opSet.falloffType or "Cosine"
-	-- Falloff extent: how far the falloff region extends beyond the brush edge
-	-- 0 = falloff only within brush, 1 = falloff extends 100% beyond brush radius
+	-- Falloff extent (softness): what portion of the brush interior has falloff
+	-- 0 = sharp edge (full strength throughout, instant drop at boundary)
+	-- 1 = soft edge (falloff gradient from center to edge)
 	local falloffExtent = opSet.falloffExtent or 0
 
 	assert(terrain ~= nil, "performTerrainBrushOperation requires a terrain instance")
@@ -117,20 +118,34 @@ local function performOperation(terrain, opSet)
 	local maxRadius = math.max(radiusX, radiusY, radiusZ)
 	local boundsRadius = hasRotation and maxRadius or nil
 
-	-- Expand bounds to include falloff region (falloffExtent is 0-1, representing % of brush radius)
-	local falloffExpansionX = radiusX * falloffExtent
-	local falloffExpansionY = radiusY * falloffExtent
-	local falloffExpansionZ = radiusZ * falloffExtent
+	-- Special bounds calculation for shapes that need different extents
+	local boundsRadiusX = boundsRadius or radiusX
+	local boundsRadiusY = boundsRadius or radiusY
+	local boundsRadiusZ = boundsRadius or radiusZ
+
+	-- Torus: major radius (X) + tube radius (Y) determines XZ extent
+	if brushShape == BrushShape.Torus then
+		local majorRadius = radiusX
+		local tubeRadius = radiusY
+		boundsRadiusX = majorRadius + tubeRadius
+		boundsRadiusY = tubeRadius
+		boundsRadiusZ = majorRadius + tubeRadius
+	-- Ring: similar to torus but flatter
+	elseif brushShape == BrushShape.Ring then
+		boundsRadiusX = radiusX
+		boundsRadiusY = radiusY * 0.3
+		boundsRadiusZ = radiusX
+	end
 
 	local minBounds = Vector3.new(
-		OperationHelper.clampDownToVoxel(centerPoint.x - (boundsRadius or radiusX) - falloffExpansionX),
-		OperationHelper.clampDownToVoxel(centerPoint.y - (boundsRadius or radiusY) - falloffExpansionY),
-		OperationHelper.clampDownToVoxel(centerPoint.z - (boundsRadius or radiusZ) - falloffExpansionZ)
+		OperationHelper.clampDownToVoxel(centerPoint.x - boundsRadiusX),
+		OperationHelper.clampDownToVoxel(centerPoint.y - boundsRadiusY),
+		OperationHelper.clampDownToVoxel(centerPoint.z - boundsRadiusZ)
 	)
 	local maxBounds = Vector3.new(
-		OperationHelper.clampUpToVoxel(centerPoint.x + (boundsRadius or radiusX) + falloffExpansionX),
-		OperationHelper.clampUpToVoxel(centerPoint.y + (boundsRadius or radiusY) + falloffExpansionY),
-		OperationHelper.clampUpToVoxel(centerPoint.z + (boundsRadius or radiusZ) + falloffExpansionZ)
+		OperationHelper.clampUpToVoxel(centerPoint.x + boundsRadiusX),
+		OperationHelper.clampUpToVoxel(centerPoint.y + boundsRadiusY),
+		OperationHelper.clampUpToVoxel(centerPoint.z + boundsRadiusZ)
 	)
 
 	local strength = opSet.strength
@@ -282,7 +297,18 @@ local function performOperation(terrain, opSet)
 		sourceCenterY = opSet.cloneSourceCenter and opSet.cloneSourceCenter.Y or nil,
 		sourceCenterZ = opSet.cloneSourceCenter and opSet.cloneSourceCenter.Z or nil,
 		pathWidth = radiusX,
+		-- Grow tool: emphasize brush center (depth falloff along view direction)
+		emphasizeBrushCenter = opSet.emphasizeBrushCenter,
+		cameraPosition = opSet.cameraPosition,
+		-- Constant values (never change during iteration)
+		centerX = centerX,
+		centerY = centerY,
+		centerZ = centerZ,
+		centerPoint = centerPoint,
 	}
+
+	-- Pre-compute whether this is a Flatten operation (avoid check in inner loop)
+	local isFlatten = (tool == ToolId.Flatten)
 
 	-- "planeDifference" is the distance from the voxel to the plane defined by planePoint and planeNormal
 	for voxelX, occupanciesX in ipairs(readOccupancies) do
@@ -290,10 +316,18 @@ local function performOperation(terrain, opSet)
 		local cellVectorX = worldVectorX - centerX
 		local planeDifferenceX = (worldVectorX - planePointX) * planeNormalX
 
+		-- Update per-X values (constant for Y and Z loops)
+		sculptSettings.worldX = worldVectorX
+		sculptSettings.cellVectorX = cellVectorX
+
 		for voxelY, occupanciesY in ipairs(occupanciesX) do
 			local worldVectorY = minBoundsY + (voxelY - 0.5) * Constants.VOXEL_RESOLUTION
 			local cellVectorY = worldVectorY - centerY
 			local planeDifferenceXY = planeDifferenceX + ((worldVectorY - planePointY) * planeNormalY)
+
+			-- Update per-Y values (constant for Z loop)
+			sculptSettings.worldY = worldVectorY
+			sculptSettings.cellVectorY = cellVectorY
 
 			for voxelZ, occupancy in ipairs(occupanciesY) do
 				local worldVectorZ = minBoundsZ + (voxelZ - 0.5) * Constants.VOXEL_RESOLUTION
@@ -328,7 +362,7 @@ local function performOperation(terrain, opSet)
 
 				airFillerMaterial = waterHeight >= voxelY and airFillerMaterial or materialAir
 
-				-- Update per-voxel settings
+				-- Update per-voxel settings (only values that change every iteration)
 				sculptSettings.x = voxelX
 				sculptSettings.y = voxelY
 				sculptSettings.z = voxelZ
@@ -337,42 +371,17 @@ local function performOperation(terrain, opSet)
 				sculptSettings.cellOccupancy = cellOccupancy
 				sculptSettings.cellMaterial = cellMaterial
 				sculptSettings.airFillerMaterial = airFillerMaterial
-
-				-- World coordinates
-				sculptSettings.worldX = worldVectorX
-				sculptSettings.worldY = worldVectorY
 				sculptSettings.worldZ = worldVectorZ
-
-				-- Center coordinates (for tools that need them)
-				sculptSettings.centerX = centerX
-				sculptSettings.centerY = centerY
-				sculptSettings.centerZ = centerZ
-				sculptSettings.centerPoint = centerPoint -- Vector3 for tools that need it
-
-				-- Cell vectors (offset from brush center)
-				sculptSettings.cellVectorX = cellVectorX
-				sculptSettings.cellVectorY = cellVectorY
 				sculptSettings.cellVectorZ = cellVectorZ
 
-				-- Clone tool target center
-				sculptSettings.targetCenterX = voxelX
-				sculptSettings.targetCenterY = voxelY
-				sculptSettings.targetCenterZ = voxelZ
-
 				-- For Flatten tool (handles its own grow/erode logic)
-				if tool == ToolId.Flatten then
+				if isFlatten then
 					sculptSettings.maxOccupancy = math.abs(planeDifference)
-					-- Flatten is handled by smartColumnSculptBrush above, this is fallback
 				end
 
 				-- Execute the tool's operation via registry
 				if toolExecute then
 					toolExecute(sculptSettings)
-				else
-					-- Fallback warning for unregistered tools
-					if tool ~= ToolId.None then
-						warn("[TerrainBrush] No execute function found for tool:", tool)
-					end
 				end
 			end
 		end

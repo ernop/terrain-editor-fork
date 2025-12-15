@@ -149,7 +149,7 @@ The locked plane shows as a green disc.
 
 | Key | Action |
 |-----|--------|
-| **R** | Lock/unlock brush in place |
+| **L** | Lock/unlock brush in place |
 | **Shift + Scroll** | Adjust primary brush dimension |
 | **Shift + Alt + Scroll** | Adjust secondary brush dimension |
 | **Ctrl + Scroll** | Adjust brush strength |
@@ -178,7 +178,7 @@ Different shapes have different sizing axes:
 - Brush turns **orange** and stays put
 - **Drag orange rings** to rotate
 - **Drag cyan arrows** to resize per-axis
-- Press **R** again to unlock
+- Press **L** again to unlock
 
 ---
 

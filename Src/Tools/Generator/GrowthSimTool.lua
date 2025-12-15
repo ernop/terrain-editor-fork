@@ -92,10 +92,12 @@ GrowthSimTool.docs = {
 GrowthSimTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
 	"growthSettings",
+	"material",
 }
 
 -- ============================================
@@ -162,16 +164,16 @@ function GrowthSimTool.execute(options: SculptSettings)
 		return
 	end
 
-	-- Apply pattern-specific noise
+	-- Apply pattern-specific noise (using fast native Perlin noise)
 	local patternNoise = 0
 	if growthPattern == "organic" then
-		patternNoise = Noise.fbm3D(worldX * 0.1, worldY * 0.1, worldZ * 0.1, growthSeed, 3) * 0.3
+		patternNoise = Noise.fbmFast(worldX * 0.1, worldY * 0.1, worldZ * 0.1, growthSeed, 3) * 0.3
 	elseif growthPattern == "crystal" then
 		-- Angular pattern using quantized noise
-		local rawNoise = Noise.fbm3D(worldX * 0.2, worldY * 0.2, worldZ * 0.2, growthSeed, 2)
+		local rawNoise = Noise.fbmFast(worldX * 0.2, worldY * 0.2, worldZ * 0.2, growthSeed, 2)
 		patternNoise = math.floor(rawNoise * 4) / 4 * 0.3
 	else -- coral
-		patternNoise = Noise.fbm3D(worldX * 0.15, worldY * 0.15, worldZ * 0.15, growthSeed, 4) * 0.4
+		patternNoise = Noise.fbmFast(worldX * 0.15, worldY * 0.15, worldZ * 0.15, growthSeed, 4) * 0.4
 	end
 
 	-- Calculate growth

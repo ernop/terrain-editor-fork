@@ -64,8 +64,8 @@ VoxelInspectTool.docs = {
 -- CONFIGURATION
 -- ============================================
 VoxelInspectTool.configPanels = {
-	-- Panel showing current voxel info (implemented in VoxelInspectPanel.lua)
-	"voxelInspectInfo",
+	-- Panel showing current voxel info (implemented in AdvancedPanels.lua)
+	"voxelInspectPanel",
 }
 
 -- ============================================

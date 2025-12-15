@@ -78,7 +78,7 @@ CloneTool.docs = {
 	quickTips = {
 		"Ctrl+Click — Set clone source",
 		"Shift+Scroll — Resize brush",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",
@@ -90,6 +90,7 @@ CloneTool.docs = {
 CloneTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

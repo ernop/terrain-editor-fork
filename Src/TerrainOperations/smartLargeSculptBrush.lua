@@ -142,7 +142,14 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 		desiredMaterial = desiredMaterial,
 		autoMaterial = autoMaterial,
 		filterSize = 1,
-		maxOccupancy = 1
+		maxOccupancy = 1,
+		-- Grow tool: emphasize brush center (depth falloff along view direction)
+		emphasizeBrushCenter = opSet.emphasizeBrushCenter,
+		cameraPosition = opSet.cameraPosition,
+		centerPoint = centerPoint,
+		cursorSizeX = opSet.cursorSizeX or opSet.cursorSize,
+		cursorSizeY = opSet.cursorSizeY or opSet.cursorHeight or opSet.cursorSize,
+		cursorSizeZ = opSet.cursorSizeZ or opSet.cursorSize,
 	}
 
 	-- Continuously pop from the to-consider list until it's empty
@@ -246,6 +253,10 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				sculptSettings.cellOccupancy = cellOccupancy
 				sculptSettings.cellMaterial = cellMaterial
 				sculptSettings.desiredMaterial = desiredMaterial
+				-- Add world coordinates for emphasize brush center feature
+				sculptSettings.worldX = worldVectorX
+				sculptSettings.worldY = worldVectorY
+				sculptSettings.worldZ = worldVectorZ
 
 				SculptOperations.grow(sculptSettings)
 			end

@@ -452,6 +452,548 @@ function UIComponents.createToggleButton(config: ToggleButtonConfig): ToggleButt
 end
 
 -- ============================================================================
+-- LabeledButtonGroup Component
+-- Compact inline layout: "Label — [Opt1] [Opt2] [Opt3]"
+-- ============================================================================
+
+export type LabeledButtonGroupConfig = {
+	parent: Frame,
+	label: string,
+	options: { { id: string, name: string } },
+	initialValue: string,
+	onChange: (newValue: string) -> (),
+	labelWidth: number?,
+	buttonWidth: number?,
+}
+
+export type LabeledButtonGroupResult = {
+	container: Frame,
+	buttons: { [string]: TextButton },
+	update: (newValue: string) -> (),
+	getValue: () -> string,
+}
+
+function UIComponents.createLabeledButtonGroup(config: LabeledButtonGroupConfig): LabeledButtonGroupResult
+	local currentValue = config.initialValue
+	local buttons: { [string]: TextButton } = {}
+	local labelWidth = config.labelWidth or 80
+	local buttonWidth = config.buttonWidth or 60
+
+	-- Container row
+	local container = Instance.new("Frame")
+	container.Name = "LabeledButtonGroup"
+	container.BackgroundTransparency = 1
+	container.Size = UDim2.new(1, 0, 0, 26)
+	container.Parent = config.parent
+
+	-- Label on the left - BOLD, WHITE, BIGGER
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.BackgroundTransparency = 1
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.Size = UDim2.new(0, labelWidth, 1, 0)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Text = config.label
+	label.Parent = container
+
+	-- Buttons container - aligned to consistent start position
+	local buttonsContainer = Instance.new("Frame")
+	buttonsContainer.Name = "Buttons"
+	buttonsContainer.BackgroundTransparency = 1
+	buttonsContainer.Position = UDim2.new(0, labelWidth, 0, 0)
+	buttonsContainer.Size = UDim2.new(1, -labelWidth, 1, 0)
+	buttonsContainer.Parent = container
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 3)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = buttonsContainer
+
+	-- Update function
+	local function updateButtonVisuals()
+		for id, btn in pairs(buttons) do
+			if id == currentValue then
+				btn.BackgroundColor3 = Theme.Colors.ButtonSelected
+			else
+				btn.BackgroundColor3 = Theme.Colors.ButtonDefault
+			end
+			btn.TextColor3 = Theme.Colors.Text
+		end
+	end
+
+	-- Create buttons
+	for i, option in ipairs(config.options) do
+		local btn = Instance.new("TextButton")
+		btn.Name = option.id
+		btn.Size = UDim2.new(0, buttonWidth, 0, 22)
+		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
+		btn.BorderSizePixel = 0
+		btn.Font = Theme.Fonts.Medium
+		btn.TextSize = 11
+		btn.TextColor3 = Theme.Colors.Text
+		btn.Text = option.name
+		btn.LayoutOrder = i
+		btn.AutoButtonColor = true
+		btn.Parent = buttonsContainer
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = btn
+
+		btn.MouseButton1Click:Connect(function()
+			currentValue = option.id
+			updateButtonVisuals()
+			config.onChange(option.id)
+		end)
+
+		buttons[option.id] = btn
+	end
+
+	-- Initial visual state
+	updateButtonVisuals()
+
+	return {
+		container = container,
+		buttons = buttons,
+		update = function(newValue: string)
+			currentValue = newValue
+			updateButtonVisuals()
+		end,
+		getValue = function()
+			return currentValue
+		end,
+	}
+end
+
+-- ============================================================================
+-- LabeledToggle Component  
+-- Compact inline layout: "Label — [Toggle]"
+-- ============================================================================
+
+export type LabeledToggleConfig = {
+	parent: Frame,
+	label: string,
+	initialState: boolean,
+	textOn: string,
+	textOff: string,
+	onChange: (newState: boolean) -> (),
+	labelWidth: number?,
+}
+
+export type LabeledToggleResult = {
+	container: Frame,
+	update: (newState: boolean) -> (),
+	getState: () -> boolean,
+}
+
+function UIComponents.createLabeledToggle(config: LabeledToggleConfig): LabeledToggleResult
+	local currentState = config.initialState
+	local labelWidth = config.labelWidth or 80
+
+	-- Container row
+	local container = Instance.new("Frame")
+	container.Name = "LabeledToggle"
+	container.BackgroundTransparency = 1
+	container.Size = UDim2.new(1, 0, 0, 26)
+	container.Parent = config.parent
+
+	-- Label on the left - BOLD, WHITE, BIGGER
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.BackgroundTransparency = 1
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.Size = UDim2.new(0, labelWidth, 1, 0)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Text = config.label
+	label.Parent = container
+
+	-- Toggle button - aligned to same position as other button groups
+	local button = Instance.new("TextButton")
+	button.Name = "Toggle"
+	button.Position = UDim2.new(0, labelWidth, 0, 2)
+	button.Size = UDim2.new(0, 70, 0, 22)
+	button.BackgroundColor3 = currentState and Theme.Colors.ButtonToggleOn or Theme.Colors.ButtonDefault
+	button.BorderSizePixel = 0
+	button.Font = Theme.Fonts.Medium
+	button.TextSize = 11
+	button.TextColor3 = Theme.Colors.Text
+	button.Text = currentState and config.textOn or config.textOff
+	button.AutoButtonColor = true
+	button.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 4)
+	corner.Parent = button
+
+	local function updateVisuals()
+		button.BackgroundColor3 = currentState and Theme.Colors.ButtonToggleOn or Theme.Colors.ButtonDefault
+		button.Text = currentState and config.textOn or config.textOff
+	end
+
+	button.MouseButton1Click:Connect(function()
+		currentState = not currentState
+		updateVisuals()
+		config.onChange(currentState)
+	end)
+
+	return {
+		container = container,
+		update = function(newState: boolean)
+			currentState = newState
+			updateVisuals()
+		end,
+		getState = function()
+			return currentState
+		end,
+	}
+end
+
+-- ============================================================================
+-- Shape Icon Component
+-- Creates visual GUI-based icons for brush shapes
+-- ============================================================================
+
+local TerrainEnums = require(script.Parent.TerrainEnums)
+local BrushShape = TerrainEnums.BrushShape
+
+-- Shape icon size constants
+local SHAPE_ICON_SIZE = 24
+local SHAPE_ICON_COLOR = Color3.fromRGB(180, 200, 220)
+local SHAPE_ICON_COLOR_DIM = Color3.fromRGB(100, 115, 130)
+
+-- Helper: Create a simple colored frame element
+local function createIconElement(parent: Frame, props: {
+	position: UDim2?,
+	size: UDim2,
+	color: Color3?,
+	cornerRadius: number?,
+	rotation: number?,
+}): Frame
+	local element = Instance.new("Frame")
+	element.BackgroundColor3 = props.color or SHAPE_ICON_COLOR
+	element.BorderSizePixel = 0
+	element.Position = props.position or UDim2.new(0, 0, 0, 0)
+	element.Size = props.size
+	element.AnchorPoint = Vector2.new(0.5, 0.5)
+	element.Rotation = props.rotation or 0
+	element.Parent = parent
+	
+	if props.cornerRadius then
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, props.cornerRadius)
+		corner.Parent = element
+	end
+	
+	return element
+end
+
+--[[
+	Creates a visual icon for a brush shape using GUI elements.
+	Returns a Frame containing the shape icon.
+]]
+function UIComponents.createShapeIcon(shapeId: string, size: number?): Frame
+	local iconSize = size or SHAPE_ICON_SIZE
+	local container = Instance.new("Frame")
+	container.Name = "ShapeIcon"
+	container.BackgroundTransparency = 1
+	container.Size = UDim2.new(0, iconSize, 0, iconSize)
+	
+	local s = iconSize -- shorthand
+	local halfS = s / 2
+	
+	if shapeId == BrushShape.Sphere then
+		-- Circle
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
+			cornerRadius = s,
+		})
+		
+	elseif shapeId == BrushShape.Cube then
+		-- Square
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.75, 0, s * 0.75),
+			cornerRadius = 2,
+		})
+		
+	elseif shapeId == BrushShape.Cylinder then
+		-- Tall rounded rectangle (pill shape)
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.55, 0, s * 0.85),
+			cornerRadius = s * 0.27,
+		})
+		
+	elseif shapeId == BrushShape.Wedge then
+		-- Right triangle using rotated square
+		-- We'll use a square rotated 45 degrees with half hidden
+		local triangleContainer = Instance.new("Frame")
+		triangleContainer.BackgroundTransparency = 1
+		triangleContainer.Size = UDim2.new(1, 0, 1, 0)
+		triangleContainer.ClipsDescendants = true
+		triangleContainer.Parent = container
+		
+		createIconElement(triangleContainer, {
+			position = UDim2.new(0.7, 0, 0.7, 0),
+			size = UDim2.new(0, s * 0.9, 0, s * 0.9),
+			rotation = 45,
+			cornerRadius = 2,
+		})
+		
+	elseif shapeId == BrushShape.CornerWedge then
+		-- Corner wedge - triangle in corner
+		local triangleContainer = Instance.new("Frame")
+		triangleContainer.BackgroundTransparency = 1
+		triangleContainer.Size = UDim2.new(1, 0, 1, 0)
+		triangleContainer.ClipsDescendants = true
+		triangleContainer.Parent = container
+		
+		createIconElement(triangleContainer, {
+			position = UDim2.new(0.75, 0, 0.75, 0),
+			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
+			rotation = 45,
+			cornerRadius = 2,
+		})
+		
+	elseif shapeId == BrushShape.Dome then
+		-- Half circle (dome) - clip bottom half
+		local domeClip = Instance.new("Frame")
+		domeClip.BackgroundTransparency = 1
+		domeClip.Position = UDim2.new(0, 0, 0, 0)
+		domeClip.Size = UDim2.new(1, 0, 0.55, 0)
+		domeClip.ClipsDescendants = true
+		domeClip.Parent = container
+		
+		createIconElement(domeClip, {
+			position = UDim2.new(0.5, 0, 1, 0),
+			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
+			cornerRadius = s,
+		})
+		
+	elseif shapeId == BrushShape.RotatedDome then
+		-- Arch shape (U turned upside down)
+		-- Outer circle with inner cutout effect
+		local archOuter = createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.42, 0),
+			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
+			cornerRadius = s,
+		})
+		
+		-- Inner cutout (using background color)
+		local innerCut = Instance.new("Frame")
+		innerCut.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		innerCut.BorderSizePixel = 0
+		innerCut.Position = UDim2.new(0.5, 0, 0.6, 0)
+		innerCut.Size = UDim2.new(0, s * 0.5, 0, s * 0.5)
+		innerCut.AnchorPoint = Vector2.new(0.5, 0.5)
+		innerCut.Parent = archOuter
+		
+		local innerCorner = Instance.new("UICorner")
+		innerCorner.CornerRadius = UDim.new(1, 0)
+		innerCorner.Parent = innerCut
+		
+		-- Bottom extension bars
+		createIconElement(container, {
+			position = UDim2.new(0.22, 0, 0.75, 0),
+			size = UDim2.new(0, s * 0.17, 0, s * 0.4),
+		})
+		createIconElement(container, {
+			position = UDim2.new(0.78, 0, 0.75, 0),
+			size = UDim2.new(0, s * 0.17, 0, s * 0.4),
+		})
+		
+	elseif shapeId == BrushShape.Torus then
+		-- Donut shape - circle with hole
+		local outerRing = createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
+			cornerRadius = s,
+		})
+		
+		-- Inner hole
+		local innerHole = Instance.new("Frame")
+		innerHole.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		innerHole.BorderSizePixel = 0
+		innerHole.Position = UDim2.new(0.5, 0, 0.5, 0)
+		innerHole.Size = UDim2.new(0, s * 0.4, 0, s * 0.4)
+		innerHole.AnchorPoint = Vector2.new(0.5, 0.5)
+		innerHole.Parent = outerRing
+		
+		local holeCorner = Instance.new("UICorner")
+		holeCorner.CornerRadius = UDim.new(1, 0)
+		holeCorner.Parent = innerHole
+		
+	elseif shapeId == BrushShape.Ring then
+		-- Flat ring (horizontal donut view) - ellipse with hole
+		local outerRing = createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.9, 0, s * 0.45),
+			cornerRadius = s,
+		})
+		
+		-- Inner hole (ellipse)
+		local innerHole = Instance.new("Frame")
+		innerHole.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		innerHole.BorderSizePixel = 0
+		innerHole.Position = UDim2.new(0.5, 0, 0.5, 0)
+		innerHole.Size = UDim2.new(0, s * 0.45, 0, s * 0.22)
+		innerHole.AnchorPoint = Vector2.new(0.5, 0.5)
+		innerHole.Parent = outerRing
+		
+		local holeCorner = Instance.new("UICorner")
+		holeCorner.CornerRadius = UDim.new(1, 0)
+		holeCorner.Parent = innerHole
+		
+	elseif shapeId == BrushShape.ZigZag then
+		-- Z shape using 3 bars
+		local barW = s * 0.65
+		local barH = s * 0.18
+		-- Top horizontal
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.22, 0),
+			size = UDim2.new(0, barW, 0, barH),
+			cornerRadius = 2,
+		})
+		-- Diagonal (rotated)
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, barW * 0.8, 0, barH),
+			rotation = -55,
+			cornerRadius = 2,
+		})
+		-- Bottom horizontal
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.78, 0),
+			size = UDim2.new(0, barW, 0, barH),
+			cornerRadius = 2,
+		})
+		
+	elseif shapeId == BrushShape.Sheet then
+		-- Curved sheet / arc shape
+		-- Use multiple small dots to form arc
+		local arcRadius = s * 0.35
+		local dotSize = s * 0.12
+		for i = 0, 6 do
+			local angle = math.rad(180 + i * 25) -- Arc from left to right
+			local x = 0.5 + math.cos(angle) * (arcRadius / s)
+			local y = 0.55 + math.sin(angle) * (arcRadius / s)
+			createIconElement(container, {
+				position = UDim2.new(x, 0, y, 0),
+				size = UDim2.new(0, dotSize, 0, dotSize),
+				cornerRadius = dotSize,
+			})
+		end
+		
+	elseif shapeId == BrushShape.Grid then
+		-- 2x2 checkerboard pattern
+		local cellSize = s * 0.35
+		local gap = s * 0.08
+		local offset = (s - 2 * cellSize - gap) / 2
+		
+		-- Top-left
+		createIconElement(container, {
+			position = UDim2.new(0, offset + cellSize/2, 0, offset + cellSize/2),
+			size = UDim2.new(0, cellSize, 0, cellSize),
+			cornerRadius = 2,
+		})
+		-- Top-right (dimmer)
+		createIconElement(container, {
+			position = UDim2.new(0, offset + cellSize + gap + cellSize/2, 0, offset + cellSize/2),
+			size = UDim2.new(0, cellSize, 0, cellSize),
+			color = SHAPE_ICON_COLOR_DIM,
+			cornerRadius = 2,
+		})
+		-- Bottom-left (dimmer)
+		createIconElement(container, {
+			position = UDim2.new(0, offset + cellSize/2, 0, offset + cellSize + gap + cellSize/2),
+			size = UDim2.new(0, cellSize, 0, cellSize),
+			color = SHAPE_ICON_COLOR_DIM,
+			cornerRadius = 2,
+		})
+		-- Bottom-right
+		createIconElement(container, {
+			position = UDim2.new(0, offset + cellSize + gap + cellSize/2, 0, offset + cellSize + gap + cellSize/2),
+			size = UDim2.new(0, cellSize, 0, cellSize),
+			cornerRadius = 2,
+		})
+		
+	elseif shapeId == BrushShape.Stick then
+		-- Thin vertical rod
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.22, 0, s * 0.9),
+			cornerRadius = s * 0.1,
+		})
+		
+	elseif shapeId == BrushShape.Spinner then
+		-- Rotating cube indicator - cube with motion lines
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.6, 0, s * 0.6),
+			rotation = 15,
+			cornerRadius = 2,
+		})
+		-- Motion arc
+		local arcDots = 3
+		for i = 1, arcDots do
+			local angle = math.rad(100 + i * 30)
+			local radius = s * 0.42
+			createIconElement(container, {
+				position = UDim2.new(0.5 + math.cos(angle) * radius / s, 0, 0.5 + math.sin(angle) * radius / s, 0),
+				size = UDim2.new(0, s * 0.08, 0, s * 0.08),
+				color = SHAPE_ICON_COLOR_DIM,
+				cornerRadius = s,
+			})
+		end
+		
+	elseif shapeId == BrushShape.Spikepad then
+		-- Square base with triangular spikes on top
+		-- Base
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.72, 0),
+			size = UDim2.new(0, s * 0.85, 0, s * 0.35),
+			cornerRadius = 2,
+		})
+		-- Spikes (3 triangles using rotated squares clipped)
+		local spikeClip = Instance.new("Frame")
+		spikeClip.BackgroundTransparency = 1
+		spikeClip.Position = UDim2.new(0, 0, 0, 0)
+		spikeClip.Size = UDim2.new(1, 0, 0.6, 0)
+		spikeClip.ClipsDescendants = true
+		spikeClip.Parent = container
+		
+		local spikePositions = {0.25, 0.5, 0.75}
+		for _, xPos in ipairs(spikePositions) do
+			createIconElement(spikeClip, {
+				position = UDim2.new(xPos, 0, 0.85, 0),
+				size = UDim2.new(0, s * 0.22, 0, s * 0.22),
+				rotation = 45,
+				cornerRadius = 1,
+			})
+		end
+		
+	else
+		-- Fallback: simple square
+		createIconElement(container, {
+			position = UDim2.new(0.5, 0, 0.5, 0),
+			size = UDim2.new(0, s * 0.7, 0, s * 0.7),
+			cornerRadius = 2,
+		})
+	end
+	
+	return container
+end
+
+-- ============================================================================
 -- RandomizeSeedButton Component
 -- Standard "Randomize Seed" action button
 -- ============================================================================

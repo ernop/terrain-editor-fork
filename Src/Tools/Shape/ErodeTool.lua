@@ -54,27 +54,28 @@ ErodeTool.docs = {
 			heading = "Algorithm",
 			bullets = {
 				"For each voxel in brush region:",
-				"  Sample 6 face-neighbors",
-				"  neighborMin = min occupancy of neighbors",
-				"  if neighborMin < cellOcc:",
-				"    delta = (cellOcc - neighborMin) × strength × brushOcc",
+				"  Skip if empty (occ = 0) or weak brush (≤ 0.5)",
+				"  Sample 6 face-neighbors (±X, ±Y, ±Z)",
+				"  emptySpace = 6 - sum(neighbors)  (how much air around)",
+				"  if cell is partial OR has empty neighbor:",
+				"    delta = (emptySpace / 6) × (strength + 0.1) × 0.25 × brushOcc",
 				"    cellOcc -= delta",
-				"  if cellOcc ≤ 1/256: set to Air",
+				"  if cellOcc ≤ 1/256: set to Air (or Water if ignoreWater off)",
 			},
 		},
 		{
 			heading = "Behavior",
-			content = "Only erodes exposed surfaces. Fully surrounded voxels (all neighbors solid) are protected. Creates natural weathering patterns.",
+			content = "Erodes exposed surfaces based on surrounding empty space. More exposed = faster erosion. Fully surrounded solid voxels (no empty neighbors) unchanged. Creates natural weathering patterns.",
 		},
 	},
 	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
-	docVersion = "2.1",
+	docVersion = "2.2",
 }
 
 -- ============================================

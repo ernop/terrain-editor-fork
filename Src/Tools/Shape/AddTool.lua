@@ -68,7 +68,7 @@ AddTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 		"Alt+Click — Sample material",
 	},
 	
@@ -89,6 +89,7 @@ AddTool.configPanels = {
 	"falloff",
 	"planeLock",
 	"spin",
+	"autoMaterial",
 	"material",
 }
 

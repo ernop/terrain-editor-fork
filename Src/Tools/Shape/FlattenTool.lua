@@ -97,6 +97,8 @@ FlattenTool.configPanels = {
 	"planeLock",
 	"flattenMode",
 	"spin",
+	"autoMaterial",
+	"material",
 }
 
 -- ============================================

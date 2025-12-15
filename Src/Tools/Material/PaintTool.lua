@@ -61,7 +61,7 @@ PaintTool.docs = {
 	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",

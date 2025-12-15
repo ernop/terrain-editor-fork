@@ -207,11 +207,26 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	-- Get the falloff function for this operation
 	local falloff = getFalloffFunction(falloffType)
 
-	-- Falloff extent scales the effective region for the falloff curve
-	-- 0 = falloff only within brush (original behavior)
-	-- 1 = falloff extends to 2x the brush radius
-	local falloffMultiplier = 1 + falloffExtent
-	local inverseFalloffMultiplier = 1 / falloffMultiplier
+	-- Interior falloff model:
+	-- falloffExtent = 0: sharp edge (full strength throughout, instant drop at edge)
+	-- falloffExtent = 1: falloff from center to edge (entire brush is gradient)
+	-- The "core" region has full strength, the "falloff" region fades to 0
+	local coreRadius = 1 - falloffExtent  -- Where full strength ends (0 to 1)
+
+	-- Helper to apply interior falloff to a normalized distance
+	local function applyInteriorFalloff(normalizedDistance)
+		if normalizedDistance > 1 then
+			return 0  -- Outside brush
+		elseif falloffExtent <= 0.001 then
+			return 1  -- No falloff, full strength everywhere inside
+		elseif normalizedDistance <= coreRadius then
+			return 1  -- In core region, full strength
+		else
+			-- In falloff region: map [coreRadius, 1] to [0, 1] for the falloff curve
+			local falloffProgress = (normalizedDistance - coreRadius) / falloffExtent
+			return falloff(falloffProgress)
+		end
+	end
 
 	-- Use the average radius for edge falloff calculation
 	local avgRadius = (radiusX + radiusY + radiusZ) / 3
@@ -225,16 +240,13 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local normZ = cellVectorZ / radiusZ
 			local normalizedDistance = math.sqrt(normX * normX + normY * normY + normZ * normZ)
 
-			-- Scale distance for falloff curve (extends effective range when falloffExtent > 0)
-			local scaledDistance = normalizedDistance * inverseFalloffMultiplier
-			magnitudePercent = falloff(scaledDistance)
+			-- Apply interior falloff (core region + falloff region)
+			magnitudePercent = applyInteriorFalloff(normalizedDistance)
 
-			-- Edge falloff and occupancy - extend to include falloff region
-			if normalizedDistance <= falloffMultiplier then
-				brushOccupancy = math.max(0, math.min(1, (falloffMultiplier - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
-				if normalizedDistance <= 1 then
-					brushOccupancy = math.max(brushOccupancy, 0.01) -- Ensure inside voxels have some occupancy
-				end
+			-- Edge occupancy
+			if normalizedDistance <= 1 then
+				brushOccupancy = math.max(0, math.min(1, (1 - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
+				brushOccupancy = math.max(brushOccupancy, 0.01) -- Ensure inside voxels have some occupancy
 			else
 				brushOccupancy = 0
 				magnitudePercent = 0
@@ -246,17 +258,14 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local normZ = cellVectorZ / radiusZ
 			local radialDistance = math.sqrt(normX * normX + normZ * normZ)
 
-			-- Check if within height bounds (extended for falloff)
+			-- Check if within height bounds
 			local normY = math.abs(cellVectorY) / radiusY
-			local insideHeight = normY <= falloffMultiplier
+			local insideHeight = normY <= 1
 
-			if insideHeight and radialDistance <= falloffMultiplier then
-				local scaledDistance = radialDistance * inverseFalloffMultiplier
-				magnitudePercent = falloff(scaledDistance)
-				brushOccupancy = math.max(0, math.min(1, (falloffMultiplier - radialDistance) * radiusX / Constants.VOXEL_RESOLUTION))
-				if radialDistance <= 1 then
-					brushOccupancy = math.max(brushOccupancy, 0.01)
-				end
+			if insideHeight and radialDistance <= 1 then
+				magnitudePercent = applyInteriorFalloff(radialDistance)
+				brushOccupancy = math.max(0, math.min(1, (1 - radialDistance) * radiusX / Constants.VOXEL_RESOLUTION))
+				brushOccupancy = math.max(brushOccupancy, 0.01)
 			else
 				brushOccupancy = 0
 				magnitudePercent = 0
@@ -268,14 +277,11 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local normZ = math.abs(cellVectorZ) / radiusZ
 			local maxNorm = math.max(normX, normY, normZ)
 
-			if maxNorm <= falloffMultiplier then
-				-- Inside the box or falloff region
-				local scaledDistance = maxNorm * inverseFalloffMultiplier
-				magnitudePercent = falloff(scaledDistance)
-				brushOccupancy = math.max(0, math.min(1, (falloffMultiplier - maxNorm) * avgRadius / Constants.VOXEL_RESOLUTION))
-				if maxNorm <= 1 then
-					brushOccupancy = math.max(brushOccupancy, 0.01)
-				end
+			if maxNorm <= 1 then
+				-- Inside the box
+				magnitudePercent = applyInteriorFalloff(maxNorm)
+				brushOccupancy = math.max(0, math.min(1, (1 - maxNorm) * avgRadius / Constants.VOXEL_RESOLUTION))
+				brushOccupancy = math.max(brushOccupancy, 0.01)
 			else
 				brushOccupancy = 0
 				magnitudePercent = 0
@@ -295,7 +301,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if normX <= 1 and normY >= 0 and normY <= maxAllowedY and normZ >= 0 and normZ <= 1 then
 				local edgeDist = math.min(1 - normX, normY, maxAllowedY - normY, normZ, 1 - normZ)
-				magnitudePercent = falloff(1 - edgeDist)
+				-- edgeDist is distance from edge (0 at edge, ~1 at center), convert to center distance
+				magnitudePercent = applyInteriorFalloff(1 - edgeDist)
 				brushOccupancy = math.max(0.01, math.min(1, edgeDist * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -313,7 +320,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if normX >= 0 and normX <= 1 and normY >= 0 and normY <= maxAllowedY and normZ >= 0 and normZ <= 1 then
 				local edgeDist = math.min(normX, 1 - normX, normY, maxAllowedY - normY, normZ, 1 - normZ)
-				magnitudePercent = falloff(1 - edgeDist)
+				-- edgeDist is distance from edge (0 at edge, ~1 at center), convert to center distance
+				magnitudePercent = applyInteriorFalloff(1 - edgeDist)
 				brushOccupancy = math.max(0.01, math.min(1, edgeDist * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -327,14 +335,29 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local normZ = cellVectorZ / radiusZ
 			local normalizedDistance = math.sqrt(normX * normX + normY * normY + normZ * normZ)
 
-			-- Only include top half (Y >= 0 in local space), extended for falloff
-			if cellVectorY >= 0 and normalizedDistance <= falloffMultiplier then
-				local scaledDistance = normalizedDistance * inverseFalloffMultiplier
-				magnitudePercent = falloff(scaledDistance)
-				brushOccupancy = math.max(0, math.min(1, (falloffMultiplier - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
-				if normalizedDistance <= 1 then
-					brushOccupancy = math.max(brushOccupancy, 0.01)
-				end
+			-- Only include top half (Y >= 0 in local space)
+			if cellVectorY >= 0 and normalizedDistance <= 1 then
+				magnitudePercent = applyInteriorFalloff(normalizedDistance)
+				brushOccupancy = math.max(0, math.min(1, (1 - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
+				brushOccupancy = math.max(brushOccupancy, 0.01)
+			else
+				brushOccupancy = 0
+				magnitudePercent = 0
+			end
+		elseif brushShape == BrushShape.RotatedDome then
+			-- RotatedDome: half-sphere facing forward (Z+ direction)
+			-- Perfect for tunnel entrances, cave mouths, arched doorways
+			-- Only include voxels where Z >= 0 (front half)
+			local normX = cellVectorX / radiusX
+			local normY = cellVectorY / radiusY
+			local normZ = cellVectorZ / radiusZ
+			local normalizedDistance = math.sqrt(normX * normX + normY * normY + normZ * normZ)
+
+			-- Only include front half (Z >= 0 in local space)
+			if cellVectorZ >= 0 and normalizedDistance <= 1 then
+				magnitudePercent = applyInteriorFalloff(normalizedDistance)
+				brushOccupancy = math.max(0, math.min(1, (1 - normalizedDistance) * avgRadius / Constants.VOXEL_RESOLUTION))
+				brushOccupancy = math.max(brushOccupancy, 0.01)
 			else
 				brushOccupancy = 0
 				magnitudePercent = 0
@@ -358,9 +381,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local tubeDistance = math.sqrt(distFromRing * distFromRing + cellVectorY * cellVectorY)
 			local normalizedTubeDistance = tubeDistance / minorRadius
 
-			if normalizedTubeDistance <= falloffMultiplier then
-				local scaledDistance = normalizedTubeDistance * inverseFalloffMultiplier
-				magnitudePercent = falloff(scaledDistance)
+			if normalizedTubeDistance <= 1 then
+				magnitudePercent = applyInteriorFalloff(normalizedTubeDistance)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - normalizedTubeDistance) * minorRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -382,7 +404,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 				-- Edge falloff
 				local radialPos = (distFromAxis - innerRadius) / (outerRadius - innerRadius)
 				local edgeDist = math.min(radialPos, 1 - radialPos, (thickness - math.abs(cellVectorY)) / thickness)
-				magnitudePercent = falloff(1 - edgeDist)
+				magnitudePercent = applyInteriorFalloff(1 - edgeDist)
 				brushOccupancy = math.max(0.01, math.min(1, edgeDist * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -442,7 +464,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 
 			if onSurface and withinHeight and withinArc then
 				local surfaceDist = math.abs(distFromAxis - curveRadius) / sheetThickness
-				magnitudePercent = falloff(surfaceDist)
+				magnitudePercent = applyInteriorFalloff(surfaceDist)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - surfaceDist)))
 			else
 				brushOccupancy = 0
@@ -485,7 +507,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local withinLength = math.abs(cellVectorY) <= stickLength
 
 			if normalizedDist <= 1 and withinLength then
-				magnitudePercent = falloff(normalizedDist)
+				magnitudePercent = applyInteriorFalloff(normalizedDist)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - normalizedDist) * stickRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
@@ -501,7 +523,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local maxNorm = math.max(normX, normY, normZ)
 
 			if maxNorm <= 1 then
-				magnitudePercent = falloff(maxNorm)
+				magnitudePercent = applyInteriorFalloff(maxNorm)
 				brushOccupancy = math.max(0.01, math.min(1, (1 - maxNorm) * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0

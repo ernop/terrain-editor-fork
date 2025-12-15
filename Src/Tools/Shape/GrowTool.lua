@@ -54,27 +54,33 @@ GrowTool.docs = {
 			heading = "Algorithm",
 			bullets = {
 				"For each voxel in brush region:",
+				"  Skip if already full (occ = 1) or weak brush (< 0.5)",
 				"  Sample 6 face-neighbors (±X, ±Y, ±Z)",
-				"  neighborMax = max occupancy of neighbors",
-				"  if neighborMax > cellOcc:",
-				"    delta = (neighborMax - cellOcc) × strength × brushOcc",
+				"  neighborAvg = sum(neighbors) / count",
+				"  if cell has occ > 0 OR any neighbor is full:",
+				"    delta = neighborAvg × (strength + 0.1) × 0.25 × brushOcc",
 				"    cellOcc += delta",
-				"Material propagates from highest-occupancy neighbor",
+				"  if growing into Air: set material (auto or selected)",
 			},
 		},
 		{
+			heading = "Emphasize Center",
+			content = "When enabled, applies full growth strength at the brush center (mouse position) with falloff for areas further from the camera. This helps fill holes evenly—the center fills first instead of the sides growing out before the center is reached.",
+		},
+		{
 			heading = "Behavior",
-			content = "Only expands from existing edges. Interior voxels (already at 1.0) and isolated air (no solid neighbors) are unchanged. Creates smooth, organic expansion.",
+			content = "Expands from existing edges using neighbor averaging. Interior voxels (already at 1.0) unchanged. Requires at least one solid neighbor or existing partial fill. AutoMaterial copies from nearby terrain.",
 		},
 	},
 
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
+		"Emphasize Center — Helps fill holes from front to back",
 	},
 
-	docVersion = "2.1",
+	docVersion = "2.3",
 }
 
 -- ============================================
@@ -90,6 +96,9 @@ GrowTool.configPanels = {
 	"falloff",
 	"planeLock",
 	"spin",
+	"emphasizeBrushCenter",
+	"autoMaterial",
+	"material",
 }
 
 -- ============================================
@@ -111,6 +120,14 @@ function GrowTool.execute(options: SculptSettings)
 	local desiredMaterial = options.desiredMaterial
 	local maxOccupancy = options.maxOccupancy or 1
 	local autoMaterial = options.autoMaterial
+
+	-- Emphasize brush center: depth falloff along view direction
+	local emphasizeBrushCenter = options.emphasizeBrushCenter
+	local cameraPosition = options.cameraPosition
+	local centerPoint = options.centerPoint
+	local worldX = options.worldX
+	local worldY = options.worldY
+	local worldZ = options.worldZ
 
 	-- Skip if already full or brush influence too weak
 	if cellOccupancy == 1 or brushOccupancy < 0.5 then
@@ -148,7 +165,44 @@ function GrowTool.execute(options: SculptSettings)
 	-- Only grow if cell has some occupancy OR has a full neighbor
 	if cellOccupancy > 0 or fullNeighbor then
 		neighborOccupancies = totalNeighbors == 0 and 0 or neighborOccupancies / totalNeighbors
-		desiredOccupancy = desiredOccupancy + neighborOccupancies * (strength + 0.1) * 0.25 * brushOccupancy * magnitudePercent
+		local growthDelta = neighborOccupancies * (strength + 0.1) * 0.25 * brushOccupancy * magnitudePercent
+
+		-- Apply depth-based falloff when emphasizeBrushCenter is enabled
+		if emphasizeBrushCenter and cameraPosition and centerPoint then
+			-- Calculate view direction from camera to brush center
+			local viewDir = (centerPoint - cameraPosition)
+			local viewDirMagnitude = viewDir.Magnitude
+			if viewDirMagnitude > 0.001 then
+				viewDir = viewDir / viewDirMagnitude -- Normalize
+
+				-- Calculate this voxel's world position
+				local voxelPos = Vector3.new(worldX, worldY, worldZ)
+
+				-- Calculate depth: how far this voxel is from brush center along view direction
+				-- Positive = further from camera (behind brush center)
+				-- Negative = closer to camera (in front of brush center)
+				local depthOffset = (voxelPos - centerPoint):Dot(viewDir)
+
+				-- Apply falloff for voxels behind the brush center
+				-- Use the larger brush dimension as the falloff range
+				local cursorSizeX = options.cursorSizeX or 8
+				local cursorSizeY = options.cursorSizeY or 8
+				local cursorSizeZ = options.cursorSizeZ or 8
+				local maxDepthRange = math.max(cursorSizeX, cursorSizeY, cursorSizeZ) * 2 -- studs
+
+				if depthOffset > 0 then
+					-- Voxel is behind brush center (further from camera)
+					-- Apply falloff: 1.0 at center, 0.0 at maxDepthRange
+					local depthFalloff = 1 - math.min(depthOffset / maxDepthRange, 1)
+					-- Use squared falloff for a more gradual curve
+					depthFalloff = depthFalloff * depthFalloff
+					growthDelta = growthDelta * depthFalloff
+				end
+				-- Voxels in front of brush center (depthOffset <= 0) get full strength
+			end
+		end
+
+		desiredOccupancy = desiredOccupancy + growthDelta
 	end
 
 	desiredOccupancy = math.min(desiredOccupancy, maxOccupancy)

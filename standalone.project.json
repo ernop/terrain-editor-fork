@@ -1,0 +1,13 @@
+{
+    "name": "TerrainEditorForkStandalone",
+    "tree": {
+        "$path": "standalone.server.lua",
+        "TerrainEditorModule": {
+            "$path": "TerrainEditorModule.lua",
+            "Src": {
+                "$className": "Folder",
+                "$path": "Src"
+            }
+        }
+    }
+}

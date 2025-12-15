@@ -74,7 +74,7 @@ TerraceTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",
@@ -86,11 +86,12 @@ TerraceTool.docs = {
 TerraceTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
 	"spin",
-	-- Note: terraceSettings panel not yet implemented
+	"terraceSettings",
 }
 
 -- ============================================

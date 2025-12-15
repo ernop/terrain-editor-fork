@@ -77,7 +77,7 @@ MegarandomizeTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Adjust weights to control mix",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 
 	docVersion = "2.1",
@@ -126,9 +126,9 @@ function MegarandomizeTool.execute(options: SculptSettings)
 		return
 	end
 
-	-- Generate clustered random value
+	-- Generate clustered random value (using fast native Perlin noise)
 	local scale = 1 / clusterSize
-	local noiseVal = Noise.fbm3D(worldX * scale, worldY * scale, worldZ * scale, seed, 2)
+	local noiseVal = Noise.fbmFast(worldX * scale, worldY * scale, worldZ * scale, seed, 2)
 	local randomVal = (noiseVal + 1) / 2 -- Map to 0-1
 
 	-- Select material based on weighted random

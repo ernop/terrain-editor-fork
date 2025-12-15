@@ -79,7 +79,7 @@ PathTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Drag to set path direction",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 
 	docVersion = "2.1",

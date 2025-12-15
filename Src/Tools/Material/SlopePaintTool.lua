@@ -75,7 +75,7 @@ SlopePaintTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Great for natural terrain texturing",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",

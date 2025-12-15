@@ -69,7 +69,7 @@ SubtractTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 
 	docVersion = "2.1",

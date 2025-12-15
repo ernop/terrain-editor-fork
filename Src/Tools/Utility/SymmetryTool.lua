@@ -33,7 +33,7 @@ SymmetryTool.traits = {
 	requiresGlobalState = false,
 	usesBrush = true,
 	usesStrength = false,
-	needsMaterial = false,
+	needsMaterial = true,  -- Need material selection for adding terrain
 }
 
 -- ============================================
@@ -86,6 +86,8 @@ SymmetryTool.docs = {
 SymmetryTool.configPanels = {
 	"brushShape",
 	"size",
+	"material",
+	"brushLock",
 	"brushRate",
 	"pivot",
 	"symmetrySettings",

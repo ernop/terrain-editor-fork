@@ -73,7 +73,7 @@ MeltTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Multiple passes = more flow",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 
 	docVersion = "2.1",
@@ -85,6 +85,7 @@ MeltTool.docs = {
 MeltTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",

@@ -2,11 +2,61 @@
 --[[
 	Noise.lua - 3D noise functions for procedural terrain generation
 	
-	Shared utility used by multiple terrain tools (Noise, Megarandomize, 
-	Stalactite, Tendril, Growth, etc.)
+	Shared utility used by multiple terrain tools (Noise, Blobify, Terrace, 
+	Cliff, Path, Stalactite, Tendril, Growth, etc.)
+	
+	PERFORMANCE NOTE: Uses Roblox's native math.noise (C implementation) for
+	fast Perlin noise. The Lua-based hash/interpolation functions are kept
+	for cases where deterministic seeding is required.
 ]]
 
 local Noise = {}
+
+-- ============================================================================
+-- FAST PATH: Native Roblox Perlin noise (C implementation)
+-- Use these for best performance when seed flexibility isn't critical
+-- ============================================================================
+
+-- Native 3D Perlin noise using math.noise (very fast, C implementation)
+-- Returns 0 to 1 (math.noise returns -0.5 to 0.5, we remap)
+-- Seed offsets the sampling position for different patterns
+function Noise.perlin3D(x: number, y: number, z: number, seed: number): number
+	-- Offset by seed * large prime to get different patterns per seed
+	local seedOffset = seed * 17.31
+	return math.noise(x + seedOffset, y + seedOffset * 0.7, z + seedOffset * 1.3) + 0.5
+end
+
+-- Fast Fractal Brownian Motion using native math.noise
+-- Returns 0 to 1
+function Noise.fbmFast(x: number, y: number, z: number, seed: number, octaves: number?): number
+	octaves = octaves or 3
+	local value = 0
+	local amplitude = 1
+	local frequency = 1
+	local maxValue = 0
+	local seedOffset = seed * 17.31
+
+	for i = 1, octaves do
+		-- Each octave uses different seed offset for variety
+		local octaveOffset = i * 127.1
+		value = value + amplitude * math.noise(
+			x * frequency + seedOffset + octaveOffset,
+			y * frequency + seedOffset * 0.7 + octaveOffset,
+			z * frequency + seedOffset * 1.3 + octaveOffset
+		)
+		maxValue = maxValue + amplitude
+		amplitude = amplitude * 0.5
+		frequency = frequency * 2
+	end
+
+	-- Remap from [-maxValue/2, maxValue/2] to [0, 1]
+	return (value / maxValue) + 0.5
+end
+
+-- ============================================================================
+-- LEGACY PATH: Lua-based noise (slower, but deterministic seeding)
+-- Keep for backward compatibility and cases needing exact seed control
+-- ============================================================================
 
 -- Hash function for pseudo-random values
 -- Returns 0 to 1
@@ -24,7 +74,7 @@ function Noise.smoothstep(t: number): number
 	return t * t * (3 - 2 * t)
 end
 
--- 3D value noise with smooth interpolation
+-- 3D value noise with smooth interpolation (Lua implementation)
 -- Returns 0 to 1
 function Noise.noise3D(x: number, y: number, z: number, seed: number): number
 	local x0 = math.floor(x)
@@ -57,7 +107,7 @@ function Noise.noise3D(x: number, y: number, z: number, seed: number): number
 	return nxy0 + fz * (nxy1 - nxy0)
 end
 
--- Fractal Brownian Motion - multiple octaves of noise for more natural look
+-- Fractal Brownian Motion - multiple octaves of noise (Lua implementation)
 -- Returns 0 to 1
 function Noise.fbm3D(x: number, y: number, z: number, seed: number, octaves: number?): number
 	octaves = octaves or 3
@@ -77,4 +127,3 @@ function Noise.fbm3D(x: number, y: number, z: number, seed: number, octaves: num
 end
 
 return Noise
-

@@ -75,7 +75,7 @@ CliffTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Drag to set cliff facing direction",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",
@@ -87,11 +87,12 @@ CliffTool.docs = {
 CliffTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
 	"spin",
-	-- Note: cliffSettings panel not yet implemented
+	"cliffSettings",
 }
 
 -- ============================================

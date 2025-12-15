@@ -91,6 +91,7 @@ StalactiteTool.docs = {
 StalactiteTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
@@ -122,8 +123,8 @@ function StalactiteTool.execute(options: SculptSettings)
 		return
 	end
 
-	-- Generate spike pattern using noise
-	local noiseVal = Noise.fbm3D(worldX * 0.2, worldZ * 0.2, 0, seed, 2)
+	-- Generate spike pattern using noise (fast native Perlin)
+	local noiseVal = Noise.fbmFast(worldX * 0.2, worldZ * 0.2, 0, seed, 2)
 	local hasSpike = noiseVal > (1 - density * 2)
 
 	if not hasSpike then

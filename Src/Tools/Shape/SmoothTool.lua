@@ -54,25 +54,28 @@ SmoothTool.docs = {
 			heading = "Algorithm",
 			bullets = {
 				"For each voxel in brush region:",
-				"  neighborAvg = average of 6 face-neighbors",
-				"  delta = (neighborAvg - cellOcc) × strength × brushOcc",
+				"  Sample 8 cube-corner neighbors (distance-weighted)",
+				"  Each sample scaled by occ×1.5 - 0.25 for fuller blending",
+				"  neighborAvg = weighted sum / total weight",
+				"  delta = (neighborAvg - cellOcc) × (strength + 0.1) × 0.5 × brushOcc",
+				"  if delta > 0: require a full neighbor (won't fill isolated air)",
+				"  if delta < 0: require an empty neighbor (won't erode solid)",
 				"  cellOcc += delta",
-				"Material unchanged (smoothing only affects occupancy)",
 			},
 		},
 		{
 			heading = "Behavior",
-			content = "Acts as low-pass filter on voxel data. High-frequency detail (sharp edges, noise) is reduced. Low-frequency shapes (gentle hills) preserved. Can fill small holes (occ < avg) or erode thin features (occ > avg).",
+			content = "Acts as low-pass filter on voxel data. The occupancy scaling (×1.5 - 0.25) allows cells to reach full 1.0 or empty 0.0. Requires existing terrain edge for changes—won't fill isolated air or erode solid interiors. Material inherited from neighbors when filling.",
 		},
 	},
 	
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
-	docVersion = "2.1",
+	docVersion = "2.2",
 }
 
 -- ============================================

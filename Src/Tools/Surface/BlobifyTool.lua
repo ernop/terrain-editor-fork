@@ -74,7 +74,7 @@ BlobifyTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",
@@ -86,6 +86,7 @@ BlobifyTool.docs = {
 BlobifyTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
@@ -111,9 +112,9 @@ function BlobifyTool.execute(options: SculptSettings)
 		return
 	end
 	
-	-- Generate blob noise
+	-- Generate blob noise using fast native Perlin noise
 	local scale = 0.1 * (1.1 - blobSmoothness)
-	local blobNoise = Noise.fbm3D(
+	local blobNoise = Noise.fbmFast(
 		worldX * scale,
 		worldY * scale,
 		worldZ * scale,

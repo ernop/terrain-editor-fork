@@ -16,6 +16,7 @@ BrushData.ShapeSupportsRotation = {
 	[BrushShape.Wedge] = true,
 	[BrushShape.CornerWedge] = true,
 	[BrushShape.Dome] = false,
+	[BrushShape.RotatedDome] = true, -- Forward-facing dome, benefits from rotation to aim different directions
 	[BrushShape.Torus] = true,
 	[BrushShape.Ring] = true,
 	[BrushShape.ZigZag] = true,
@@ -24,25 +25,6 @@ BrushData.ShapeSupportsRotation = {
 	[BrushShape.Stick] = true,
 	[BrushShape.Spinner] = false,
 	[BrushShape.Spikepad] = true,
-}
-
--- Shape sizing modes: "uniform" = single size, "box" = X, Y, Z independent
--- DEPRECATED: Use ShapeDimensions for proper per-shape axis definitions
-BrushData.ShapeSizingMode = {
-	[BrushShape.Sphere] = "uniform",
-	[BrushShape.Cube] = "box",
-	[BrushShape.Cylinder] = "cylinder",
-	[BrushShape.Wedge] = "box",
-	[BrushShape.CornerWedge] = "box",
-	[BrushShape.Dome] = "cylinder",
-	[BrushShape.Torus] = "torus",
-	[BrushShape.Ring] = "ring",
-	[BrushShape.ZigZag] = "box",
-	[BrushShape.Sheet] = "sheet",
-	[BrushShape.Grid] = "uniform",
-	[BrushShape.Stick] = "stick",
-	[BrushShape.Spinner] = "uniform",
-	[BrushShape.Spikepad] = "spikepad",
 }
 
 --[[
@@ -112,6 +94,14 @@ BrushData.ShapeDimensions = {
 		axes = {
 			{ label = "Radius", maps = { "x", "z" }, primary = true },
 			{ label = "Height", maps = { "y" }, secondary = true },
+		},
+	},
+	[BrushShape.RotatedDome] = {
+		-- RotatedDome: forward-facing dome (good for tunnel/arch entrances)
+		-- Radius (X=Y for circular dome face), Depth (Z controls how deep it goes)
+		axes = {
+			{ label = "Radius", maps = { "x", "y" }, primary = true },
+			{ label = "Depth", maps = { "z" }, secondary = true },
 		},
 	},
 	[BrushShape.Torus] = {
@@ -221,6 +211,27 @@ function BrushData.usesUniformScroll(shape: string): boolean
 	return dims.scrollUniform == true
 end
 
+-- Helper function: Check if shape uses uniform sizing (all axes linked to same value)
+-- Returns true for shapes like Sphere, Grid, Spinner where X=Y=Z
+function BrushData.isUniformShape(shape: string): boolean
+	local dims = BrushData.ShapeDimensions[shape]
+	if not dims then
+		return true -- Default to uniform if unknown
+	end
+	-- Check if there's exactly one axis that maps to all three dimensions
+	if #dims.axes == 1 then
+		local maps = dims.axes[1].maps
+		local hasX, hasY, hasZ = false, false, false
+		for _, axis in ipairs(maps) do
+			if axis == "x" then hasX = true end
+			if axis == "y" then hasY = true end
+			if axis == "z" then hasZ = true end
+		end
+		return hasX and hasY and hasZ
+	end
+	return false
+end
+
 -- Tool config definitions: FALLBACK for tools not in ToolRegistry
 -- Primary configs now live in each tool's .configPanels field (Src/Tools/*/*.lua)
 -- This is only used for tools that don't have tool files yet (analysis tools)
@@ -256,6 +267,7 @@ BrushData.Shapes = {
 	{ id = BrushShape.Wedge, name = "Wedge" },
 	{ id = BrushShape.CornerWedge, name = "Corner" },
 	{ id = BrushShape.Dome, name = "Dome" },
+	{ id = BrushShape.RotatedDome, name = "Arch" },
 	{ id = BrushShape.Torus, name = "Torus" },
 	{ id = BrushShape.Ring, name = "Ring" },
 	{ id = BrushShape.ZigZag, name = "ZigZag" },

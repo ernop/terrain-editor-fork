@@ -141,10 +141,10 @@ function GradientPaintTool.execute(options: SculptSettings)
 	local relPos = worldPos - startPoint
 	local dotProduct = relPos:Dot(axis) / (axisLen * axisLen)
 
-	-- Add noise to transition
+	-- Add noise to transition (using fast native Perlin noise)
 	local noise = 0
 	if noiseAmount > 0 then
-		noise = Noise.fbm3D(worldX * 0.1, worldY * 0.1, worldZ * 0.1, seed, 2) * noiseAmount
+		noise = Noise.fbmFast(worldX * 0.1, worldY * 0.1, worldZ * 0.1, seed, 2) * noiseAmount
 	end
 
 	local gradientPos = math.clamp(dotProduct + noise, 0, 1)

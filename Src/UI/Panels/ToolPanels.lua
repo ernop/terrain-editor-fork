@@ -268,6 +268,80 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 
 	panels["meltViscosity"] = meltViscosityPanel
 
+	-- ========================================================================
+	-- Noise Tool Panels
+	-- ========================================================================
+
+	-- Noise Scale Panel
+	local noiseScalePanel = UIHelpers.createConfigPanel(deps.configContainer, "noiseSettings")
+
+	local noiseHeader = UIHelpers.createHeader(noiseScalePanel, "Noise Settings", UDim2.new(0, 0, 0, 0))
+	noiseHeader.LayoutOrder = 1
+
+	local noiseDesc = UIHelpers.createDescription(noiseScalePanel, "Add procedural variation to terrain surfaces.", 16)
+	noiseDesc.LayoutOrder = 2
+
+	local _, noiseScaleContainer, _ = UIHelpers.createSlider(noiseScalePanel, "Scale", 1, 20, S.noiseScale or 4, function(value)
+		S.noiseScale = value
+	end)
+	noiseScaleContainer.LayoutOrder = 3
+
+	local _, noiseIntensityContainer, _ = UIHelpers.createSlider(noiseScalePanel, "Intensity", 10, 100, math.floor((S.noiseIntensity or 0.5) * 100), function(value)
+		S.noiseIntensity = value / 100
+	end)
+	noiseIntensityContainer.LayoutOrder = 4
+
+	local noiseRandomBtn = UIComponents.createRandomizeSeedButton(noiseScalePanel, function(seed)
+		S.noiseSeed = seed
+	end)
+	noiseRandomBtn.LayoutOrder = 5
+
+	panels["noiseSettings"] = noiseScalePanel
+
+	-- ========================================================================
+	-- Terrace Tool Panels
+	-- ========================================================================
+	local terraceSettingsPanel = UIHelpers.createConfigPanel(deps.configContainer, "terraceSettings")
+
+	local terraceHeader = UIHelpers.createHeader(terraceSettingsPanel, "Terrace Settings", UDim2.new(0, 0, 0, 0))
+	terraceHeader.LayoutOrder = 1
+
+	local terraceDesc = UIHelpers.createDescription(terraceSettingsPanel, "Create stepped terrain levels.", 16)
+	terraceDesc.LayoutOrder = 2
+
+	local _, stepHeightContainer, _ = UIHelpers.createSlider(terraceSettingsPanel, "Step Height", 4, 32, S.stepHeight or 8, function(value)
+		S.stepHeight = value
+	end)
+	stepHeightContainer.LayoutOrder = 3
+
+	local _, stepSharpnessContainer, _ = UIHelpers.createSlider(terraceSettingsPanel, "Sharpness", 0, 100, math.floor((S.stepSharpness or 0.8) * 100), function(value)
+		S.stepSharpness = value / 100
+	end)
+	stepSharpnessContainer.LayoutOrder = 4
+
+	panels["terraceSettings"] = terraceSettingsPanel
+
+	-- ========================================================================
+	-- Cliff Tool Panels
+	-- ========================================================================
+	local cliffSettingsPanel = UIHelpers.createConfigPanel(deps.configContainer, "cliffSettings")
+
+	local cliffHeader = UIHelpers.createHeader(cliffSettingsPanel, "Cliff Settings", UDim2.new(0, 0, 0, 0))
+	cliffHeader.LayoutOrder = 1
+
+	local cliffDesc = UIHelpers.createDescription(cliffSettingsPanel, "Carve vertical cliff faces. Drag to set direction.", 28)
+	cliffDesc.LayoutOrder = 2
+
+	local _, cliffAngleContainer, _ = UIHelpers.createSlider(cliffSettingsPanel, "Angle", 45, 90, S.cliffAngle or 90, function(value)
+		S.cliffAngle = value
+	end)
+	cliffAngleContainer.LayoutOrder = 3
+
+	local cliffDirNote = UIHelpers.createNote(cliffSettingsPanel, "Tip: Drag while painting to set cliff facing direction")
+	cliffDirNote.LayoutOrder = 4
+
+	panels["cliffSettings"] = cliffSettingsPanel
+
 	return {
 		panels = panels,
 	}

@@ -76,7 +76,7 @@ NoiseTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 	
 	docVersion = "2.1",
@@ -88,11 +88,12 @@ NoiseTool.docs = {
 NoiseTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
 	"spin",
-	-- Note: noiseSettings panel not yet implemented
+	"noiseSettings",
 }
 
 -- ============================================
@@ -113,9 +114,9 @@ function NoiseTool.execute(options: SculptSettings)
 		return
 	end
 	
-	-- Sample noise at world position
+	-- Sample noise at world position (using fast native Perlin noise)
 	local scale = 1 / noiseScale
-	local noiseValue = Noise.fbm3D(
+	local noiseValue = Noise.fbmFast(
 		worldX * scale,
 		worldY * scale,
 		worldZ * scale,

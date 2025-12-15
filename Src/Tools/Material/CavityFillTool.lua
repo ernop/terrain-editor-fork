@@ -72,7 +72,7 @@ CavityFillTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Low sensitivity = only deep cavities",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 
 	docVersion = "2.1",

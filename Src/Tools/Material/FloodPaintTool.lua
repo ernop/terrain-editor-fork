@@ -73,7 +73,7 @@ FloodPaintTool.docs = {
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Use specific mode for precision",
-		"R — Lock brush position",
+		"L — Lock brush position",
 	},
 
 	docVersion = "2.1",

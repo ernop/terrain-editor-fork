@@ -18,6 +18,9 @@ local Constants = require(script.Parent.Parent.Parent.Util.Constants)
 
 local CorePanels = {}
 
+-- Consistent label width for alignment across all panels
+local LABEL_WIDTH = 80
+
 export type CorePanelsDeps = {
 	configContainer: Frame,
 	S: any, -- State table
@@ -34,40 +37,145 @@ export type CorePanelsResult = {
 	updateLockButton: () -> (), -- Update lock button visual state
 }
 
+-- Helper to create a bold white inline label
+local function createInlineLabel(parent: Frame, text: string, layoutOrder: number): TextLabel
+	local label = Instance.new("TextLabel")
+	label.Name = "InlineLabel"
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(0, LABEL_WIDTH, 0, 22)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Text = text
+	label.LayoutOrder = layoutOrder
+	label.Parent = parent
+	return label
+end
+
 function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	local panels: { [string]: Frame } = {}
 	local S = deps.S
 
 	-- ========================================================================
-	-- Shape Panel
+	-- Shape Panel - grid of shapes with visual icons
 	-- ========================================================================
 	local shapePanel = UIHelpers.createConfigPanel(deps.configContainer, "brushShape")
 
-	local shapeHeader = UIHelpers.createHeader(shapePanel, "Brush Shape", UDim2.new(0, 0, 0, 0))
+	-- Header label
+	local shapeHeader = Instance.new("TextLabel")
+	shapeHeader.Name = "ShapeHeader"
+	shapeHeader.BackgroundTransparency = 1
+	shapeHeader.Size = UDim2.new(1, 0, 0, 20)
+	shapeHeader.Font = Enum.Font.GothamBold
+	shapeHeader.TextSize = 13
+	shapeHeader.TextColor3 = Color3.new(1, 1, 1)
+	shapeHeader.TextXAlignment = Enum.TextXAlignment.Left
+	shapeHeader.Text = "Shape"
 	shapeHeader.LayoutOrder = 1
+	shapeHeader.Parent = shapePanel
+
+	local shapeButtonsContainer = Instance.new("Frame")
+	shapeButtonsContainer.Name = "ShapeButtons"
+	shapeButtonsContainer.BackgroundTransparency = 1
+	shapeButtonsContainer.Size = UDim2.new(1, 0, 0, 0)
+	shapeButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+	shapeButtonsContainer.LayoutOrder = 2
+	shapeButtonsContainer.Parent = shapePanel
+
+	local shapeGrid = Instance.new("UIGridLayout")
+	shapeGrid.CellSize = UDim2.new(0, 50, 0, 52) -- Taller cells for icon + label
+	shapeGrid.CellPadding = UDim2.new(0, 4, 0, 4)
+	shapeGrid.FillDirection = Enum.FillDirection.Horizontal
+	shapeGrid.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	shapeGrid.SortOrder = Enum.SortOrder.LayoutOrder
+	shapeGrid.Parent = shapeButtonsContainer
+
+	local shapeButtons: { [string]: TextButton } = {}
+	local function updateShapeVisuals()
+		for id, btn in pairs(shapeButtons) do
+			local isSelected = (id == S.brushShape)
+			btn.BackgroundColor3 = isSelected and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
+			-- Update icon color based on selection
+			local icon = btn:FindFirstChild("ShapeIcon")
+			if icon then
+				for _, child in ipairs(icon:GetDescendants()) do
+					if child:IsA("Frame") and child.BackgroundColor3 ~= Color3.fromRGB(50, 50, 50) then
+						-- Don't change "hole" colors, only shape colors
+						if child.BackgroundColor3 == Color3.fromRGB(100, 115, 130) then
+							-- Dim color stays relative
+							child.BackgroundColor3 = isSelected and Color3.fromRGB(140, 160, 180) or Color3.fromRGB(100, 115, 130)
+						else
+							child.BackgroundColor3 = isSelected and Color3.fromRGB(220, 235, 255) or Color3.fromRGB(180, 200, 220)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Forward declaration (defined in Size Panel section below)
+	local rebuildSizeSliders: () -> ()
+
+	for i, shape in ipairs(BrushData.Shapes) do
+		local btn = Instance.new("TextButton")
+		btn.Name = shape.id
+		btn.Size = UDim2.new(0, 50, 0, 52)
+		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
+		btn.BorderSizePixel = 0
+		btn.Text = "" -- No text on button itself
+		btn.LayoutOrder = i
+		btn.AutoButtonColor = true
+		btn.Parent = shapeButtonsContainer
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 5)
+		corner.Parent = btn
+
+		-- Add shape icon
+		local icon = UIComponents.createShapeIcon(shape.id, 26)
+		icon.Position = UDim2.new(0.5, 0, 0, 15)
+		icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		icon.Parent = btn
+
+		-- Add label below icon
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.new(0, 0, 1, -14)
+		label.Size = UDim2.new(1, 0, 0, 14)
+		label.Font = Theme.Fonts.Medium
+		label.TextSize = 9
+		label.TextColor3 = Theme.Colors.Text
+		label.Text = shape.name
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.Parent = btn
+
+		shapeButtons[shape.id] = btn
+		btn.MouseButton1Click:Connect(function()
+			S.brushShape = shape.id
+			updateShapeVisuals()
+			rebuildSizeSliders()
+			if S.brushPart then
+				deps.createBrushVisualization()
+			end
+		end)
+	end
+	updateShapeVisuals()
 
 	panels["brushShape"] = shapePanel
 
 	-- ========================================================================
-	-- Size Panel (dynamic sliders based on shape)
+	-- Size Panel - inline label with dynamic sliders
 	-- ========================================================================
 	local sizePanel = UIHelpers.createConfigPanel(deps.configContainer, "size")
 
-	local sizeHeader = UIHelpers.createHeader(sizePanel, "Brush Size", UDim2.new(0, 0, 0, 0))
-	sizeHeader.LayoutOrder = 1
-
-	-- Container for dynamic sliders
-	local sizeSliderContainer = UIHelpers.createAutoContainer(sizePanel, "SizeSliders")
-	sizeSliderContainer.LayoutOrder = 2
-
-	-- Store slider setters for external updates
 	local sizeSliderSetters: { [string]: (number) -> () } = {}
 
-	-- Function to rebuild sliders when shape changes
-	local function rebuildSizeSliders()
-		-- Clear existing sliders
-		for _, child in ipairs(sizeSliderContainer:GetChildren()) do
-			if not child:IsA("UIListLayout") then
+	rebuildSizeSliders = function()
+		-- Clear existing content
+		for _, child in ipairs(sizePanel:GetChildren()) do
+			if child:IsA("Frame") then
 				child:Destroy()
 			end
 		end
@@ -76,7 +184,7 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		local shapeDims = BrushData.ShapeDimensions[S.brushShape]
 		if not shapeDims then
 			-- Fallback: single uniform slider
-			local _, _, setter = UIHelpers.createSlider(sizeSliderContainer, "Size", Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, S.brushSizeX, function(val)
+			local _, _, setter = UIHelpers.createSlider(sizePanel, "Size", Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, S.brushSizeX, function(val)
 				S.brushSizeX = val
 				S.brushSizeY = val
 				S.brushSizeZ = val
@@ -87,7 +195,6 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 
 		-- Create a slider for each axis
 		for i, axis in ipairs(shapeDims.axes) do
-			-- Get current value from the first mapped axis
 			local currentVal = S.brushSizeX
 			if axis.maps[1] == "y" then
 				currentVal = S.brushSizeY
@@ -95,8 +202,7 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 				currentVal = S.brushSizeZ
 			end
 
-			local _, sliderFrame, setter = UIHelpers.createSlider(sizeSliderContainer, axis.label, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, currentVal, function(val)
-				-- Apply to all mapped axes
+			local _, sliderFrame, setter = UIHelpers.createSlider(sizePanel, axis.label, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, currentVal, function(val)
 				for _, axisName in ipairs(axis.maps) do
 					if axisName == "x" then
 						S.brushSizeX = val
@@ -108,48 +214,27 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 				end
 			end)
 			sliderFrame.LayoutOrder = i
-
-			-- Store setter by axis label for external updates
 			sizeSliderSetters[axis.label] = setter
 		end
 	end
-
-	-- Initial build
 	rebuildSizeSliders()
-
-	-- Now create the shape group with callback that rebuilds size sliders
-	local shapeGroup = UIComponents.createButtonGroup({
-		parent = shapePanel,
-		options = BrushData.Shapes,
-		initialValue = S.brushShape,
-		onChange = function(newShape)
-			S.brushShape = newShape
-			rebuildSizeSliders()
-			if S.brushPart then
-				deps.createBrushVisualization()
-			end
-		end,
-		layout = "grid",
-	})
-	shapeGroup.container.LayoutOrder = 2
 
 	panels["size"] = sizePanel
 
 	-- ========================================================================
-	-- Brush Lock Panel (prominent button to lock brush for adjustment)
+	-- Brush Lock Panel
 	-- ========================================================================
 	local lockPanel = UIHelpers.createConfigPanel(deps.configContainer, "brushLock")
 
-	-- Lock button - big and visible
 	local lockButton = Instance.new("TextButton")
 	lockButton.Name = "LockButton"
-	lockButton.Size = UDim2.new(1, 0, 0, 36)
+	lockButton.Size = UDim2.new(1, 0, 0, 32)
 	lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	lockButton.BorderSizePixel = 0
 	lockButton.Font = Theme.Fonts.Bold
-	lockButton.TextSize = 13
+	lockButton.TextSize = 12
 	lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	lockButton.Text = "🔓 LOCK BRUSH TO ADJUST  [R]"
+	lockButton.Text = "🔓 LOCK BRUSH [L]"
 	lockButton.Parent = lockPanel
 
 	local lockCorner = Instance.new("UICorner")
@@ -158,13 +243,11 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 
 	local function updateLockButton()
 		if S.brushLocked then
-			lockButton.Text = "🔒 BRUSH LOCKED — DRAG HANDLES  [R]"
-			lockButton.BackgroundColor3 = Color3.fromRGB(200, 120, 40) -- Orange when locked
-			lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			lockButton.Text = "🔒 LOCKED — DRAG HANDLES [L]"
+			lockButton.BackgroundColor3 = Color3.fromRGB(200, 120, 40)
 		else
-			lockButton.Text = "🔓 LOCK BRUSH TO ADJUST  [R]"
+			lockButton.Text = "🔓 LOCK BRUSH [L]"
 			lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-			lockButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 		end
 	end
 
@@ -174,19 +257,14 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 			updateLockButton()
 		end
 	end)
-
-	-- Initial state
 	updateLockButton()
 
 	panels["brushLock"] = lockPanel
 
 	-- ========================================================================
-	-- Strength Panel
+	-- Strength Panel - inline label with slider
 	-- ========================================================================
 	local strengthPanel = UIHelpers.createConfigPanel(deps.configContainer, "strength")
-
-	local strengthHeader = UIHelpers.createHeader(strengthPanel, "Strength", UDim2.new(0, 0, 0, 0))
-	strengthHeader.LayoutOrder = 1
 
 	local _, strengthSliderContainer, setStrengthValue = UIHelpers.createSlider(
 		strengthPanel,
@@ -198,174 +276,265 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 			S.brushStrength = value / 100
 		end
 	)
-	strengthSliderContainer.LayoutOrder = 2
 
 	panels["strength"] = strengthPanel
 
 	-- ========================================================================
-	-- Brush Rate Panel
+	-- Brush Rate Panel - inline label with button grid
 	-- ========================================================================
 	local brushRatePanel = UIHelpers.createConfigPanel(deps.configContainer, "brushRate")
 
-	local rateHeader = UIHelpers.createHeader(brushRatePanel, "Brush Rate", UDim2.new(0, 0, 0, 0))
-	rateHeader.LayoutOrder = 1
+	local rateRow = Instance.new("Frame")
+	rateRow.Name = "RateRow"
+	rateRow.BackgroundTransparency = 1
+	rateRow.Size = UDim2.new(1, 0, 0, 0)
+	rateRow.AutomaticSize = Enum.AutomaticSize.Y
+	rateRow.Parent = brushRatePanel
 
-	local rateGroup = UIComponents.createButtonGroup({
-		parent = brushRatePanel,
-		options = {
-			{ id = "no_repeat", name = "No repeat" },
-			{ id = "on_move_only", name = "On move" },
-			{ id = "very_slow", name = "Very slow" },
-			{ id = "slow", name = "Slow" },
-			{ id = "normal", name = "Normal" },
-			{ id = "fast", name = "Fast" },
-		},
-		initialValue = S.brushRate,
-		onChange = function(newRate)
-			S.brushRate = newRate
-		end,
-		layout = "grid",
-		buttonSize = UDim2.new(0, 78, 0, 28),
-	})
-	rateGroup.container.LayoutOrder = 2
+	createInlineLabel(rateRow, "Rate", 1)
+
+	local rateButtonsContainer = Instance.new("Frame")
+	rateButtonsContainer.Name = "RateButtons"
+	rateButtonsContainer.BackgroundTransparency = 1
+	rateButtonsContainer.Position = UDim2.new(0, LABEL_WIDTH, 0, 0)
+	rateButtonsContainer.Size = UDim2.new(1, -LABEL_WIDTH, 0, 0)
+	rateButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+	rateButtonsContainer.Parent = rateRow
+
+	local rateGrid = Instance.new("UIGridLayout")
+	rateGrid.CellSize = UDim2.new(0, 58, 0, 22)
+	rateGrid.CellPadding = UDim2.new(0, 3, 0, 3)
+	rateGrid.FillDirection = Enum.FillDirection.Horizontal
+	rateGrid.SortOrder = Enum.SortOrder.LayoutOrder
+	rateGrid.Parent = rateButtonsContainer
+
+	local rateOptions = {
+		{ id = "no_repeat", name = "No repeat" },
+		{ id = "on_move_only", name = "On move" },
+		{ id = "very_slow", name = "Very slow" },
+		{ id = "slow", name = "Slow" },
+		{ id = "normal", name = "Normal" },
+		{ id = "fast", name = "Fast" },
+	}
+
+	local rateButtons: { [string]: TextButton } = {}
+	local function updateRateVisuals()
+		for id, btn in pairs(rateButtons) do
+			btn.BackgroundColor3 = (id == S.brushRate) and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
+		end
+	end
+
+	for i, opt in ipairs(rateOptions) do
+		local btn = Instance.new("TextButton")
+		btn.Name = opt.id
+		btn.Size = UDim2.new(0, 58, 0, 22)
+		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
+		btn.BorderSizePixel = 0
+		btn.Font = Theme.Fonts.Medium
+		btn.TextSize = 10
+		btn.TextColor3 = Theme.Colors.Text
+		btn.Text = opt.name
+		btn.LayoutOrder = i
+		btn.AutoButtonColor = true
+		btn.Parent = rateButtonsContainer
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = btn
+
+		rateButtons[opt.id] = btn
+		btn.MouseButton1Click:Connect(function()
+			S.brushRate = opt.id
+			updateRateVisuals()
+		end)
+	end
+	updateRateVisuals()
 
 	panels["brushRate"] = brushRatePanel
 
 	-- ========================================================================
-	-- Pivot Panel
+	-- Pivot Panel - inline
 	-- ========================================================================
 	local pivotPanel = UIHelpers.createConfigPanel(deps.configContainer, "pivot")
 
-	local pivotHeader = UIHelpers.createHeader(pivotPanel, "Pivot Position", UDim2.new(0, 0, 0, 0))
-	pivotHeader.LayoutOrder = 1
-
-	local pivotGroup = UIComponents.createButtonGroup({
+	local pivotGroup = UIComponents.createLabeledButtonGroup({
 		parent = pivotPanel,
+		label = "Pivot",
 		options = {
-			{ id = PivotType.Bottom, name = "Bottom" },
-			{ id = PivotType.Center, name = "Center" },
+			{ id = PivotType.Bottom, name = "Bot" },
+			{ id = PivotType.Center, name = "Cen" },
 			{ id = PivotType.Top, name = "Top" },
+			{ id = PivotType.Surface, name = "Surface" },
 		},
 		initialValue = S.pivotType,
 		onChange = function(newPivot)
 			S.pivotType = newPivot
 		end,
-		layout = "horizontal",
+		labelWidth = LABEL_WIDTH,
+		buttonWidth = 48,
 	})
-	pivotGroup.container.LayoutOrder = 2
 
 	panels["pivot"] = pivotPanel
 
 	-- ========================================================================
-	-- Hollow Mode Panel
+	-- Hollow Mode Panel - inline with conditional slider
 	-- ========================================================================
 	local hollowPanel = UIHelpers.createConfigPanel(deps.configContainer, "hollow")
 
-	local hollowHeader = UIHelpers.createHeader(hollowPanel, "Hollow Mode", UDim2.new(0, 0, 0, 0))
-	hollowHeader.LayoutOrder = 1
+	local thicknessContainer: Frame
 
-	local hollowToggle = UIComponents.createToggleButton({
+	local hollowToggle = UIComponents.createLabeledToggle({
 		parent = hollowPanel,
+		label = "Hollow",
 		initialState = S.hollowEnabled,
 		textOn = "HOLLOW",
 		textOff = "Solid",
 		onChange = function(isHollow)
 			S.hollowEnabled = isHollow
-			thicknessContainer.Visible = isHollow
+			if thicknessContainer then
+				thicknessContainer.Visible = isHollow
+			end
 		end,
+		labelWidth = LABEL_WIDTH,
 	})
-	hollowToggle.button.LayoutOrder = 2
+	hollowToggle.container.LayoutOrder = 1
 
-	local _, thicknessContainer, _ = UIHelpers.createSlider(hollowPanel, "Thickness", 10, 50, math.floor(S.wallThickness * 100), function(val)
+	local _, thicknessContainerRef, _ = UIHelpers.createSlider(hollowPanel, "Thickness", 10, 50, math.floor(S.wallThickness * 100), function(val)
 		S.wallThickness = val / 100
 	end)
-	thicknessContainer.LayoutOrder = 3
+	thicknessContainer = thicknessContainerRef
+	thicknessContainer.LayoutOrder = 2
 	thicknessContainer.Visible = S.hollowEnabled
 
 	panels["hollow"] = hollowPanel
 
 	-- ========================================================================
-	-- Falloff Curve Panel
+	-- Falloff Curve Panel - inline label with grid + slider
 	-- ========================================================================
 	local falloffPanel = UIHelpers.createConfigPanel(deps.configContainer, "falloff")
 
-	local falloffHeader = UIHelpers.createHeader(falloffPanel, "Falloff Curve", UDim2.new(0, 0, 0, 0))
-	falloffHeader.LayoutOrder = 1
+	local falloffRow = Instance.new("Frame")
+	falloffRow.Name = "FalloffRow"
+	falloffRow.BackgroundTransparency = 1
+	falloffRow.Size = UDim2.new(1, 0, 0, 0)
+	falloffRow.AutomaticSize = Enum.AutomaticSize.Y
+	falloffRow.LayoutOrder = 1
+	falloffRow.Parent = falloffPanel
 
-	local falloffGroup = UIComponents.createButtonGroup({
-		parent = falloffPanel,
-		options = {
-			{ id = FalloffType.Cosine, name = "Cosine" },
-			{ id = FalloffType.Linear, name = "Linear" },
-			{ id = FalloffType.Plateau, name = "Plateau" },
-			{ id = FalloffType.Gaussian, name = "Gaussian" },
-			{ id = FalloffType.Quadratic, name = "Quadratic" },
-			{ id = FalloffType.Sharp, name = "Sharp" },
-		},
-		initialValue = S.falloffType,
-		onChange = function(newFalloff)
-			S.falloffType = newFalloff
-		end,
-		layout = "grid",
-		buttonSize = UDim2.new(0, 78, 0, 28),
-	})
-	falloffGroup.container.LayoutOrder = 2
+	createInlineLabel(falloffRow, "Falloff", 1)
 
-	-- Falloff Extent slider: how far the falloff region extends beyond the brush edge
-	-- 0% = falloff only within brush (original behavior)
-	-- 100% = falloff extends to 2x the brush radius
-	local _, extentContainer, _ = UIHelpers.createSlider(falloffPanel, "Extent", 0, 100, math.floor(S.falloffExtent * 100), function(val)
+	local falloffButtonsContainer = Instance.new("Frame")
+	falloffButtonsContainer.Name = "FalloffButtons"
+	falloffButtonsContainer.BackgroundTransparency = 1
+	falloffButtonsContainer.Position = UDim2.new(0, LABEL_WIDTH, 0, 0)
+	falloffButtonsContainer.Size = UDim2.new(1, -LABEL_WIDTH, 0, 0)
+	falloffButtonsContainer.AutomaticSize = Enum.AutomaticSize.Y
+	falloffButtonsContainer.Parent = falloffRow
+
+	local falloffGrid = Instance.new("UIGridLayout")
+	falloffGrid.CellSize = UDim2.new(0, 58, 0, 22)
+	falloffGrid.CellPadding = UDim2.new(0, 3, 0, 3)
+	falloffGrid.FillDirection = Enum.FillDirection.Horizontal
+	falloffGrid.SortOrder = Enum.SortOrder.LayoutOrder
+	falloffGrid.Parent = falloffButtonsContainer
+
+	local falloffOptions = {
+		{ id = FalloffType.Cosine, name = "Cosine" },
+		{ id = FalloffType.Linear, name = "Linear" },
+		{ id = FalloffType.Plateau, name = "Plateau" },
+		{ id = FalloffType.Gaussian, name = "Gaussian" },
+		{ id = FalloffType.Quadratic, name = "Quadratic" },
+		{ id = FalloffType.Sharp, name = "Sharp" },
+	}
+
+	local falloffButtons: { [string]: TextButton } = {}
+	local function updateFalloffVisuals()
+		for id, btn in pairs(falloffButtons) do
+			btn.BackgroundColor3 = (id == S.falloffType) and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
+		end
+	end
+
+	for i, opt in ipairs(falloffOptions) do
+		local btn = Instance.new("TextButton")
+		btn.Name = opt.id
+		btn.Size = UDim2.new(0, 58, 0, 22)
+		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
+		btn.BorderSizePixel = 0
+		btn.Font = Theme.Fonts.Medium
+		btn.TextSize = 10
+		btn.TextColor3 = Theme.Colors.Text
+		btn.Text = opt.name
+		btn.LayoutOrder = i
+		btn.AutoButtonColor = true
+		btn.Parent = falloffButtonsContainer
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 4)
+		corner.Parent = btn
+
+		falloffButtons[opt.id] = btn
+		btn.MouseButton1Click:Connect(function()
+			S.falloffType = opt.id
+			updateFalloffVisuals()
+		end)
+	end
+	updateFalloffVisuals()
+
+	local _, extentContainer, _ = UIHelpers.createSlider(falloffPanel, "Softness", 0, 100, math.floor(S.falloffExtent * 100), function(val)
 		S.falloffExtent = val / 100
 		if deps.createBrushVisualization and S.brushPart then
 			deps.createBrushVisualization()
 		end
 	end)
-	extentContainer.LayoutOrder = 3
+	extentContainer.LayoutOrder = 2
 
 	panels["falloff"] = falloffPanel
 
 	-- ========================================================================
-	-- Spin Mode Panel
+	-- Spin Mode Panel - inline
 	-- ========================================================================
 	local spinPanel = UIHelpers.createConfigPanel(deps.configContainer, "spin")
 
-	local spinHeader = UIHelpers.createHeader(spinPanel, "Spin Mode", UDim2.new(0, 0, 0, 0))
-	spinHeader.LayoutOrder = 1
-
-	local spinGroup = UIComponents.createButtonGroup({
+	local spinGroup = UIComponents.createLabeledButtonGroup({
 		parent = spinPanel,
+		label = "Spin",
 		options = {
 			{ id = SpinMode.Off, name = "Off" },
-			{ id = SpinMode.Full3D, name = "3D" },
-			{ id = SpinMode.XZ, name = "XZ" },
-			{ id = SpinMode.Fast3D, name = "Fast 3D" },
-			{ id = SpinMode.XZFast, name = "Fast XZ" },
+			-- World-relative modes
+			{ id = SpinMode.WorldY, name = "World Y" },
+			{ id = SpinMode.WorldYFast, name = "W.Y Fast" },
+			{ id = SpinMode.World3D, name = "World 3D" },
+			{ id = SpinMode.World3DFast, name = "W.3D Fast" },
+			-- Shape-relative modes
+			{ id = SpinMode.ShapeY, name = "Shape Y" },
+			{ id = SpinMode.Shape3D, name = "Shape 3D" },
+			-- Special effects
+			{ id = SpinMode.Roll, name = "Roll" },
+			{ id = SpinMode.Wobble, name = "Wobble" },
+			{ id = SpinMode.Spiral, name = "Spiral" },
 		},
 		initialValue = S.spinMode,
 		onChange = function(newMode)
 			S.spinMode = newMode
 		end,
-		layout = "grid",
-		buttonSize = UDim2.new(0, 80, 0, 28),
+		labelWidth = LABEL_WIDTH,
+		buttonWidth = 60,
 	})
-	spinGroup.container.LayoutOrder = 2
 
 	panels["spin"] = spinPanel
 
 	-- ========================================================================
-	-- Plane Lock Panel
+	-- Plane Lock Panel - inline with conditional controls
 	-- ========================================================================
 	local planeLockPanel = UIHelpers.createConfigPanel(deps.configContainer, "planeLock")
 
-	local planeLockHeader = UIHelpers.createHeader(planeLockPanel, "Plane Lock", UDim2.new(0, 0, 0, 0))
-	planeLockHeader.LayoutOrder = 1
-
 	local manualControlsContainer = UIHelpers.createAutoContainer(planeLockPanel, "ManualControls")
-	manualControlsContainer.LayoutOrder = 3
+	manualControlsContainer.LayoutOrder = 2
 	manualControlsContainer.Visible = (S.planeLockMode == PlaneLockType.Manual)
 
-	local planeLockGroup = UIComponents.createButtonGroup({
+	local planeLockGroup = UIComponents.createLabeledButtonGroup({
 		parent = planeLockPanel,
+		label = "Plane",
 		options = {
 			{ id = PlaneLockType.Off, name = "Off" },
 			{ id = PlaneLockType.Auto, name = "Auto" },
@@ -380,9 +549,10 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 				deps.hidePlaneVisualization()
 			end
 		end,
-		layout = "horizontal",
+		labelWidth = LABEL_WIDTH,
+		buttonWidth = 58,
 	})
-	planeLockGroup.container.LayoutOrder = 2
+	planeLockGroup.container.LayoutOrder = 1
 
 	local _, planeHeightContainer, setPlaneHeightValue = UIHelpers.createSlider(manualControlsContainer, "Height", -100, 500, S.planePositionY, function(value)
 		S.planePositionY = value
@@ -401,15 +571,13 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	panels["planeLock"] = planeLockPanel
 
 	-- ========================================================================
-	-- Flatten Mode Panel
+	-- Flatten Mode Panel - inline
 	-- ========================================================================
 	local flattenModePanel = UIHelpers.createConfigPanel(deps.configContainer, "flattenMode")
 
-	local flattenHeader = UIHelpers.createHeader(flattenModePanel, "Flatten Mode", UDim2.new(0, 0, 0, 0))
-	flattenHeader.LayoutOrder = 1
-
-	local flattenGroup = UIComponents.createButtonGroup({
+	local flattenGroup = UIComponents.createLabeledButtonGroup({
 		parent = flattenModePanel,
+		label = "Flatten",
 		options = {
 			{ id = FlattenMode.Erode, name = "Erode" },
 			{ id = FlattenMode.Both, name = "Both" },
@@ -419,11 +587,44 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		onChange = function(newMode)
 			S.flattenMode = newMode
 		end,
-		layout = "horizontal",
+		labelWidth = LABEL_WIDTH,
+		buttonWidth = 55,
 	})
-	flattenGroup.container.LayoutOrder = 2
 
 	panels["flattenMode"] = flattenModePanel
+
+	-- ========================================================================
+	-- Emphasize Brush Center Panel - toggle for depth-based falloff
+	-- ========================================================================
+	local emphasizeCenterPanel = UIHelpers.createConfigPanel(deps.configContainer, "emphasizeBrushCenter")
+
+	local emphasizeCenterToggle = UIComponents.createLabeledToggle({
+		parent = emphasizeCenterPanel,
+		label = "Center",
+		initialState = S.emphasizeBrushCenter,
+		textOn = "Emphasize",
+		textOff = "Uniform",
+		onChange = function(isEnabled)
+			S.emphasizeBrushCenter = isEnabled
+		end,
+		labelWidth = LABEL_WIDTH,
+	})
+
+	-- Add tooltip description
+	local tooltipLabel = Instance.new("TextLabel")
+	tooltipLabel.Name = "Tooltip"
+	tooltipLabel.BackgroundTransparency = 1
+	tooltipLabel.Size = UDim2.new(1, 0, 0, 28)
+	tooltipLabel.Font = Theme.Fonts.Default
+	tooltipLabel.TextSize = 10
+	tooltipLabel.TextColor3 = Theme.Colors.TextDim
+	tooltipLabel.TextWrapped = true
+	tooltipLabel.TextXAlignment = Enum.TextXAlignment.Left
+	tooltipLabel.Text = "Full strength at brush center, falls off with depth. Helps fill holes from front to back."
+	tooltipLabel.LayoutOrder = 2
+	tooltipLabel.Parent = emphasizeCenterPanel
+
+	panels["emphasizeBrushCenter"] = emphasizeCenterPanel
 
 	return {
 		panels = panels,
@@ -434,4 +635,3 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 end
 
 return CorePanels
-

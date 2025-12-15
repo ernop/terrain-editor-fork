@@ -61,7 +61,7 @@ Constants.HighDpiToolIconsWithTheme1 = {
 
 Constants.INITIAL_BRUSH_SIZE = 6
 Constants.MIN_BRUSH_SIZE = 1
-Constants.MAX_BRUSH_SIZE = 64
+Constants.MAX_BRUSH_SIZE = 320
 
 Constants.INITIAL_BRUSH_STRENGTH = 1
 

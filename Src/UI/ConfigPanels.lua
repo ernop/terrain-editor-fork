@@ -107,6 +107,8 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		"spin",
 		"planeLock",
 		"flattenMode",
+		"emphasizeBrushCenter",
+		"autoMaterial",
 		"material",
 		"pathDepth",
 		"pathProfile",

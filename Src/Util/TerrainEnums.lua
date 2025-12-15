@@ -91,6 +91,7 @@ TerrainEnums.PivotType = {
 	Top = "Top",
 	Center = "Cen",
 	Bottom = "Bot",
+	Surface = "Srf", -- Rests on terrain surface without penetrating
 }
 
 TerrainEnums.PlaneLockType = {
@@ -107,11 +108,18 @@ TerrainEnums.FlattenMode = {
 
 TerrainEnums.SpinMode = {
 	Off = "Off",
-	Full3D = "Full3D",
-	XZ = "XZ",
-	Y = "Y",
-	Fast3D = "Fast3D",
-	XZFast = "XZFast",
+	-- World-relative modes (rotate around world axes regardless of brush orientation)
+	WorldY = "WorldY",           -- Spin around world Y axis (like a pottery wheel)
+	WorldYFast = "WorldYFast",   -- Same but faster
+	World3D = "World3D",         -- Tumble around all world axes
+	World3DFast = "World3DFast", -- Same but faster
+	-- Shape-relative modes (rotate around shape's local axes)
+	ShapeY = "ShapeY",           -- Spin around shape's local Y axis (top spins on its own axis)
+	Shape3D = "Shape3D",         -- Full 3D tumble in shape's local space
+	-- Special effect modes
+	Roll = "Roll",               -- Roll around X axis (barrel roll)
+	Wobble = "Wobble",           -- Oscillating tilt (pendulum-like)
+	Spiral = "Spiral",           -- Y spin + gradual tilt increase (corkscrew)
 }
 
 -- Brush falloff curves - controls how brush strength fades from center to edge
@@ -131,6 +139,7 @@ TerrainEnums.BrushShape = {
 	Wedge = "Wedge",
 	CornerWedge = "CornerWedge",
 	Dome = "Dome",
+	RotatedDome = "RotatedDome", -- Dome facing forward (tunnel/arch entrance)
 	-- Creative shapes
 	Torus = "Torus", -- Donut shape
 	Ring = "Ring", -- Flat washer/ring

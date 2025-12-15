@@ -92,6 +92,7 @@ TendrilTool.docs = {
 TendrilTool.configPanels = {
 	"brushShape",
 	"size",
+	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
@@ -135,7 +136,7 @@ function TendrilTool.execute(options: SculptSettings)
 		for t = 0, 1, 0.05 do
 			local dist = t * length
 			local spiralAngle = baseAngle + t * curl * math.pi * 4
-			local noiseOffset = Noise.fbm3D(branch, t * 5, 0, seed, 2) * 2
+			local noiseOffset = Noise.fbmFast(branch, t * 5, 0, seed, 2) * 2
 
 			-- Tendril position
 			local tendrilX = math.cos(spiralAngle) * dist

@@ -58,7 +58,7 @@ Press **R** to lock the brush in place for handle interaction.
 
 | Key | Action |
 |-----|--------|
-| **R** | Toggle brush lock mode |
+| **L** | Toggle brush lock mode |
 | **Shift+Scroll** | Adjust primary dimension (or uniform) |
 | **Shift+Alt+Scroll** | Adjust secondary dimension |
 | **Ctrl+Scroll** | Adjust brush strength |
@@ -169,15 +169,14 @@ local ShapeSupportsRotation = {
     [BrushShape.Dome] = false,         -- Symmetric around Y axis
 }
 
--- How each shape handles sizing
-local ShapeSizingMode = {
-    [BrushShape.Sphere] = "uniform",    -- X=Y=Z always
-    [BrushShape.Cube] = "box",          -- X, Y, Z independent
-    [BrushShape.Cylinder] = "cylinder", -- X=Z (radius), Y (height)
-    [BrushShape.Wedge] = "box",         -- X, Y, Z independent
-    [BrushShape.CornerWedge] = "box",   -- X, Y, Z independent
-    [BrushShape.Dome] = "cylinder",     -- X=Z (radius), Y (height)
-}
+-- Shape sizing is now defined via ShapeDimensions (see BrushData.lua)
+-- Each shape defines its own axes with labels and mappings
+-- Example for Cylinder:
+--   axes = {
+--     { label = "Radius", maps = { "x", "z" }, primary = true },
+--     { label = "Height", maps = { "y" }, secondary = true },
+--   }
+-- Use BrushData.isUniformShape(shape) to check if X=Y=Z
 ```
 
 ### 3D Handles
@@ -195,7 +194,7 @@ local ShapeSizingMode = {
 - Parented to CoreGui
 - Adornee set to brushPart
 - Visible for all shapes
-- Behavior varies by ShapeSizingMode
+- Behavior varies by ShapeDimensions (linked axes update together)
 
 ### Operation Changes
 
