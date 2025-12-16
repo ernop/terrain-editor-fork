@@ -363,10 +363,10 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelPosLabel.BackgroundTransparency = 1
 	voxelPosLabel.Size = UDim2.new(1, -20, 0, 20)
 	voxelPosLabel.Font = Enum.Font.RobotoMono
-	voxelPosLabel.TextSize = 12
+	voxelPosLabel.TextSize = Theme.Sizes.TextNormal
 	voxelPosLabel.TextColor3 = Theme.Colors.Text
 	voxelPosLabel.TextXAlignment = Enum.TextXAlignment.Left
-	voxelPosLabel.TextScaled = true
+	voxelPosLabel.TextScaled = false
 	voxelPosLabel.Text = "Pos: ---"
 	voxelPosLabel.LayoutOrder = 4
 	voxelPosLabel.Parent = voxelInspectPanel
@@ -377,10 +377,10 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelGridLabel.BackgroundTransparency = 1
 	voxelGridLabel.Size = UDim2.new(1, -20, 0, 20)
 	voxelGridLabel.Font = Enum.Font.RobotoMono
-	voxelGridLabel.TextSize = 12
+	voxelGridLabel.TextSize = Theme.Sizes.TextNormal
 	voxelGridLabel.TextColor3 = Theme.Colors.Text
 	voxelGridLabel.TextXAlignment = Enum.TextXAlignment.Left
-	voxelGridLabel.TextScaled = true
+	voxelGridLabel.TextScaled = false
 	voxelGridLabel.Text = "Grid: ---"
 	voxelGridLabel.LayoutOrder = 5
 	voxelGridLabel.Parent = voxelInspectPanel
@@ -391,10 +391,10 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelMatLabel.BackgroundTransparency = 1
 	voxelMatLabel.Size = UDim2.new(1, -20, 0, 20)
 	voxelMatLabel.Font = Enum.Font.RobotoMono
-	voxelMatLabel.TextSize = 12
+	voxelMatLabel.TextSize = Theme.Sizes.TextNormal
 	voxelMatLabel.TextColor3 = Theme.Colors.Text
 	voxelMatLabel.TextXAlignment = Enum.TextXAlignment.Left
-	voxelMatLabel.TextScaled = true
+	voxelMatLabel.TextScaled = false
 	voxelMatLabel.Text = "Material: ---"
 	voxelMatLabel.LayoutOrder = 6
 	voxelMatLabel.Parent = voxelInspectPanel
@@ -405,10 +405,10 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelOccLabel.BackgroundTransparency = 1
 	voxelOccLabel.Size = UDim2.new(1, -20, 0, 20)
 	voxelOccLabel.Font = Enum.Font.RobotoMono
-	voxelOccLabel.TextSize = 12
+	voxelOccLabel.TextSize = Theme.Sizes.TextNormal
 	voxelOccLabel.TextColor3 = Theme.Colors.Text
 	voxelOccLabel.TextXAlignment = Enum.TextXAlignment.Left
-	voxelOccLabel.TextScaled = true
+	voxelOccLabel.TextScaled = false
 	voxelOccLabel.Text = "Occupancy: ---"
 	voxelOccLabel.LayoutOrder = 7
 	voxelOccLabel.Parent = voxelInspectPanel
@@ -451,10 +451,10 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	editHeader.BackgroundTransparency = 1
 	editHeader.Size = UDim2.new(1, 0, 0, 20)
 	editHeader.Font = Enum.Font.GothamBold
-	editHeader.TextSize = 12
+	editHeader.TextSize = Theme.Sizes.TextNormal
 	editHeader.TextColor3 = Color3.fromRGB(100, 200, 255)
 	editHeader.TextXAlignment = Enum.TextXAlignment.Left
-	editHeader.TextScaled = true
+	editHeader.TextScaled = false
 	editHeader.Text = "─── EDIT MODE ───"
 	editHeader.LayoutOrder = 1
 	editHeader.Parent = editSection
@@ -657,7 +657,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	progressInfo.TextSize = Theme.Sizes.TextNormal
 	progressInfo.TextColor3 = Theme.Colors.Text
 	progressInfo.TextXAlignment = Enum.TextXAlignment.Left
-	progressInfo.TextScaled = true
+	progressInfo.TextScaled = false
 	progressInfo.Text = "Scanning: 0% | Islands found: 0"
 	progressInfo.LayoutOrder = 1
 	progressInfo.Parent = progressSection
@@ -802,13 +802,16 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 			resultItem.BorderSizePixel = 0
 			resultItem.Size = UDim2.new(1, 0, 0, 28)
 			resultItem.Font = Theme.Fonts.Medium
-			resultItem.TextSize = Theme.Sizes.TextNormal
+			resultItem.TextSize = Theme.Sizes.TextButton
 			resultItem.TextColor3 = Theme.Colors.Text
 			resultItem.TextXAlignment = Enum.TextXAlignment.Left
-			resultItem.TextScaled = true
+			resultItem.TextScaled = false
 			resultItem.Text = string.format("  #%d: %s (%s)", i, sizeLabel, island.material)
 			resultItem.LayoutOrder = i
-			resultItem.AutoButtonColor = true
+			resultItem:SetAttribute("UnselectedColor", Color3.fromRGB(50, 50, 55))
+			resultItem:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+			resultItem:SetAttribute("IsSelected", false)
+			UIHelpers.installStrongHover(resultItem)
 			resultItem.Parent = ui.resultsContainer
 
 			local itemCorner = Instance.new("UICorner")
@@ -820,13 +823,18 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 			zoomBtn.BackgroundColor3 = Theme.Colors.Accent
 			zoomBtn.BorderSizePixel = 0
 			zoomBtn.Position = UDim2.new(1, -60, 0, 4)
-			zoomBtn.Size = UDim2.new(0, 55, 0, 20)
+			zoomBtn.Size = UDim2.new(0, 55, 0, 22)
 			zoomBtn.Font = Theme.Fonts.Medium
-			zoomBtn.TextSize = 11
+			zoomBtn.TextSize = Theme.Sizes.TextButton
 			zoomBtn.TextColor3 = Theme.Colors.Text
-			zoomBtn.TextScaled = true
+			zoomBtn.TextScaled = false
+			zoomBtn.TextTruncate = Enum.TextTruncate.AtEnd
 			zoomBtn.Text = "Zoom"
 			zoomBtn.Parent = resultItem
+			zoomBtn:SetAttribute("UnselectedColor", Theme.Colors.Accent)
+			zoomBtn:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+			zoomBtn:SetAttribute("IsSelected", false)
+			UIHelpers.installStrongHover(zoomBtn)
 
 			local zoomCorner = Instance.new("UICorner")
 			zoomCorner.CornerRadius = UDim.new(0, 3)
@@ -848,7 +856,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 			noResults.Font = Theme.Fonts.Default
 			noResults.TextSize = Theme.Sizes.TextNormal
 			noResults.TextColor3 = Theme.Colors.TextDim
-			noResults.TextScaled = true
+			noResults.TextScaled = false
 			noResults.Text = "No terrain found"
 			noResults.Parent = ui.resultsContainer
 		end

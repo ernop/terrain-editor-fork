@@ -2,7 +2,7 @@
 -- TerrainEditorFork Standalone Plugin
 -- This is the distributable version - all code is bundled inside
 
-local PLUGIN_NAME = "TerrainParkour TerrainEdit"
+local PLUGIN_NAME = "TerrainParkour's TerrainCreator"
 
 -- The module is bundled as a child of this script
 local pluginModule = script:WaitForChild("TerrainEditorModule")
@@ -10,8 +10,8 @@ local pluginModule = script:WaitForChild("TerrainEditorModule")
 -- Create toolbar button
 local toolbar = plugin:CreateToolbar("TerrainParkour")
 local toggleButton = toolbar:CreateButton(
-    "TerrainEdit",
-    "Open TerrainParkour TerrainEdit",
+    "TerrainCreator",
+    "Open TerrainParkour's TerrainCreator",
     "rbxassetid://7229442422" -- terrain icon
 )
 

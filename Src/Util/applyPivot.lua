@@ -7,11 +7,11 @@ local PivotType = require(script.Parent.TerrainEnums).PivotType
 return function (pivot, position, cursorHeight)
 	local halfHeight = cursorHeight / 2
 	if pivot == PivotType.Top then
-		return Vector3.new(position.x, position.y - halfHeight, position.z)
+		return Vector3.new(position.X, position.Y - halfHeight, position.Z)
 	elseif pivot == PivotType.Center then
 		return position
 	elseif pivot == PivotType.Bottom then
-		return Vector3.new(position.x, position.y + halfHeight, position.z)
+		return Vector3.new(position.X, position.Y + halfHeight, position.Z)
 	elseif pivot == PivotType.Surface then
 		-- Surface pivot needs terrain data - return position unchanged here
 		-- The actual surface adjustment is done by the caller with terrain access

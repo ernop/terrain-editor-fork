@@ -1,18 +1,24 @@
 # Rule: no-bare-except
 # Detect bare except clauses which catch all exceptions including KeyboardInterrupt
 #
-# Always specify the exception type:
-#   except Exception:      # Catches most errors
-#   except ValueError:     # Catches specific error
-#   except (A, B):        # Catches multiple types
+# This rule catches:
+#   except:        <- BAD, catches everything including KeyboardInterrupt
+#
+# This is fine:
+#   except Exception:
+#   except ValueError:
+#   except (A, B):
+#
+# NOTE: This rule is DISABLED because detecting true bare except requires
+# checking that there is no exception type, which is complex with ast-grep.
+# Python linters like ruff/flake8 catch this better.
 
 id: py-no-bare-except
 language: python
-severity: error
+severity: off
 message: "Bare 'except:' catches all exceptions including KeyboardInterrupt. Specify exception type."
 note: "Use 'except Exception:' to catch standard errors, or specific exception types."
 rule:
+  # This pattern is too broad - it matches all except clauses
+  # Disabling until we can properly detect only bare except
   kind: except_clause
-  not:
-    has:
-      kind: as_pattern

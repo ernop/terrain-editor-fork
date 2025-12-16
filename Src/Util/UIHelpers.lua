@@ -7,6 +7,62 @@ local Theme = require(script.Parent.Theme)
 local UIHelpers = {}
 
 -- ============================================================================
+-- Strong, Instant Hover (no AutoButtonColor transitions)
+-- ============================================================================
+
+local function ensureHoverStroke(button: GuiObject): UIStroke
+	local existing = button:FindFirstChild("HoverStroke")
+	if existing and existing:IsA("UIStroke") then
+		return existing
+	end
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "HoverStroke"
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Thickness = 2
+	stroke.Color = Theme.Colors.Border
+	stroke.Transparency = 1
+	stroke.Parent = button
+	return stroke
+end
+
+-- Install hover behavior. Uses attributes set by callers:
+-- - UnselectedColor: Color3 (optional, default Theme.Colors.ButtonDefault)
+-- - SelectedColor: Color3 (optional, default Theme.Colors.ButtonSelected)
+-- - IsSelected: boolean (optional, default false)
+function UIHelpers.installStrongHover(button: TextButton)
+	button.AutoButtonColor = false
+
+	local stroke = ensureHoverStroke(button)
+
+	local function getBaseColor(): Color3
+		local isSelected = (button:GetAttribute("IsSelected") == true)
+		if isSelected then
+			return (button:GetAttribute("SelectedColor") :: any) or Theme.Colors.ButtonSelected
+		end
+		return (button:GetAttribute("UnselectedColor") :: any) or Theme.Colors.ButtonDefault
+	end
+
+	local function applyBase()
+		button.BackgroundColor3 = getBaseColor()
+		stroke.Transparency = 1
+	end
+
+	button.MouseEnter:Connect(function()
+		local isSelected = (button:GetAttribute("IsSelected") == true)
+		button.BackgroundColor3 = isSelected and Theme.Colors.ButtonHoverSelected or Theme.Colors.ButtonHover
+		stroke.Transparency = 0
+	end)
+
+	button.MouseLeave:Connect(function()
+		applyBase()
+	end)
+
+	-- Apply initial base state
+	applyBase()
+end
+
+-- ============================================================================
 -- Basic Label Creators
 -- ============================================================================
 
@@ -19,7 +75,8 @@ function UIHelpers.createLabel(parent: Frame, text: string, position: UDim2, siz
 	label.TextSize = Theme.Sizes.TextMedium
 	label.TextColor3 = Theme.Colors.Text
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = true
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -34,7 +91,8 @@ function UIHelpers.createHeader(parent: Frame, text: string, position: UDim2): T
 	label.TextSize = Theme.Sizes.TextMedium
 	label.TextColor3 = Theme.Colors.Text
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = true
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -50,7 +108,7 @@ function UIHelpers.createDescription(parent: Frame, text: string, height: number
 	label.TextColor3 = Theme.Colors.TextMuted
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextWrapped = true
-	label.TextScaled = true
+	label.TextScaled = false
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -66,7 +124,8 @@ function UIHelpers.createStatusLabel(parent: Frame, text: string, color: Color3?
 	label.TextSize = Theme.Sizes.TextMedium
 	label.TextColor3 = color or Theme.Colors.Warning
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = true
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -82,7 +141,7 @@ function UIHelpers.createNote(parent: Frame, text: string, height: number?): Tex
 	label.TextColor3 = Theme.Colors.TextNote
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextWrapped = true
-	label.TextScaled = true
+	label.TextScaled = false
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -100,7 +159,7 @@ function UIHelpers.createInstructions(parent: Frame, text: string, height: numbe
 	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Top
-	label.TextScaled = true
+	label.TextScaled = false
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -129,7 +188,8 @@ function UIHelpers.createLabeledRow(parent: Frame, labelText: string, labelWidth
 	label.TextSize = Theme.Sizes.TextNormal
 	label.TextColor3 = Theme.Colors.Text
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = true
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = labelText
 	label.Parent = row
 
@@ -150,16 +210,20 @@ function UIHelpers.createButton(parent: Frame, text: string, position: UDim2, si
 	button.Position = position
 	button.Size = size
 	button.Font = Theme.Fonts.Medium
-	button.TextSize = 13
+	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = text
-	button.AutoButtonColor = true
 	button.Parent = parent
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, Theme.Sizes.CornerRadius)
 	corner.Parent = button
+	UIHelpers.installStrongHover(button)
 
 	button.MouseButton1Click:Connect(callback)
 	return button
@@ -173,12 +237,15 @@ function UIHelpers.createActionButton(parent: Frame, text: string, callback: () 
 	button.AutomaticSize = Enum.AutomaticSize.X  -- Size to fit text
 	button.Size = UDim2.new(0, 0, 0, Theme.Sizes.ButtonHeight)
 	button.Font = Theme.Fonts.Medium
-	button.TextSize = Theme.Sizes.TextNormal
+	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = text
-	button.AutoButtonColor = true
 	button.Parent = parent
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonSecondary)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
 
 	-- Padding so text doesn't touch edges
 	local padding = Instance.new("UIPadding")
@@ -189,6 +256,7 @@ function UIHelpers.createActionButton(parent: Frame, text: string, callback: () 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, Theme.Sizes.CornerRadius)
 	corner.Parent = button
+	UIHelpers.installStrongHover(button)
 
 	button.MouseButton1Click:Connect(callback)
 	return button
@@ -202,16 +270,20 @@ function UIHelpers.createToolButton(parent: Frame, toolId: string, displayName: 
 	button.Position = position
 	button.Size = UDim2.new(0, Theme.Sizes.ToolButtonWidth, 0, Theme.Sizes.ToolButtonHeight)
 	button.Font = Theme.Fonts.Medium
-	button.TextSize = Theme.Sizes.TextDescription
+	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = displayName
-	button.AutoButtonColor = true
 	button.Parent = parent
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, Theme.Sizes.CornerRadius)
 	corner.Parent = button
+	UIHelpers.installStrongHover(button)
 
 	return button
 end
@@ -231,11 +303,16 @@ function UIHelpers.createSlider(
 	local currentValue = initial
 	local UserInputService = game:GetService("UserInputService")
 
-	-- Main container - fixed reasonable width
+	-- Main container - responsive width with padding so it doesn't hug panel edges
 	local container = Instance.new("Frame")
 	container.BackgroundTransparency = 1
-	container.Size = UDim2.new(0, Theme.Sizes.SliderTrackWidth + 60, 0, Theme.Sizes.SliderHeight)
+	container.Size = UDim2.new(1, 0, 0, Theme.Sizes.SliderHeight)
 	container.Parent = parent
+
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 8)
+	padding.PaddingRight = UDim.new(0, 8)
+	padding.Parent = container
 
 	-- Header row: label on left, value on right
 	local headerRow = Instance.new("Frame")
@@ -247,25 +324,26 @@ function UIHelpers.createSlider(
 	local labelText = Instance.new("TextLabel")
 	labelText.Name = "Label"
 	labelText.BackgroundTransparency = 1
-	labelText.Size = UDim2.new(0.5, 0, 1, 0)
+	labelText.Size = UDim2.new(1, -70, 1, 0)
 	labelText.Font = Theme.Fonts.Medium
 	labelText.TextSize = Theme.Sizes.TextNormal
 	labelText.TextColor3 = Theme.Colors.Text
 	labelText.TextXAlignment = Enum.TextXAlignment.Left
-	labelText.TextScaled = true
+	labelText.TextScaled = false
+	labelText.TextTruncate = Enum.TextTruncate.AtEnd
 	labelText.Text = label
 	labelText.Parent = headerRow
 
 	local valueText = Instance.new("TextLabel")
 	valueText.Name = "Value"
 	valueText.BackgroundTransparency = 1
-	valueText.Position = UDim2.new(0.5, 0, 0, 0)
-	valueText.Size = UDim2.new(0.5, 0, 1, 0)
+	valueText.Position = UDim2.new(1, -70, 0, 0)
+	valueText.Size = UDim2.new(0, 70, 1, 0)
 	valueText.Font = Theme.Fonts.Bold
 	valueText.TextSize = Theme.Sizes.TextNormal
 	valueText.TextColor3 = Theme.Colors.Accent
 	valueText.TextXAlignment = Enum.TextXAlignment.Right
-	valueText.TextScaled = true
+	valueText.TextScaled = false
 	valueText.Text = tostring(initial)
 	valueText.Parent = headerRow
 
@@ -275,7 +353,7 @@ function UIHelpers.createSlider(
 	sliderBg.BackgroundColor3 = Theme.Colors.SliderTrack
 	sliderBg.BorderSizePixel = 0
 	sliderBg.Position = UDim2.new(0, 0, 0, 24)
-	sliderBg.Size = UDim2.new(0, Theme.Sizes.SliderTrackWidth, 0, Theme.Sizes.SliderTrackHeight)
+	sliderBg.Size = UDim2.new(1, -70, 0, Theme.Sizes.SliderTrackHeight)
 	sliderBg.Parent = container
 
 	local sliderCorner = Instance.new("UICorner")
@@ -319,13 +397,13 @@ function UIHelpers.createSlider(
 	hoverPreview.Name = "HoverPreview"
 	hoverPreview.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
 	hoverPreview.BorderSizePixel = 0
-	hoverPreview.Size = UDim2.new(0, 36, 0, 20)
+	hoverPreview.Size = UDim2.new(0, 40, 0, 22)
 	hoverPreview.AnchorPoint = Vector2.new(0.5, 1)
 	hoverPreview.Position = UDim2.new(0, 0, 0, -4)
 	hoverPreview.Font = Theme.Fonts.Bold
-	hoverPreview.TextSize = 11
+	hoverPreview.TextSize = Theme.Sizes.TextNormal
 	hoverPreview.TextColor3 = Theme.Colors.Text
-	hoverPreview.TextScaled = true
+	hoverPreview.TextScaled = false
 	hoverPreview.Visible = false
 	hoverPreview.ZIndex = 10
 	hoverPreview.Parent = sliderBg
@@ -338,24 +416,24 @@ function UIHelpers.createSlider(
 	local minLabel = Instance.new("TextLabel")
 	minLabel.BackgroundTransparency = 1
 	minLabel.Position = UDim2.new(0, 0, 0, 40)
-	minLabel.Size = UDim2.new(0, 30, 0, 12)
+	minLabel.Size = UDim2.new(0, 34, 0, 18)
 	minLabel.Font = Theme.Fonts.Default
 	minLabel.TextSize = Theme.Sizes.TextSmall
 	minLabel.TextColor3 = Theme.Colors.TextDim
 	minLabel.TextXAlignment = Enum.TextXAlignment.Left
-	minLabel.TextScaled = true
+	minLabel.TextScaled = false
 	minLabel.Text = tostring(min)
 	minLabel.Parent = container
 
 	local maxLabel = Instance.new("TextLabel")
 	maxLabel.BackgroundTransparency = 1
-	maxLabel.Position = UDim2.new(0, Theme.Sizes.SliderTrackWidth - 30, 0, 40)
-	maxLabel.Size = UDim2.new(0, 30, 0, 12)
+	maxLabel.Position = UDim2.new(1, -70 - 34, 0, 40)
+	maxLabel.Size = UDim2.new(0, 34, 0, 18)
 	maxLabel.Font = Theme.Fonts.Default
 	maxLabel.TextSize = Theme.Sizes.TextSmall
 	maxLabel.TextColor3 = Theme.Colors.TextDim
 	maxLabel.TextXAlignment = Enum.TextXAlignment.Right
-	maxLabel.TextScaled = true
+	maxLabel.TextScaled = false
 	maxLabel.Text = tostring(max)
 	maxLabel.Parent = container
 

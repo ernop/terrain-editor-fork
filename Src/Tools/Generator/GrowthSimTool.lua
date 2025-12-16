@@ -6,10 +6,10 @@
 	simulating natural growth processes.
 ]]
 
-local Plugin = script.Parent.Parent.Parent.Parent
-local Noise = require(Plugin.Src.Util.Noise)
-local OperationHelper = require(Plugin.Src.TerrainOperations.OperationHelper)
-local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+local Src = script:FindFirstAncestor("Src")
+local Noise = require(Src.Util.Noise)
+local OperationHelper = require(Src.TerrainOperations.OperationHelper)
+local ToolDocFormat = require(Src.Tools.ToolDocFormat)
 
 type SculptSettings = ToolDocFormat.SculptSettings
 

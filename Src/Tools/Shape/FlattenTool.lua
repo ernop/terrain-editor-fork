@@ -7,10 +7,10 @@
 	roads, and level areas.
 ]]
 
-local Plugin = script.Parent.Parent.Parent.Parent
-local OperationHelper = require(Plugin.Src.TerrainOperations.OperationHelper)
-local Constants = require(Plugin.Src.Util.Constants)
-local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+local Src = script:FindFirstAncestor("Src")
+local OperationHelper = require(Src.TerrainOperations.OperationHelper)
+local Constants = require(Src.Util.Constants)
+local ToolDocFormat = require(Src.Tools.ToolDocFormat)
 
 local materialAir = Enum.Material.Air
 local materialWater = Enum.Material.Water

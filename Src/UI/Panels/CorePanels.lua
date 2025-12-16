@@ -37,9 +37,13 @@ export type CorePanelsResult = {
 -- ============================================================================
 -- Mini Card Helper - creates a small card with title and 2-column button grid
 -- ============================================================================
-local MINI_CARD_WIDTH = 95
-local MINI_CARD_BUTTON_WIDTH = 42
-local MINI_CARD_BUTTON_HEIGHT = 20
+-- These cards must stay readable: fixed-height, flexible-width, and no tiny scaled text.
+local MINI_CARD_HEIGHT = 150
+local MINI_CARD_TITLE_HEIGHT = 16
+local MINI_CARD_BUTTON_HEIGHT = 28
+local MINI_CARD_CARD_PADDING = 4
+local MINI_CARD_GAP = 3
+local MINI_CARD_CELL_PADDING = 3
 
 local function createMiniCard(
 	parent: Frame,
@@ -53,8 +57,9 @@ local function createMiniCard(
 	card.Name = title .. "Card"
 	card.BackgroundColor3 = Color3.fromRGB(35, 38, 42)
 	card.BorderSizePixel = 0
-	card.Size = UDim2.new(0, MINI_CARD_WIDTH, 0, 0)
-	card.AutomaticSize = Enum.AutomaticSize.Y
+	-- Size is controlled by the parent UIGridLayout; keep this fixed-height and non-auto to avoid wasted space.
+	card.Size = UDim2.new(0, 0, 0, MINI_CARD_HEIGHT)
+	card.AutomaticSize = Enum.AutomaticSize.None
 	card.LayoutOrder = layoutOrder
 	card.Parent = parent
 
@@ -63,27 +68,27 @@ local function createMiniCard(
 	cardCorner.Parent = card
 
 	local cardPadding = Instance.new("UIPadding")
-	cardPadding.PaddingTop = UDim.new(0, 6)
-	cardPadding.PaddingBottom = UDim.new(0, 6)
-	cardPadding.PaddingLeft = UDim.new(0, 6)
-	cardPadding.PaddingRight = UDim.new(0, 6)
+	cardPadding.PaddingTop = UDim.new(0, MINI_CARD_CARD_PADDING)
+	cardPadding.PaddingBottom = UDim.new(0, MINI_CARD_CARD_PADDING)
+	cardPadding.PaddingLeft = UDim.new(0, MINI_CARD_CARD_PADDING)
+	cardPadding.PaddingRight = UDim.new(0, MINI_CARD_CARD_PADDING)
 	cardPadding.Parent = card
 
 	local cardLayout = Instance.new("UIListLayout")
 	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	cardLayout.Padding = UDim.new(0, 4)
+	cardLayout.Padding = UDim.new(0, MINI_CARD_GAP)
 	cardLayout.Parent = card
 
 	-- Title
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "Title"
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Size = UDim2.new(1, 0, 0, 14)
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 11
-	titleLabel.TextColor3 = Color3.fromRGB(160, 165, 175)
+	titleLabel.Size = UDim2.new(1, 0, 0, MINI_CARD_TITLE_HEIGHT)
+	titleLabel.Font = Theme.Fonts.Bold
+	titleLabel.TextSize = Theme.Sizes.TextNormal
+	titleLabel.TextColor3 = Theme.Colors.Text
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.TextScaled = true
+	titleLabel.TextScaled = false
 	titleLabel.Text = title
 	titleLabel.LayoutOrder = 1
 	titleLabel.Parent = card
@@ -92,14 +97,18 @@ local function createMiniCard(
 	local buttonGrid = Instance.new("Frame")
 	buttonGrid.Name = "ButtonGrid"
 	buttonGrid.BackgroundTransparency = 1
-	buttonGrid.Size = UDim2.new(1, 0, 0, 0)
-	buttonGrid.AutomaticSize = Enum.AutomaticSize.Y
+	buttonGrid.Size = UDim2.new(1, 0, 1, -(MINI_CARD_TITLE_HEIGHT + MINI_CARD_GAP))
+	buttonGrid.AutomaticSize = Enum.AutomaticSize.None
 	buttonGrid.LayoutOrder = 2
 	buttonGrid.Parent = card
 
+	-- Choose columns based on option count to keep the card compact without shrinking text.
+	-- 2 columns for small sets; 3 columns for larger sets like Spin.
+	local columns = (#options > 6) and 3 or 2
+
 	local gridLayout = Instance.new("UIGridLayout")
-	gridLayout.CellSize = UDim2.new(0, MINI_CARD_BUTTON_WIDTH, 0, MINI_CARD_BUTTON_HEIGHT)
-	gridLayout.CellPadding = UDim2.new(0, 2, 0, 2)
+	gridLayout.CellSize = UDim2.new(1 / columns, -(MINI_CARD_CELL_PADDING * 2), 0, MINI_CARD_BUTTON_HEIGHT)
+	gridLayout.CellPadding = UDim2.new(0, MINI_CARD_CELL_PADDING, 0, MINI_CARD_CELL_PADDING)
 	gridLayout.FillDirection = Enum.FillDirection.Horizontal
 	gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -110,7 +119,9 @@ local function createMiniCard(
 
 	local function updateVisuals()
 		for id, btn in pairs(buttons) do
-			btn.BackgroundColor3 = (id == currentValue) and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
+			local isSelected = (id == currentValue)
+			btn:SetAttribute("IsSelected", isSelected)
+			btn.BackgroundColor3 = isSelected and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
 		end
 	end
 
@@ -119,13 +130,20 @@ local function createMiniCard(
 		btn.Name = opt.id
 		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
 		btn.BorderSizePixel = 0
-		btn.Font = Enum.Font.Gotham
-		btn.TextSize = 9
+		btn.Font = Theme.Fonts.Medium
+		btn.TextSize = Theme.Sizes.TextButton
 		btn.TextColor3 = Theme.Colors.Text
-		btn.TextScaled = true
+		btn.TextScaled = false
+		btn.TextTruncate = Enum.TextTruncate.AtEnd
+		btn.TextWrapped = true
+		btn.TextXAlignment = Enum.TextXAlignment.Center
+		btn.TextYAlignment = Enum.TextYAlignment.Center
 		btn.Text = opt.name
 		btn.LayoutOrder = i
-		btn.AutoButtonColor = true
+		btn:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+		btn:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+		btn:SetAttribute("IsSelected", false)
+		UIHelpers.installStrongHover(btn)
 		btn.Parent = buttonGrid
 
 		local corner = Instance.new("UICorner")
@@ -181,10 +199,10 @@ local function createInlineSlider(
 	labelText.Size = UDim2.new(0, 0, 1, 0)
 	labelText.AutomaticSize = Enum.AutomaticSize.X
 	labelText.Font = Theme.Fonts.Medium
-	labelText.TextSize = 12
+	labelText.TextSize = Theme.Sizes.TextNormal
 	labelText.TextColor3 = Theme.Colors.Text
 	labelText.TextXAlignment = Enum.TextXAlignment.Left
-	labelText.TextScaled = true
+	labelText.TextScaled = false
 	labelText.Text = label .. " "
 	labelText.Parent = labelRow
 
@@ -194,10 +212,10 @@ local function createInlineSlider(
 	valueText.Position = UDim2.new(0, 0, 0, 0)
 	valueText.Size = UDim2.new(0, 50, 1, 0)
 	valueText.Font = Theme.Fonts.Bold
-	valueText.TextSize = 12
+	valueText.TextSize = Theme.Sizes.TextNormal
 	valueText.TextColor3 = Theme.Colors.Accent
 	valueText.TextXAlignment = Enum.TextXAlignment.Left
-	valueText.TextScaled = true
+	valueText.TextScaled = false
 	valueText.Text = tostring(initial)
 	valueText.Parent = labelRow
 
@@ -213,8 +231,9 @@ local function createInlineSlider(
 	sliderBg.Name = "SliderTrack"
 	sliderBg.BackgroundColor3 = Theme.Colors.SliderTrack
 	sliderBg.BorderSizePixel = 0
-	sliderBg.Position = UDim2.new(0, 0, 0, 20)
-	sliderBg.Size = UDim2.new(1, 0, 0, 14)
+	-- Give breathing room from panel edges
+	sliderBg.Position = UDim2.new(0, 8, 0, 20)
+	sliderBg.Size = UDim2.new(1, -16, 0, 14)
 	sliderBg.Parent = container
 
 	local sliderCorner = Instance.new("UICorner")
@@ -309,10 +328,10 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	shapeHeader.BackgroundTransparency = 1
 	shapeHeader.Size = UDim2.new(1, 0, 0, 20)
 	shapeHeader.Font = Enum.Font.GothamBold
-	shapeHeader.TextSize = 13
+	shapeHeader.TextSize = Theme.Sizes.TextNormal
 	shapeHeader.TextColor3 = Color3.new(1, 1, 1)
 	shapeHeader.TextXAlignment = Enum.TextXAlignment.Left
-	shapeHeader.TextScaled = true
+	shapeHeader.TextScaled = false
 	shapeHeader.Text = "Shape"
 	shapeHeader.LayoutOrder = 1
 	shapeHeader.Parent = shapePanel
@@ -326,7 +345,8 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	shapeButtonsContainer.Parent = shapePanel
 
 	local shapeGrid = Instance.new("UIGridLayout")
-	shapeGrid.CellSize = UDim2.new(0, 50, 0, 52) -- Taller cells for icon + label
+	-- Make room for readable labels (no tiny scaled text)
+	shapeGrid.CellSize = UDim2.new(0, 64, 0, 70)
 	shapeGrid.CellPadding = UDim2.new(0, 4, 0, 4)
 	shapeGrid.FillDirection = Enum.FillDirection.Horizontal
 	shapeGrid.HorizontalAlignment = Enum.HorizontalAlignment.Left
@@ -337,6 +357,7 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	local function updateShapeVisuals()
 		for id, btn in pairs(shapeButtons) do
 			local isSelected = (id == S.brushShape)
+			btn:SetAttribute("IsSelected", isSelected)
 			btn.BackgroundColor3 = isSelected and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
 			-- Update icon color based on selection
 			local icon = btn:FindFirstChild("ShapeIcon")
@@ -362,16 +383,19 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	for i, shape in ipairs(BrushData.Shapes) do
 		local btn = Instance.new("TextButton")
 		btn.Name = shape.id
-		btn.Size = UDim2.new(0, 50, 0, 52)
+		btn.Size = UDim2.new(0, 64, 0, 70)
 		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
 		btn.BorderSizePixel = 0
 		btn.Font = Theme.Fonts.Medium
-		btn.TextSize = 9
+		btn.TextSize = Theme.Sizes.TextButton
 		btn.TextColor3 = Theme.Colors.Text
-		btn.TextScaled = true
+		btn.TextScaled = false
 		btn.Text = "" -- Will position text manually below icon
 		btn.LayoutOrder = i
-		btn.AutoButtonColor = true
+		btn:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+		btn:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+		btn:SetAttribute("IsSelected", false)
+		UIHelpers.installStrongHover(btn)
 		btn.Parent = shapeButtonsContainer
 
 		local corner = Instance.new("UICorner")
@@ -382,24 +406,25 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		local iconContainer = Instance.new("Frame")
 		iconContainer.Name = "ShapeIcon"
 		iconContainer.BackgroundTransparency = 1
-		iconContainer.Size = UDim2.new(0, 32, 0, 32)
-		iconContainer.Position = UDim2.new(0.5, -16, 0, 3)
+		iconContainer.Size = UDim2.new(0, 34, 0, 34)
+		iconContainer.Position = UDim2.new(0.5, -17, 0, 6)
 		iconContainer.Parent = btn
 
 		-- Create shape icon
-		local shapeIcon = UIComponents.createShapeIcon(shape.id, 32)
+		local shapeIcon = UIComponents.createShapeIcon(shape.id, 34)
 		shapeIcon.Parent = iconContainer
 
 		-- Label below icon
 		local labelBelow = Instance.new("TextLabel")
 		labelBelow.Name = "Label"
 		labelBelow.BackgroundTransparency = 1
-		labelBelow.Size = UDim2.new(1, 0, 0, 14)
-		labelBelow.Position = UDim2.new(0, 0, 1, -14)
+		labelBelow.Size = UDim2.new(1, 0, 0, 18)
+		labelBelow.Position = UDim2.new(0, 0, 1, -20)
 		labelBelow.Font = Theme.Fonts.Medium
-		labelBelow.TextSize = 9
+		labelBelow.TextSize = Theme.Sizes.TextNormal
 		labelBelow.TextColor3 = Theme.Colors.Text
-		labelBelow.TextScaled = true
+		labelBelow.TextScaled = false
+		labelBelow.TextTruncate = Enum.TextTruncate.AtEnd
 		labelBelow.Text = shape.name
 		labelBelow.Parent = btn
 
@@ -430,9 +455,10 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	miniCardsContainer.Parent = miniCardsPanel
 
 	-- UIGridLayout with fixed cell height (tallest card is Spin with 5 rows of buttons)
-	-- Height = 6 padding top + 14 title + 4 gap + (5 rows * 20px + 4 gaps * 2px) + 6 padding bottom = ~140
+	-- Cards are fixed-height and flexible-width so text never has to shrink.
 	local miniCardsGrid = Instance.new("UIGridLayout")
-	miniCardsGrid.CellSize = UDim2.new(0, MINI_CARD_WIDTH, 0, 140)
+	miniCardsGrid.FillDirectionMaxCells = 2
+	miniCardsGrid.CellSize = UDim2.new(0.5, -3, 0, MINI_CARD_HEIGHT)
 	miniCardsGrid.CellPadding = UDim2.new(0, 6, 0, 6)
 	miniCardsGrid.FillDirection = Enum.FillDirection.Horizontal
 	miniCardsGrid.HorizontalAlignment = Enum.HorizontalAlignment.Left
@@ -443,7 +469,7 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	local rateCard = createMiniCard(miniCardsContainer, "Rate", {
 		{ id = "no_repeat", name = "Once" },
 		{ id = "on_move_only", name = "Move" },
-		{ id = "very_slow", name = "V.Slow" },
+		{ id = "very_slow", name = "Very\nSlow" },
 		{ id = "slow", name = "Slow" },
 		{ id = "normal", name = "Normal" },
 		{ id = "fast", name = "Fast" },
@@ -466,8 +492,8 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		{ id = FalloffType.Cosine, name = "Cosine" },
 		{ id = FalloffType.Linear, name = "Linear" },
 		{ id = FalloffType.Plateau, name = "Plateau" },
-		{ id = FalloffType.Gaussian, name = "Gauss" },
-		{ id = FalloffType.Quadratic, name = "Quad" },
+		{ id = FalloffType.Gaussian, name = "Gaussian" },
+		{ id = FalloffType.Quadratic, name = "Quadratic" },
 		{ id = FalloffType.Sharp, name = "Sharp" },
 	}, S.falloffType, function(newFalloff)
 		S.falloffType = newFalloff
@@ -480,11 +506,11 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	local spinCard = createMiniCard(miniCardsContainer, "Spin", {
 		{ id = SpinMode.Off, name = "Off" },
 		{ id = SpinMode.WorldY, name = "World Y" },
-		{ id = SpinMode.WorldYFast, name = "W.Y Fst" },
-		{ id = SpinMode.World3D, name = "W. 3D" },
-		{ id = SpinMode.World3DFast, name = "W.3D Fst" },
+		{ id = SpinMode.WorldYFast, name = "World Y\nFast" },
+		{ id = SpinMode.World3D, name = "World 3D" },
+		{ id = SpinMode.World3DFast, name = "World 3D\nFast" },
 		{ id = SpinMode.ShapeY, name = "Shape Y" },
-		{ id = SpinMode.Shape3D, name = "Shp 3D" },
+		{ id = SpinMode.Shape3D, name = "Shape 3D" },
 		{ id = SpinMode.Roll, name = "Roll" },
 		{ id = SpinMode.Wobble, name = "Wobble" },
 		{ id = SpinMode.Spiral, name = "Spiral" },
@@ -592,17 +618,34 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	-- ========================================================================
 	local lockPanel = UIHelpers.createConfigPanel(deps.configContainer, "brushLock")
 
+	local lockHint = Instance.new("TextLabel")
+	lockHint.Name = "LockHint"
+	lockHint.BackgroundTransparency = 1
+	lockHint.Size = UDim2.new(1, 0, 0, 20)
+	lockHint.Font = Theme.Fonts.Medium
+	lockHint.TextSize = Theme.Sizes.TextNormal
+	lockHint.TextColor3 = Theme.Colors.Text
+	lockHint.TextXAlignment = Enum.TextXAlignment.Left
+	lockHint.TextScaled = false
+	lockHint.TextWrapped = true
+	lockHint.Text = "Press L to lock brush (shows handles for rotate/resize)"
+	lockHint.Parent = lockPanel
+
 	local lockButton = Instance.new("TextButton")
 	lockButton.Name = "LockButton"
 	lockButton.Size = UDim2.new(1, 0, 0, 32)
 	lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	lockButton.BorderSizePixel = 0
 	lockButton.Font = Theme.Fonts.Bold
-	lockButton.TextSize = 12
+	lockButton.TextSize = Theme.Sizes.TextNormal
 	lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	lockButton.TextScaled = true
+	lockButton.TextScaled = false
 	lockButton.Text = "🔓 LOCK BRUSH [L]"
 	lockButton.Parent = lockPanel
+	lockButton:SetAttribute("UnselectedColor", Color3.fromRGB(60, 60, 60))
+	lockButton:SetAttribute("SelectedColor", Color3.fromRGB(200, 120, 40))
+	lockButton:SetAttribute("IsSelected", false)
+	UIHelpers.installStrongHover(lockButton)
 
 	local lockCorner = Instance.new("UICorner")
 	lockCorner.CornerRadius = UDim.new(0, 6)
@@ -610,11 +653,13 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 
 	local function updateLockButton()
 		if S.brushLocked then
-			lockButton.Text = "🔒 LOCKED — DRAG HANDLES [L]"
+			lockButton.Text = "🔒 UNLOCK BRUSH [L]"
 			lockButton.BackgroundColor3 = Color3.fromRGB(200, 120, 40)
+			lockButton:SetAttribute("IsSelected", true)
 		else
-			lockButton.Text = "Hit L to lock brush and adjust its rotation and size"
+			lockButton.Text = "🔓 LOCK BRUSH [L]"
 			lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			lockButton:SetAttribute("IsSelected", false)
 		end
 	end
 
@@ -635,19 +680,16 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 
 	local thicknessContainer: Frame
 
-	local hollowToggle = UIComponents.createLabeledToggle({
+	local hollowToggle = UIComponents.createCheckbox({
 		parent = hollowPanel,
-		label = "Hollow",
+		label = "Make shape hollow",
 		initialState = S.hollowEnabled,
-		textOn = "HOLLOW",
-		textOff = "Solid",
 		onChange = function(isHollow)
 			S.hollowEnabled = isHollow
 			if thicknessContainer then
 				thicknessContainer.Visible = isHollow
 			end
 		end,
-		labelWidth = 80,
 	})
 	hollowToggle.container.LayoutOrder = 1
 
@@ -706,11 +748,11 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	tooltipLabel.BackgroundTransparency = 1
 	tooltipLabel.Size = UDim2.new(1, 0, 0, 28)
 	tooltipLabel.Font = Theme.Fonts.Default
-	tooltipLabel.TextSize = 10
-	tooltipLabel.TextColor3 = Theme.Colors.TextDim
+	tooltipLabel.TextSize = Theme.Sizes.TextNormal
+	tooltipLabel.TextColor3 = Theme.Colors.Text
 	tooltipLabel.TextWrapped = true
 	tooltipLabel.TextXAlignment = Enum.TextXAlignment.Left
-	tooltipLabel.TextScaled = true
+	tooltipLabel.TextScaled = false
 	tooltipLabel.Text = "Full strength at brush center, falls off with depth. Helps fill holes from front to back."
 	tooltipLabel.LayoutOrder = 2
 	tooltipLabel.Parent = emphasizeCenterPanel

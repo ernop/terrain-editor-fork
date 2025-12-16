@@ -167,7 +167,7 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 		pcall(function()
 			terrain:ReplaceMaterial(regionSlice, Constants.VOXEL_RESOLUTION, sourceMaterial, targetMaterial)
 		end)
-		wait()
+		task.wait()
 
 		-- fix the surface
 		if surfaceVoxelOccupancy > 0 then

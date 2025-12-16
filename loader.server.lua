@@ -53,7 +53,7 @@ local function loadPlugin()
 	-- Create the dock widget
 	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, true, false, 520, 500, 500, 300)
 	currentGui = plugin:CreateDockWidgetPluginGui("TerrainEditorForkDev", widgetInfo)
-	currentGui.Title = "Terrain Editor (Fork) - LIVE DEV"
+	currentGui.Title = "TerrainParkour's TerrainCreator - DEV"
 
 	-- Try to load and run the cloned module
 	local success, err = xpcall(function()

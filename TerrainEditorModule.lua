@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.000094"
+local VERSION = "0.0.000096"
 
 local TerrainEditorModule = {}
 
@@ -37,7 +37,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local FlattenMode = TerrainEnums.FlattenMode
 	local PlaneLockType = TerrainEnums.PlaneLockType
 	local SpinMode = TerrainEnums.SpinMode
-	local FalloffType = TerrainEnums.FalloffType
+	local _FalloffType = TerrainEnums.FalloffType
 
 	-- Load terrain operations
 	local performTerrainBrushOperation = require(Src.TerrainOperations.performTerrainBrushOperation)
@@ -45,7 +45,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	-- State Table
 	-- ============================================================================
-	local S = {
+	local S: any = {
 		terrain = workspace.Terrain :: Terrain,
 		brushConnection = nil :: RBXScriptConnection?,
 		renderConnection = nil :: RBXScriptConnection?,
@@ -193,10 +193,14 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	local function updateToolButtonVisuals()
 		for toolId, button in pairs(toolButtons) do
-			if toolId == S.currentTool then
+			local isSelected = (toolId == S.currentTool)
+			button:SetAttribute("IsSelected", isSelected)
+			if isSelected then
 				button.BackgroundColor3 = Theme.Colors.ButtonSelected
 			else
-				button.BackgroundColor3 = Theme.Colors.ButtonDefault
+				-- Preserve per-category base colors if provided
+				local unselected = (button:GetAttribute("UnselectedColor") :: any) or Theme.Colors.ButtonDefault
+				button.BackgroundColor3 = unselected
 			end
 			button.TextColor3 = Theme.Colors.Text
 		end
@@ -456,7 +460,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- Find the highest terrain surface within the brush footprint
 	-- Returns the Y position to place the brush bottom at, or nil if no terrain found
 	local function findSurfaceHeight(centerX: number, centerZ: number, radiusX: number, radiusZ: number, searchDepth: number?): number?
-		local depth = searchDepth or 100
+		local _depth = searchDepth or 100
 		local samplePoints = {
 			Vector3.new(centerX, 0, centerZ), -- Center
 			Vector3.new(centerX + radiusX * 0.7, 0, centerZ), -- Right
@@ -1209,7 +1213,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			gradientEndZ = S.gradientEndPoint and S.gradientEndPoint.Z or 0,
 			gradientNoiseAmount = S.gradientNoiseAmount,
 			floodTargetMaterial = S.floodTargetMaterial,
-			floodSourceMaterial = S.floodReplaceAll and nil or S.floodSourceMaterial,
+			floodSourceMaterial = if S.floodReplaceAll then nil else S.floodSourceMaterial,
 			stalactiteDirection = S.stalactiteDirection,
 			stalactiteDensity = S.stalactiteDensity,
 			stalactiteLength = S.stalactiteLength,
@@ -1231,7 +1235,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			falloffExtent = S.falloffExtent,
 			-- Grow tool: emphasize brush center (depth falloff along view direction)
 			emphasizeBrushCenter = S.emphasizeBrushCenter,
-			cameraPosition = workspace.CurrentCamera and workspace.CurrentCamera.CFrame.Position or Vector3.zero,
+			cameraPosition = if workspace.CurrentCamera then workspace.CurrentCamera.CFrame.Position else Vector3.zero,
 		}
 
 		-- Handle Symmetry tool: duplicate operation at rotated positions
@@ -1397,9 +1401,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	versionLabel.AnchorPoint = Vector2.new(1, 0)
 	versionLabel.Font = Theme.Fonts.Default
 	versionLabel.TextSize = Theme.Sizes.TextSmall
-	versionLabel.TextColor3 = Theme.Colors.TextDim
+	versionLabel.TextColor3 = Theme.Colors.Text
 	versionLabel.TextXAlignment = Enum.TextXAlignment.Right
-	versionLabel.TextScaled = true
+	versionLabel.TextScaled = false
 	versionLabel.Text = "v" .. VERSION
 	versionLabel.ZIndex = 10
 	versionLabel.Parent = parentGui
@@ -1417,8 +1421,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	title.Font = Theme.Fonts.Bold
 	title.TextSize = Theme.Sizes.TextLarge
 	title.TextColor3 = Theme.Colors.Text
-	title.TextScaled = true
-	title.Text = "🌋 Terrain Editor Fork v" .. VERSION
+	title.TextScaled = false
+	title.Text = "TerrainParkour's TerrainCreator"
 	title.Parent = mainFrame
 
 	UIHelpers.createHeader(mainFrame, "Tools", UDim2.new(0, 0, 0, 35))
@@ -1472,8 +1476,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsCloseBtn.Size = UDim2.new(0, 20, 0, 20)
 	docsCloseBtn.Font = Enum.Font.GothamBold
 	docsCloseBtn.TextSize = 14
-	docsCloseBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-	docsCloseBtn.TextScaled = true
+	docsCloseBtn.TextColor3 = Theme.Colors.Text
+	docsCloseBtn.TextScaled = false
 	docsCloseBtn.Text = "×"
 	docsCloseBtn.ZIndex = 10
 	docsCloseBtn.Parent = toolDocsContainer
@@ -1488,10 +1492,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsPlaceholder.BackgroundTransparency = 1
 	docsPlaceholder.Size = UDim2.new(1, 0, 1, 0)
 	docsPlaceholder.Font = Theme.Fonts.Default
-	docsPlaceholder.TextSize = 12
-	docsPlaceholder.TextColor3 = Theme.Colors.TextDim
+	docsPlaceholder.TextSize = Theme.Sizes.TextNormal
+	docsPlaceholder.TextColor3 = Theme.Colors.Text
 	docsPlaceholder.TextWrapped = true
-	docsPlaceholder.TextScaled = true
+	docsPlaceholder.TextScaled = false
 	docsPlaceholder.Text = "← Select a tool to see documentation"
 	docsPlaceholder.Parent = toolDocsContainer
 
@@ -1505,12 +1509,42 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end
 
 	docsCloseBtn.MouseButton1Click:Connect(function()
-		setDocsPanelVisible(false)
+		if setDocsPanelVisible then
+			setDocsPanelVisible(false)
+		end
 	end)
 
 	-- Tool categories with visual sections
 	-- Each category: { label, emoji, color, tools[] }
-	local toolCategories = {
+	type ToolButtonInfo = { id: string, name: string }
+	type ToolCategory = {
+		label: string,
+		emoji: string,
+		color: Color3,
+		tools: { ToolButtonInfo },
+		-- Optional: category-specific base button color
+		btnColor: Color3?,
+		-- Optional: foldout behavior
+		foldout: boolean?,
+		defaultOpen: boolean?,
+	}
+
+	local toolCategories: { ToolCategory } = {
+		-- Default-collapsed "More tools" foldout (no sub-sections inside)
+		{
+			label = "More tools",
+			emoji = "➕",
+			color = Color3.fromRGB(200, 200, 200),
+			foldout = true,
+			defaultOpen = false,
+			tools = {
+				{ id = ToolId.Blobify, name = "Blobify" },
+				{ id = ToolId.Terrace, name = "Terrace" },
+				{ id = ToolId.Cliff, name = "Cliff" },
+				{ id = ToolId.Stalactite, name = "Stalactite" },
+				{ id = ToolId.VariationGrid, name = "Grid" },
+			},
+		},
 		{
 			label = "SHAPE",
 			emoji = "🔷",
@@ -1530,10 +1564,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			color = Color3.fromRGB(120, 200, 160),
 			tools = {
 				{ id = ToolId.Noise, name = "Noise" },
-				{ id = ToolId.Terrace, name = "Terrace" },
-				{ id = ToolId.Cliff, name = "Cliff" },
 				{ id = ToolId.Path, name = "Path" },
-				{ id = ToolId.Blobify, name = "Blobify" },
 			},
 		},
 		{
@@ -1554,9 +1585,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			emoji = "✨",
 			color = Color3.fromRGB(200, 150, 255),
 			tools = {
-				{ id = ToolId.Stalactite, name = "Stalactite" },
 				{ id = ToolId.Tendril, name = "Tendril" },
-				{ id = ToolId.VariationGrid, name = "Grid" },
 				{ id = ToolId.GrowthSim, name = "Growth" },
 			},
 		},
@@ -1584,52 +1613,135 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		},
 	}
 
-	-- Layout constants (button width + gap should match Theme.Sizes.ToolButtonWidth)
-	local BUTTON_WIDTH = 74 -- 70px button + 4px gap
+	-- Layout constants
 	local BUTTON_HEIGHT = 32
 	local BUTTON_SPACING = 4
-	local HEADER_HEIGHT = 16
+	local HEADER_HEIGHT = 20
 	local SECTION_GAP = 6
-	local COLS = 3
+	local MIN_TOOL_BUTTON_WIDTH = 92 -- responsive "flow right" minimum
 
-	local currentY = 0
+	-- Build all headers/buttons, then lay them out so the "More tools" foldout can expand/collapse cleanly.
+	local layoutSections = {}
+	local foldoutOpen: { [string]: boolean } = {}
 
 	for _, category in ipairs(toolCategories) do
-		-- Section header
-		local header = Instance.new("TextLabel")
-		header.Name = category.label .. "Header"
-		header.BackgroundTransparency = 1
-		header.Position = UDim2.new(0, 0, 0, currentY)
-		header.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
-		header.Font = Enum.Font.GothamBold
-		header.TextSize = 10
-		header.TextColor3 = category.color
-		header.TextXAlignment = Enum.TextXAlignment.Left
-		header.TextScaled = true
-		header.Text = category.emoji .. " " .. category.label
-		header.Parent = toolButtonsContainer
+		local headerInstance: GuiObject
+		if category.foldout then
+			foldoutOpen[category.label] = (category.defaultOpen == true)
 
-		currentY = currentY + HEADER_HEIGHT + 2
+			local headerBtn = Instance.new("TextButton")
+			headerBtn.Name = "Foldout_" .. category.label:gsub("%s+", "")
+			headerBtn.BackgroundTransparency = 1
+			headerBtn.AutoButtonColor = false
+			headerBtn.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
+			headerBtn.Font = Enum.Font.GothamBold
+			headerBtn.TextSize = Theme.Sizes.TextNormal
+			headerBtn.TextColor3 = Theme.Colors.Text
+			headerBtn.TextXAlignment = Enum.TextXAlignment.Left
+			headerBtn.TextScaled = false
+			headerBtn.Text = (foldoutOpen[category.label] and "▼ " or "▶ ") .. category.emoji .. " " .. category.label
+			headerBtn.Parent = toolButtonsContainer
+			headerInstance = headerBtn
+		else
+			local header = Instance.new("TextLabel")
+			header.Name = category.label .. "Header"
+			header.BackgroundTransparency = 1
+			header.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
+			header.Font = Enum.Font.GothamBold
+			header.TextSize = Theme.Sizes.TextNormal
+			header.TextColor3 = category.color
+			header.TextXAlignment = Enum.TextXAlignment.Left
+			header.TextScaled = false
+			header.Text = category.emoji .. " " .. category.label
+			header.Parent = toolButtonsContainer
+			headerInstance = header
+		end
 
-		-- Tool buttons for this category
+		local buttons = {}
 		for i, toolInfo in ipairs(category.tools) do
-			local col = (i - 1) % COLS
-			local row = math.floor((i - 1) / COLS)
-			local pos = UDim2.new(0, col * BUTTON_WIDTH, 0, currentY + row * (BUTTON_HEIGHT + BUTTON_SPACING))
-			local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, pos)
+			local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, UDim2.new(0, 0, 0, 0))
+			btn.Visible = true
 			if category.btnColor then
 				btn.BackgroundColor3 = category.btnColor
+				btn:SetAttribute("UnselectedColor", category.btnColor)
 			end
 			toolButtons[toolInfo.id] = btn
 			btn.MouseButton1Click:Connect(function()
 				selectTool(toolInfo.id)
 			end)
+			buttons[i] = btn
 		end
 
-		-- Calculate rows used by this category
-		local rowsUsed = math.ceil(#category.tools / COLS)
-		currentY = currentY + rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) + SECTION_GAP
+		table.insert(layoutSections, {
+			category = category,
+			header = headerInstance,
+			buttons = buttons,
+		})
 	end
+
+	local function relayoutToolButtons()
+		local currentY = 0
+		local availableWidth = toolButtonsContainer.AbsoluteSize.X
+		local cols = math.max(1, math.floor((availableWidth + BUTTON_SPACING) / (MIN_TOOL_BUTTON_WIDTH + BUTTON_SPACING)))
+		cols = math.clamp(cols, 2, 5)
+		local buttonWidth = math.floor((availableWidth - (cols - 1) * BUTTON_SPACING) / cols)
+		if buttonWidth < MIN_TOOL_BUTTON_WIDTH then
+			buttonWidth = MIN_TOOL_BUTTON_WIDTH
+			cols = math.max(1, math.floor((availableWidth + BUTTON_SPACING) / (buttonWidth + BUTTON_SPACING)))
+			cols = math.max(cols, 1)
+		end
+
+		for _, section in ipairs(layoutSections) do
+			local category = section.category
+
+			section.header.Position = UDim2.new(0, 0, 0, currentY)
+			currentY = currentY + HEADER_HEIGHT + 2
+
+			local isFoldout = category.foldout == true
+			local isOpen = (not isFoldout) or (foldoutOpen[category.label] == true)
+
+			if isFoldout and not isOpen then
+				-- Hide foldout contents when closed
+				for _, btn in ipairs(section.buttons) do
+					btn.Visible = false
+				end
+				currentY = currentY + SECTION_GAP
+			else
+				-- Tool buttons for this category / foldout
+				for i, btn in ipairs(section.buttons) do
+					btn.Visible = true
+					local col = (i - 1) % cols
+					local row = math.floor((i - 1) / cols)
+					btn.Size = UDim2.new(0, buttonWidth, 0, BUTTON_HEIGHT)
+					btn.Position = UDim2.new(0, col * (buttonWidth + BUTTON_SPACING), 0, currentY + row * (BUTTON_HEIGHT + BUTTON_SPACING))
+				end
+
+				local rowsUsed = math.ceil(#section.buttons / cols)
+				currentY = currentY + rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) + SECTION_GAP
+			end
+		end
+	end
+
+	-- Wire up foldout toggle(s)
+	for _, section in ipairs(layoutSections) do
+		if section.category.foldout then
+			local headerBtn = section.header :: TextButton
+			headerBtn.MouseButton1Click:Connect(function()
+				local label = section.category.label
+				foldoutOpen[label] = not foldoutOpen[label]
+				headerBtn.Text = (foldoutOpen[label] and "▼ " or "▶ ") .. section.category.emoji .. " " .. label
+				relayoutToolButtons()
+			end)
+		end
+	end
+
+	-- Initial layout (foldout closed by default)
+	relayoutToolButtons()
+
+	-- Keep tool grids responsive (e.g. when docs/help panel is dismissed and layout widens)
+	toolButtonsContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		task.defer(relayoutToolButtons)
+	end)
 
 	-- Initialize tool documentation registry
 	local toolsFolder = Src.Tools
@@ -1700,9 +1812,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local updateBridgePreview = configResult.updateBridgePreview
 	local buildBridge = configResult.buildBridge
 
-	updateConfigPanelVisibility()
+	if updateConfigPanelVisibility then
+		updateConfigPanelVisibility()
+	end
 	updateToolButtonVisuals()
-	updateToolDocs()
+	if updateToolDocs then
+		updateToolDocs()
+	end
 	pluginInstance:Activate(true)
 
 	-- ============================================================================
@@ -1723,9 +1839,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	resetBtn.Position = UDim2.new(0, 0, 0, 0)
 	resetBtn.Size = UDim2.new(0, 100, 0, 28)
 	resetBtn.Font = Enum.Font.GothamBold
-	resetBtn.TextSize = 12
+	resetBtn.TextSize = Theme.Sizes.TextNormal
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	resetBtn.TextScaled = true
+	resetBtn.TextScaled = false
 	resetBtn.Text = "⟲ Reset"
 	resetBtn.Parent = footerPanel
 
@@ -1915,9 +2031,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsToggleBtn.Position = UDim2.new(0, 0, 0, 36) -- Below reset button
 	docsToggleBtn.Size = UDim2.new(0, 160, 0, 26)
 	docsToggleBtn.Font = Enum.Font.GothamMedium
-	docsToggleBtn.TextSize = 11
-	docsToggleBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
-	docsToggleBtn.TextScaled = true
+	docsToggleBtn.TextSize = Theme.Sizes.TextNormal
+	docsToggleBtn.TextColor3 = Theme.Colors.Text
+	docsToggleBtn.TextScaled = false
 	docsToggleBtn.Text = S.showDocsPanel and "📖 Hide Tool Docs" or "📖 Show Tool Docs"
 	docsToggleBtn.Parent = footerPanel
 
@@ -2302,7 +2418,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end)
 
 	print("========================================")
-	print("[TerrainEditorFork] Version: " .. VERSION)
+	print("[TerrainParkour's TerrainCreator] Version: " .. VERSION)
 	print("========================================")
 
 	-- Cleanup function

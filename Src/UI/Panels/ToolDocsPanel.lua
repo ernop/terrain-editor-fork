@@ -61,7 +61,8 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		heading.TextSize = 14
 		heading.TextColor3 = Theme.Colors.Accent
 		heading.TextXAlignment = Enum.TextXAlignment.Left
-		heading.TextScaled = true
+		heading.TextScaled = false
+		heading.TextTruncate = Enum.TextTruncate.AtEnd
 		heading.Text = text
 		heading.LayoutOrder = order
 		heading.Parent = contentFrame
@@ -80,7 +81,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		para.TextColor3 = Theme.Colors.Text
 		para.TextXAlignment = Enum.TextXAlignment.Left
 		para.TextWrapped = true
-		para.TextScaled = true
+		para.TextScaled = false
 		para.Text = text
 		para.LayoutOrder = order
 		para.Parent = contentFrame
@@ -119,7 +120,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			dot.Font = Theme.Fonts.Default
 			dot.TextSize = 13
 			dot.TextColor3 = Theme.Colors.Accent
-			dot.TextScaled = true
+			dot.TextScaled = false
 			dot.Text = "•"
 			dot.Parent = bulletFrame
 			
@@ -136,7 +137,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			textLabel.TextColor3 = Theme.Colors.Text
 			textLabel.TextXAlignment = Enum.TextXAlignment.Left
 			textLabel.TextWrapped = true
-			textLabel.TextScaled = true
+			textLabel.TextScaled = false
 			textLabel.RichText = true
 			
 			-- Convert **text** to <b>text</b>
@@ -178,10 +179,11 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		tipHeader.BackgroundTransparency = 1
 		tipHeader.Size = UDim2.new(1, 0, 0, 16)
 		tipHeader.Font = Theme.Fonts.Bold
-		tipHeader.TextSize = 12
+		tipHeader.TextSize = Theme.Sizes.TextNormal
 		tipHeader.TextColor3 = Theme.Colors.Warning
 		tipHeader.TextXAlignment = Enum.TextXAlignment.Left
-		tipHeader.TextScaled = true
+		tipHeader.TextScaled = false
+		tipHeader.TextTruncate = Enum.TextTruncate.AtEnd
 		tipHeader.Text = "⚡ SHORTCUTS"
 		tipHeader.LayoutOrder = 0
 		tipHeader.Parent = tipsFrame
@@ -196,7 +198,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			tipLabel.TextColor3 = Theme.Colors.Text
 			tipLabel.TextXAlignment = Enum.TextXAlignment.Left
 			tipLabel.TextWrapped = true
-			tipLabel.TextScaled = true
+			tipLabel.TextScaled = false
 			tipLabel.Text = tip
 			tipLabel.LayoutOrder = i
 			tipLabel.Parent = tipsFrame
@@ -218,10 +220,11 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		relatedLabel.BackgroundTransparency = 1
 		relatedLabel.Size = UDim2.new(0, 60, 1, 0)
 		relatedLabel.Font = Theme.Fonts.Default
-		relatedLabel.TextSize = 10
-		relatedLabel.TextColor3 = Theme.Colors.TextDim
+		relatedLabel.TextSize = Theme.Sizes.TextNormal
+		relatedLabel.TextColor3 = Theme.Colors.Text
 		relatedLabel.TextXAlignment = Enum.TextXAlignment.Left
-		relatedLabel.TextScaled = true
+		relatedLabel.TextScaled = false
+		relatedLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		relatedLabel.Text = "Related:"
 		relatedLabel.Parent = relatedFrame
 		
@@ -239,12 +242,13 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		for i, toolName in ipairs(related) do
 			local tag = Instance.new("TextLabel")
 			tag.BackgroundColor3 = Theme.Colors.ButtonDefault
-			tag.Size = UDim2.new(0, 0, 0, 18)
+			tag.Size = UDim2.new(0, 0, 0, 22)
 			tag.AutomaticSize = Enum.AutomaticSize.X
 			tag.Font = Theme.Fonts.Medium
-			tag.TextSize = 10
+			tag.TextSize = Theme.Sizes.TextNormal
 			tag.TextColor3 = Theme.Colors.Text
-			tag.TextScaled = true
+			tag.TextScaled = false
+			tag.TextTruncate = Enum.TextTruncate.AtEnd
 			tag.Text = "  " .. toolName .. "  "
 			tag.LayoutOrder = i
 			tag.Parent = tagsFrame
@@ -296,7 +300,8 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		title.TextSize = 16
 		title.TextColor3 = Theme.Colors.Text
 		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.TextScaled = true
+		title.TextScaled = false
+		title.TextTruncate = Enum.TextTruncate.AtEnd
 		title.Text = docs.title
 		title.LayoutOrder = order
 		title.Parent = contentFrame
@@ -312,7 +317,8 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			subtitle.TextSize = 13
 			subtitle.TextColor3 = Theme.Colors.Accent
 			subtitle.TextXAlignment = Enum.TextXAlignment.Left
-			subtitle.TextScaled = true
+			subtitle.TextScaled = false
+			subtitle.TextTruncate = Enum.TextTruncate.AtEnd
 			subtitle.Text = docs.subtitle
 			subtitle.LayoutOrder = order
 			subtitle.Parent = contentFrame

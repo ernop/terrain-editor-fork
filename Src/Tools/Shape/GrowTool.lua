@@ -6,9 +6,9 @@
 	from existing surfaces. Creates natural, organic growth patterns.
 ]]
 
-local Plugin = script.Parent.Parent.Parent.Parent
-local OperationHelper = require(Plugin.Src.TerrainOperations.OperationHelper)
-local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+local Src = script:FindFirstAncestor("Src")
+local OperationHelper = require(Src.TerrainOperations.OperationHelper)
+local ToolDocFormat = require(Src.Tools.ToolDocFormat)
 
 local materialAir = Enum.Material.Air
 local materialWater = Enum.Material.Water

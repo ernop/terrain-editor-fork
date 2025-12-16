@@ -4,6 +4,7 @@
 
 local Theme = require(script.Parent.Theme)
 local BrushData = require(script.Parent.BrushData)
+local UIHelpers = require(script.Parent.UIHelpers)
 
 local UIComponents = {}
 
@@ -65,6 +66,20 @@ export type ToggleButtonConfig = {
 
 export type ToggleButtonResult = {
 	button: TextButton,
+	update: (newState: boolean) -> (),
+	getState: () -> boolean,
+}
+
+export type CheckboxConfig = {
+	parent: Frame,
+	label: string,
+	initialState: boolean,
+	onChange: (newState: boolean) -> (),
+}
+
+export type CheckboxResult = {
+	container: Frame,
+	checkbox: TextButton,
 	update: (newState: boolean) -> (),
 	getState: () -> boolean,
 }
@@ -141,12 +156,16 @@ function UIComponents.createButtonGroup(config: ButtonGroupConfig): ButtonGroupR
 		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
 		btn.BorderSizePixel = 0
 		btn.Font = Theme.Fonts.Medium
-		btn.TextSize = Theme.Sizes.TextDescription
+		btn.TextSize = Theme.Sizes.TextButton
 		btn.TextColor3 = Theme.Colors.Text
-		btn.TextScaled = true
+		btn.TextScaled = false
+		btn.TextTruncate = Enum.TextTruncate.AtEnd
 		btn.Text = option.name
 		btn.LayoutOrder = i
-		btn.AutoButtonColor = true
+		btn:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+		btn:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+		btn:SetAttribute("IsSelected", false)
+		UIHelpers.installStrongHover(btn)
 		btn.Parent = container
 
 		local corner = Instance.new("UICorner")
@@ -217,11 +236,14 @@ function UIComponents.createMaterialCycleButton(config: MaterialCycleButtonConfi
 	button.Position = config.position or UDim2.new(0, 0, 0, 0)
 	button.Size = config.size or UDim2.new(0, 110, 0, 26)
 	button.Font = Theme.Fonts.Medium
-	button.TextSize = Theme.Sizes.TextNormal
+	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
 	button.Text = ""  -- Text will be in the label
-	button.AutoButtonColor = true
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
+	UIHelpers.installStrongHover(button)
 	button.Parent = config.parent
 
 	local corner = Instance.new("UICorner")
@@ -254,7 +276,7 @@ function UIComponents.createMaterialCycleButton(config: MaterialCycleButtonConfi
 	nameLabel.TextColor3 = Theme.Colors.Text
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel.TextScaled = true
+	nameLabel.TextScaled = false
 	nameLabel.Text = currentName .. suffix
 	nameLabel.Parent = button
 
@@ -375,7 +397,7 @@ function UIComponents.createMaterialPicker(config: MaterialPickerConfig): Materi
 		label.TextSize = Theme.Sizes.TextNormal
 		label.TextColor3 = Theme.Colors.Text
 		label.TextTruncate = Enum.TextTruncate.AtEnd
-		label.TextScaled = true
+		label.TextScaled = false
 		label.Text = matInfo.name
 		label.Parent = tileContainer
 
@@ -424,9 +446,13 @@ function UIComponents.createToggleButton(config: ToggleButtonConfig): ToggleButt
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextNormal
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = currentState and config.textOn or config.textOff
-	button.AutoButtonColor = true
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
+	UIHelpers.installStrongHover(button)
 	button.Parent = config.parent
 
 	local corner = Instance.new("UICorner")
@@ -446,6 +472,88 @@ function UIComponents.createToggleButton(config: ToggleButtonConfig): ToggleButt
 
 	return {
 		button = button,
+		update = function(newState: boolean)
+			currentState = newState
+			updateVisuals()
+		end,
+		getState = function()
+			return currentState
+		end,
+	}
+end
+
+-- ============================================================================
+-- Checkbox Row Component
+-- Compact inline layout: "Label   [ ]"
+-- ============================================================================
+
+function UIComponents.createCheckbox(config: CheckboxConfig): CheckboxResult
+	local currentState = config.initialState
+
+	local container = Instance.new("Frame")
+	container.Name = "CheckboxRow"
+	container.BackgroundTransparency = 1
+	container.Size = UDim2.new(1, 0, 0, 26)
+	container.Parent = config.parent
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.BackgroundTransparency = 1
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.Size = UDim2.new(1, -30, 1, 0)
+	label.Font = Theme.Fonts.Medium
+	label.TextSize = Theme.Sizes.TextNormal
+	label.TextColor3 = Theme.Colors.Text
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.Text = config.label
+	label.Parent = container
+
+	local checkbox = Instance.new("TextButton")
+	checkbox.Name = "Checkbox"
+	checkbox.Position = UDim2.new(1, -24, 0, 2)
+	checkbox.Size = UDim2.new(0, 22, 0, 22)
+	checkbox.Font = Theme.Fonts.Bold
+	checkbox.TextSize = Theme.Sizes.TextNormal
+	checkbox.TextColor3 = Theme.Colors.Text
+	checkbox.TextScaled = false
+	checkbox.TextTruncate = Enum.TextTruncate.AtEnd
+	checkbox.BorderSizePixel = 0
+	checkbox.Parent = container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 4)
+	corner.Parent = checkbox
+
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Color = Theme.Colors.Border
+	stroke.Thickness = 2
+	stroke.Parent = checkbox
+
+	local function updateVisuals()
+		checkbox.BackgroundColor3 = currentState and Theme.Colors.ButtonSelected or Theme.Colors.ButtonDefault
+		checkbox.Text = currentState and "✓" or ""
+		checkbox:SetAttribute("IsSelected", currentState)
+	end
+
+	checkbox:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	checkbox:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	checkbox:SetAttribute("IsSelected", currentState)
+	UIHelpers.installStrongHover(checkbox)
+
+	checkbox.MouseButton1Click:Connect(function()
+		currentState = not currentState
+		updateVisuals()
+		config.onChange(currentState)
+	end)
+
+	updateVisuals()
+
+	return {
+		container = container,
+		checkbox = checkbox,
 		update = function(newState: boolean)
 			currentState = newState
 			updateVisuals()
@@ -498,10 +606,11 @@ function UIComponents.createLabeledButtonGroup(config: LabeledButtonGroupConfig)
 	label.Position = UDim2.new(0, 0, 0, 0)
 	label.Size = UDim2.new(0, labelWidth, 1, 0)
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
+	label.TextSize = Theme.Sizes.TextNormal
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = true
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = config.label
 	label.Parent = container
 
@@ -540,12 +649,16 @@ function UIComponents.createLabeledButtonGroup(config: LabeledButtonGroupConfig)
 		btn.BackgroundColor3 = Theme.Colors.ButtonDefault
 		btn.BorderSizePixel = 0
 		btn.Font = Theme.Fonts.Medium
-		btn.TextSize = 11
+		btn.TextSize = Theme.Sizes.TextButton
 		btn.TextColor3 = Theme.Colors.Text
-		btn.TextScaled = true
+		btn.TextScaled = false
+		btn.TextTruncate = Enum.TextTruncate.AtEnd
 		btn.Text = option.name
 		btn.LayoutOrder = i
-		btn.AutoButtonColor = true
+		btn:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+		btn:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+		btn:SetAttribute("IsSelected", false)
+		UIHelpers.installStrongHover(btn)
 		btn.Parent = buttonsContainer
 
 		local corner = Instance.new("UICorner")
@@ -616,10 +729,11 @@ function UIComponents.createLabeledToggle(config: LabeledToggleConfig): LabeledT
 	label.Position = UDim2.new(0, 0, 0, 0)
 	label.Size = UDim2.new(0, labelWidth, 1, 0)
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
+	label.TextSize = Theme.Sizes.TextNormal
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = true
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.Text = config.label
 	label.Parent = container
 
@@ -631,11 +745,15 @@ function UIComponents.createLabeledToggle(config: LabeledToggleConfig): LabeledT
 	button.BackgroundColor3 = currentState and Theme.Colors.ButtonToggleOn or Theme.Colors.ButtonDefault
 	button.BorderSizePixel = 0
 	button.Font = Theme.Fonts.Medium
-	button.TextSize = 11
+	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = currentState and config.textOn or config.textOff
-	button.AutoButtonColor = true
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
+	UIHelpers.installStrongHover(button)
 	button.Parent = container
 
 	local corner = Instance.new("UICorner")
@@ -1014,11 +1132,15 @@ function UIComponents.createRandomizeSeedButton(parent: Frame, onRandomize: (see
 	button.AutomaticSize = Enum.AutomaticSize.X  -- Natural width
 	button.Size = UDim2.new(0, 0, 0, Theme.Sizes.ButtonHeight)
 	button.Font = Theme.Fonts.Medium
-	button.TextSize = Theme.Sizes.TextNormal
+	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
-	button.TextScaled = true
+	button.TextScaled = false
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = "🎲 Randomize"
-	button.AutoButtonColor = true
+	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
+	button:SetAttribute("IsSelected", false)
+	UIHelpers.installStrongHover(button)
 	button.Parent = parent
 
 	local padding = Instance.new("UIPadding")

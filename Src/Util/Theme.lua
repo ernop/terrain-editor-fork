@@ -17,7 +17,9 @@ Theme.Colors = {
 	-- Buttons
 	ButtonDefault = Color3.fromRGB(50, 50, 50),
 	ButtonSelected = Color3.fromRGB(0, 120, 200),
-	ButtonHover = Color3.fromRGB(70, 70, 70),
+	-- Strong, immediate hover (no subtle transitions)
+	ButtonHover = Color3.fromRGB(90, 90, 90),
+	ButtonHoverSelected = Color3.fromRGB(0, 162, 255),
 	ButtonSecondary = Color3.fromRGB(80, 80, 80),
 	ButtonToggleOn = Color3.fromRGB(100, 50, 150),
 
@@ -80,6 +82,9 @@ Theme.Sizes = {
 	TextNormal = 13,
 	TextMedium = 14,
 	TextLarge = 16,
+	-- Button text should be larger than body labels, but still fit within fixed-width buttons.
+	-- (If you want 18 everywhere, we must also widen/tall the buttons to avoid truncation.)
+	TextButton = 16,
 
 	-- Button dimensions
 	ButtonHeight = 26,

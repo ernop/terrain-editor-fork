@@ -5,12 +5,14 @@
 # - Hard to read
 # - Break when structure changes
 # - Should use FindFirstAncestor or explicit references
+#
+# Fix: Use script:FindFirstAncestor("ModuleName") instead
 
 id: no-long-parent-chain
 language: lua
 severity: warning
-message: "Long Parent chain is fragile. Consider using FindFirstAncestor or storing reference."
-note: "Use FindFirstAncestor('Name') or store a reference at module load time."
+message: "Long Parent chain is fragile. Use FindFirstAncestor instead."
+note: "Use script:FindFirstAncestor('Name') to find ancestor by name."
 rule:
-  pattern: script.Parent.Parent.Parent.Parent
+  pattern: $X.Parent.Parent.Parent.Parent
 

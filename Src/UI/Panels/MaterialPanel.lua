@@ -32,12 +32,10 @@ function MaterialPanel.create(deps: MaterialPanelDeps): MaterialPanelResult
 
 	local materialPickerRef: any = nil -- Forward reference for enabling/disabling
 
-	local autoMatToggle = UIComponents.createLabeledToggle({
+	local autoMatCheckbox = UIComponents.createCheckbox({
 		parent = autoMatPanel,
-		label = "Auto",
+		label = "Auto Material",
 		initialState = S.autoMaterial,
-		textOn = "Match Terrain",
-		textOff = "Use Selected",
 		onChange = function(isAuto)
 			S.autoMaterial = isAuto
 			-- Dim the material picker when auto is enabled
@@ -45,9 +43,8 @@ function MaterialPanel.create(deps: MaterialPanelDeps): MaterialPanelResult
 				materialPickerRef.container.GroupTransparency = isAuto and 0.5 or 0
 			end
 		end,
-		labelWidth = LABEL_WIDTH,
 	})
-	autoMatToggle.container.LayoutOrder = 1
+	autoMatCheckbox.container.LayoutOrder = 1
 
 	panels["autoMaterial"] = autoMatPanel
 
