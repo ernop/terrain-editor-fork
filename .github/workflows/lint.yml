@@ -1,0 +1,92 @@
+# Lint Workflow
+# Runs all linting tools on push and pull requests
+#
+# Tools:
+#   - selene: Lua linter
+#   - stylua: Lua formatter (check mode)
+#   - ast-grep: Structural pattern linter (Lua + Python)
+
+name: Lint
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - "**.lua"
+      - "**.luau"
+      - "**.py"
+      - "rules/**"
+      - "sgconfig.yml"
+      - "selene.toml"
+      - "stylua.toml"
+      - ".github/workflows/lint.yml"
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - "**.lua"
+      - "**.luau"
+      - "**.py"
+      - "rules/**"
+      - "sgconfig.yml"
+      - "selene.toml"
+      - "stylua.toml"
+      - ".github/workflows/lint.yml"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  lint-lua:
+    name: Lint Lua (selene + stylua)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Aftman
+        uses: ok-nick/setup-aftman@v0.4.2
+        with:
+          token: ${{ github.token }}
+
+      - name: Install selene
+        run: aftman add Kampfkarren/selene@0.27.1 --global || true
+
+      - name: Install stylua
+        run: aftman add JohnnyMorganz/StyLua@0.20.0 --global || true
+
+      - name: Run selene
+        run: selene .
+
+      - name: Run stylua check
+        run: stylua --check .
+
+  lint-ast-grep:
+    name: Lint (ast-grep structural patterns)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ast-grep
+        run: npm install -g @ast-grep/cli
+
+      - name: Run ast-grep scan
+        run: ast-grep scan
+
+  lint-python:
+    name: Lint Python (optional)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('**/*.py') != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ast-grep
+        run: pip install ast-grep-cli
+
+      - name: Run ast-grep on Python files
+        run: ast-grep scan --filter python
+

@@ -143,6 +143,7 @@ function UIComponents.createButtonGroup(config: ButtonGroupConfig): ButtonGroupR
 		btn.Font = Theme.Fonts.Medium
 		btn.TextSize = Theme.Sizes.TextDescription
 		btn.TextColor3 = Theme.Colors.Text
+		btn.TextScaled = true
 		btn.Text = option.name
 		btn.LayoutOrder = i
 		btn.AutoButtonColor = true
@@ -218,6 +219,7 @@ function UIComponents.createMaterialCycleButton(config: MaterialCycleButtonConfi
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextNormal
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = ""  -- Text will be in the label
 	button.AutoButtonColor = true
 	button.Parent = config.parent
@@ -252,6 +254,7 @@ function UIComponents.createMaterialCycleButton(config: MaterialCycleButtonConfi
 	nameLabel.TextColor3 = Theme.Colors.Text
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.TextScaled = true
 	nameLabel.Text = currentName .. suffix
 	nameLabel.Parent = button
 
@@ -372,6 +375,7 @@ function UIComponents.createMaterialPicker(config: MaterialPickerConfig): Materi
 		label.TextSize = Theme.Sizes.TextNormal
 		label.TextColor3 = Theme.Colors.Text
 		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.TextScaled = true
 		label.Text = matInfo.name
 		label.Parent = tileContainer
 
@@ -420,6 +424,7 @@ function UIComponents.createToggleButton(config: ToggleButtonConfig): ToggleButt
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextNormal
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = currentState and config.textOn or config.textOff
 	button.AutoButtonColor = true
 	button.Parent = config.parent
@@ -496,6 +501,7 @@ function UIComponents.createLabeledButtonGroup(config: LabeledButtonGroupConfig)
 	label.TextSize = 13
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
 	label.Text = config.label
 	label.Parent = container
 
@@ -536,6 +542,7 @@ function UIComponents.createLabeledButtonGroup(config: LabeledButtonGroupConfig)
 		btn.Font = Theme.Fonts.Medium
 		btn.TextSize = 11
 		btn.TextColor3 = Theme.Colors.Text
+		btn.TextScaled = true
 		btn.Text = option.name
 		btn.LayoutOrder = i
 		btn.AutoButtonColor = true
@@ -612,6 +619,7 @@ function UIComponents.createLabeledToggle(config: LabeledToggleConfig): LabeledT
 	label.TextSize = 13
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
 	label.Text = config.label
 	label.Parent = container
 
@@ -625,6 +633,7 @@ function UIComponents.createLabeledToggle(config: LabeledToggleConfig): LabeledT
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = 11
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = currentState and config.textOn or config.textOff
 	button.AutoButtonColor = true
 	button.Parent = container
@@ -1007,6 +1016,7 @@ function UIComponents.createRandomizeSeedButton(parent: Frame, onRandomize: (see
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextNormal
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = "🎲 Randomize"
 	button.AutoButtonColor = true
 	button.Parent = parent

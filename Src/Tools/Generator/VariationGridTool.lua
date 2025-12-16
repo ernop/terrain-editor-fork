@@ -90,7 +90,7 @@ VariationGridTool.docs = {
 -- ============================================
 VariationGridTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

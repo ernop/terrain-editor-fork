@@ -87,7 +87,7 @@ NoiseTool.docs = {
 -- ============================================
 NoiseTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

@@ -8,6 +8,7 @@
 
 local Plugin = script.Parent.Parent.Parent.Parent
 local Noise = require(Plugin.Src.Util.Noise)
+local OperationHelper = require(Plugin.Src.TerrainOperations.OperationHelper)
 local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
 
 type SculptSettings = ToolDocFormat.SculptSettings
@@ -90,12 +91,13 @@ StalactiteTool.docs = {
 -- ============================================
 StalactiteTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",
 	"pivot",
 	"stalactiteSettings",
+	"autoMaterial",
 	"material",
 }
 
@@ -106,12 +108,15 @@ function StalactiteTool.execute(options: SculptSettings)
 	local writeMaterials = options.writeMaterials
 	local writeOccupancies = options.writeOccupancies
 	local readOccupancies = options.readOccupancies
+	local readMaterials = options.readMaterials
 	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
 	local sizeX, sizeY, sizeZ = options.sizeX, options.sizeY, options.sizeZ
 	local brushOccupancy = options.brushOccupancy
 	local cellOccupancy = options.cellOccupancy
+	local cellMaterial = options.cellMaterial
 	local worldX, worldY, worldZ = options.worldX, options.worldY, options.worldZ
 	local desiredMaterial = options.desiredMaterial
+	local autoMaterial = options.autoMaterial
 	local direction = options.stalactiteDirection or -1 -- -1 = down, +1 = up
 	local density = options.stalactiteDensity or 0.3
 	local length = options.stalactiteLength or 10
@@ -172,7 +177,16 @@ function StalactiteTool.execute(options: SculptSettings)
 	if spikeOccupancy > cellOccupancy then
 		writeOccupancies[voxelX][voxelY][voxelZ] = spikeOccupancy
 		if spikeOccupancy > 0.5 then
-			writeMaterials[voxelX][voxelY][voxelZ] = desiredMaterial
+			local targetMaterial = desiredMaterial
+			if autoMaterial then
+				targetMaterial = OperationHelper.getMaterialForAutoMaterial(
+					readMaterials,
+					voxelX, voxelY, voxelZ,
+					sizeX, sizeY, sizeZ,
+					cellMaterial
+				)
+			end
+			writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 		end
 	end
 end

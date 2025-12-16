@@ -19,6 +19,7 @@ function UIHelpers.createLabel(parent: Frame, text: string, position: UDim2, siz
 	label.TextSize = Theme.Sizes.TextMedium
 	label.TextColor3 = Theme.Colors.Text
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -33,6 +34,7 @@ function UIHelpers.createHeader(parent: Frame, text: string, position: UDim2): T
 	label.TextSize = Theme.Sizes.TextMedium
 	label.TextColor3 = Theme.Colors.Text
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -48,6 +50,7 @@ function UIHelpers.createDescription(parent: Frame, text: string, height: number
 	label.TextColor3 = Theme.Colors.TextMuted
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextWrapped = true
+	label.TextScaled = true
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -63,6 +66,7 @@ function UIHelpers.createStatusLabel(parent: Frame, text: string, color: Color3?
 	label.TextSize = Theme.Sizes.TextMedium
 	label.TextColor3 = color or Theme.Colors.Warning
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -78,6 +82,7 @@ function UIHelpers.createNote(parent: Frame, text: string, height: number?): Tex
 	label.TextColor3 = Theme.Colors.TextNote
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextWrapped = true
+	label.TextScaled = true
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -95,6 +100,7 @@ function UIHelpers.createInstructions(parent: Frame, text: string, height: numbe
 	label.TextWrapped = true
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextYAlignment = Enum.TextYAlignment.Top
+	label.TextScaled = true
 	label.Text = text
 	label.Parent = parent
 	return label
@@ -123,6 +129,7 @@ function UIHelpers.createLabeledRow(parent: Frame, labelText: string, labelWidth
 	label.TextSize = Theme.Sizes.TextNormal
 	label.TextColor3 = Theme.Colors.Text
 	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = true
 	label.Text = labelText
 	label.Parent = row
 
@@ -145,6 +152,7 @@ function UIHelpers.createButton(parent: Frame, text: string, position: UDim2, si
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = 13
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = text
 	button.AutoButtonColor = true
 	button.Parent = parent
@@ -167,6 +175,7 @@ function UIHelpers.createActionButton(parent: Frame, text: string, callback: () 
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextNormal
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = text
 	button.AutoButtonColor = true
 	button.Parent = parent
@@ -195,6 +204,7 @@ function UIHelpers.createToolButton(parent: Frame, toolId: string, displayName: 
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextDescription
 	button.TextColor3 = Theme.Colors.Text
+	button.TextScaled = true
 	button.Text = displayName
 	button.AutoButtonColor = true
 	button.Parent = parent
@@ -242,6 +252,7 @@ function UIHelpers.createSlider(
 	labelText.TextSize = Theme.Sizes.TextNormal
 	labelText.TextColor3 = Theme.Colors.Text
 	labelText.TextXAlignment = Enum.TextXAlignment.Left
+	labelText.TextScaled = true
 	labelText.Text = label
 	labelText.Parent = headerRow
 
@@ -254,6 +265,7 @@ function UIHelpers.createSlider(
 	valueText.TextSize = Theme.Sizes.TextNormal
 	valueText.TextColor3 = Theme.Colors.Accent
 	valueText.TextXAlignment = Enum.TextXAlignment.Right
+	valueText.TextScaled = true
 	valueText.Text = tostring(initial)
 	valueText.Parent = headerRow
 
@@ -313,6 +325,7 @@ function UIHelpers.createSlider(
 	hoverPreview.Font = Theme.Fonts.Bold
 	hoverPreview.TextSize = 11
 	hoverPreview.TextColor3 = Theme.Colors.Text
+	hoverPreview.TextScaled = true
 	hoverPreview.Visible = false
 	hoverPreview.ZIndex = 10
 	hoverPreview.Parent = sliderBg
@@ -330,6 +343,7 @@ function UIHelpers.createSlider(
 	minLabel.TextSize = Theme.Sizes.TextSmall
 	minLabel.TextColor3 = Theme.Colors.TextDim
 	minLabel.TextXAlignment = Enum.TextXAlignment.Left
+	minLabel.TextScaled = true
 	minLabel.Text = tostring(min)
 	minLabel.Parent = container
 
@@ -341,6 +355,7 @@ function UIHelpers.createSlider(
 	maxLabel.TextSize = Theme.Sizes.TextSmall
 	maxLabel.TextColor3 = Theme.Colors.TextDim
 	maxLabel.TextXAlignment = Enum.TextXAlignment.Right
+	maxLabel.TextScaled = true
 	maxLabel.Text = tostring(max)
 	maxLabel.Parent = container
 

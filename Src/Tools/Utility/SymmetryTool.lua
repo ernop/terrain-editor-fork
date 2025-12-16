@@ -85,7 +85,7 @@ SymmetryTool.docs = {
 -- ============================================
 SymmetryTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"material",
 	"brushLock",
 	"brushRate",

@@ -94,18 +94,15 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 	end
 
 	-- Set layout order for panels
+	-- Order: Shape → MiniCards (Rate/Pivot/Falloff/Spin/Plane) → Strength → Size → Lock
 	local panelOrder = {
 		"bridgeInfo",
 		"brushShape",
-		"size",
-		"brushLock",
+		"miniCards", -- Contains Rate, Pivot, Falloff, Spin, Plane as floating cards
 		"strength",
-		"brushRate",
-		"pivot",
+		"brushSize",
+		"brushLock",
 		"hollow",
-		"falloff",
-		"spin",
-		"planeLock",
 		"flattenMode",
 		"emphasizeBrushCenter",
 		"autoMaterial",
@@ -143,6 +140,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 	noToolMessage.Font = Theme.Fonts.Default
 	noToolMessage.TextSize = Theme.Sizes.TextMedium
 	noToolMessage.TextColor3 = Theme.Colors.Text
+	noToolMessage.TextScaled = true
 	noToolMessage.Text = "Select a tool above to see its settings"
 	noToolMessage.TextWrapped = true
 	noToolMessage.LayoutOrder = 0

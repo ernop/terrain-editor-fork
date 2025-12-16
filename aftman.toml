@@ -4,4 +4,11 @@
 # To add a new tool, add an entry to this table.
 [tools]
 rojo = "rojo-rbx/rojo@7.5.1"
+selene = "Kampfkarren/selene@0.27.1"
+stylua = "JohnnyMorganz/StyLua@0.20.0"
+
+# NOTE: ast-grep is not available via Aftman. Install separately:
+#   npm install -g @ast-grep/cli
+#   OR pip install ast-grep-cli
+#   OR cargo install ast-grep --locked
 

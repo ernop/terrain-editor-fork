@@ -366,6 +366,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelPosLabel.TextSize = 12
 	voxelPosLabel.TextColor3 = Theme.Colors.Text
 	voxelPosLabel.TextXAlignment = Enum.TextXAlignment.Left
+	voxelPosLabel.TextScaled = true
 	voxelPosLabel.Text = "Pos: ---"
 	voxelPosLabel.LayoutOrder = 4
 	voxelPosLabel.Parent = voxelInspectPanel
@@ -379,6 +380,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelGridLabel.TextSize = 12
 	voxelGridLabel.TextColor3 = Theme.Colors.Text
 	voxelGridLabel.TextXAlignment = Enum.TextXAlignment.Left
+	voxelGridLabel.TextScaled = true
 	voxelGridLabel.Text = "Grid: ---"
 	voxelGridLabel.LayoutOrder = 5
 	voxelGridLabel.Parent = voxelInspectPanel
@@ -392,6 +394,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelMatLabel.TextSize = 12
 	voxelMatLabel.TextColor3 = Theme.Colors.Text
 	voxelMatLabel.TextXAlignment = Enum.TextXAlignment.Left
+	voxelMatLabel.TextScaled = true
 	voxelMatLabel.Text = "Material: ---"
 	voxelMatLabel.LayoutOrder = 6
 	voxelMatLabel.Parent = voxelInspectPanel
@@ -405,6 +408,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	voxelOccLabel.TextSize = 12
 	voxelOccLabel.TextColor3 = Theme.Colors.Text
 	voxelOccLabel.TextXAlignment = Enum.TextXAlignment.Left
+	voxelOccLabel.TextScaled = true
 	voxelOccLabel.Text = "Occupancy: ---"
 	voxelOccLabel.LayoutOrder = 7
 	voxelOccLabel.Parent = voxelInspectPanel
@@ -450,6 +454,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	editHeader.TextSize = 12
 	editHeader.TextColor3 = Color3.fromRGB(100, 200, 255)
 	editHeader.TextXAlignment = Enum.TextXAlignment.Left
+	editHeader.TextScaled = true
 	editHeader.Text = "─── EDIT MODE ───"
 	editHeader.LayoutOrder = 1
 	editHeader.Parent = editSection
@@ -652,6 +657,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 	progressInfo.TextSize = Theme.Sizes.TextNormal
 	progressInfo.TextColor3 = Theme.Colors.Text
 	progressInfo.TextXAlignment = Enum.TextXAlignment.Left
+	progressInfo.TextScaled = true
 	progressInfo.Text = "Scanning: 0% | Islands found: 0"
 	progressInfo.LayoutOrder = 1
 	progressInfo.Parent = progressSection
@@ -799,6 +805,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 			resultItem.TextSize = Theme.Sizes.TextNormal
 			resultItem.TextColor3 = Theme.Colors.Text
 			resultItem.TextXAlignment = Enum.TextXAlignment.Left
+			resultItem.TextScaled = true
 			resultItem.Text = string.format("  #%d: %s (%s)", i, sizeLabel, island.material)
 			resultItem.LayoutOrder = i
 			resultItem.AutoButtonColor = true
@@ -817,6 +824,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 			zoomBtn.Font = Theme.Fonts.Medium
 			zoomBtn.TextSize = 11
 			zoomBtn.TextColor3 = Theme.Colors.Text
+			zoomBtn.TextScaled = true
 			zoomBtn.Text = "Zoom"
 			zoomBtn.Parent = resultItem
 
@@ -840,6 +848,7 @@ function AdvancedPanels.create(deps: AdvancedPanelsDeps): AdvancedPanelsResult
 			noResults.Font = Theme.Fonts.Default
 			noResults.TextSize = Theme.Sizes.TextNormal
 			noResults.TextColor3 = Theme.Colors.TextDim
+			noResults.TextScaled = true
 			noResults.Text = "No terrain found"
 			noResults.Parent = ui.resultsContainer
 		end

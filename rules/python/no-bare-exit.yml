@@ -1,0 +1,11 @@
+# Rule: no-bare-exit
+# Detect exit() which is intended for interactive use
+
+id: py-no-bare-exit
+language: python
+severity: warning
+message: "exit() is intended for interactive use. Use sys.exit() in scripts."
+note: "exit() may not be available in all Python environments. Use sys.exit() for scripts."
+rule:
+  pattern: exit($$$ARGS)
+

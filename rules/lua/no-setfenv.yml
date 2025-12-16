@@ -1,0 +1,14 @@
+# Rule: no-setfenv
+# Detect deprecated setfenv which doesn't work in Luau
+#
+# This function is disabled in Roblox Luau for security reasons
+# and will error at runtime.
+
+id: no-setfenv
+language: lua
+severity: error
+message: "setfenv() is disabled in Roblox Luau and will error at runtime."
+note: "Use explicit module patterns instead of environment manipulation."
+rule:
+  pattern: setfenv($$$ARGS)
+

@@ -85,7 +85,7 @@ TerraceTool.docs = {
 -- ============================================
 TerraceTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

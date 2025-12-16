@@ -1,0 +1,14 @@
+# Rule: use-pathlib
+# Encourage using pathlib over os.path for path manipulation
+#
+# pathlib provides a more intuitive OOP interface:
+#   Path("dir") / "file.txt"  instead of  os.path.join("dir", "file.txt")
+#   path.exists()             instead of  os.path.exists(path)
+
+id: py-prefer-pathlib-join
+language: python
+severity: hint
+message: "Consider using pathlib: Path(a) / b instead of os.path.join(a, b)"
+note: "pathlib provides a more Pythonic API for path manipulation."
+rule:
+  pattern: os.path.join($$$ARGS)

@@ -1,0 +1,15 @@
+# Rule: no-rawget-caution
+# Detect rawget which may indicate questionable metatable bypassing
+#
+# While not always wrong, this often indicates:
+# - Attempting to bypass Roblox security
+# - Working around bugs that should be fixed properly
+# - Unnecessary complexity
+
+id: no-rawget-caution
+language: lua
+severity: hint
+message: "rawget() bypasses metatables. Ensure this is intentional."
+note: "rawget is sometimes necessary for metatable implementations but should be rare in application code."
+rule:
+  pattern: rawget($$$ARGS)

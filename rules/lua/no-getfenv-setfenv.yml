@@ -1,0 +1,13 @@
+# Rule: no-getfenv
+# Detect deprecated getfenv which doesn't work in Luau
+#
+# This function is disabled in Roblox Luau for security reasons
+# and will error at runtime.
+
+id: no-getfenv
+language: lua
+severity: error
+message: "getfenv() is disabled in Roblox Luau and will error at runtime."
+note: "Use explicit module patterns or _G for shared state (though _G is discouraged)."
+rule:
+  pattern: getfenv($$$ARGS)

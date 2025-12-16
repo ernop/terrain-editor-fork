@@ -1,0 +1,32 @@
+# ast-grep Configuration
+# https://ast-grep.github.io/reference/sgconfig.html
+#
+# ast-grep provides AST-based structural code search and linting.
+# It complements selene (Lua linter) and stylua (Lua formatter) by detecting
+# patterns that traditional linters cannot catch.
+#
+# Usage:
+#   ast-grep scan              # Run all rules
+#   ast-grep scan --rule <id>  # Run specific rule
+#   ast-grep test              # Run rule tests
+#
+# Installation (pick one):
+#   npm install -g @ast-grep/cli
+#   pip install ast-grep-cli
+#   cargo install ast-grep --locked
+
+ruleDirs:
+  - rules
+
+# Test directory for rule unit tests
+testConfigs:
+  - testDir: rules/tests
+
+# Language-specific utilities (optional, for custom extractors)
+# languageGlobs:
+#   lua:
+#     - "*.lua"
+#     - "*.luau"
+#   python:
+#     - "*.py"
+

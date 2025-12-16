@@ -34,6 +34,7 @@ export type TorusWireframe = {
 local function createWirePart(startPos: Vector3, endPos: Vector3, color: Color3, transparency: number): Part
 	local part = Instance.new("Part")
 	part.Name = "TorusWire"
+	part.Archivable = false  -- Exclude from undo history
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanQuery = false

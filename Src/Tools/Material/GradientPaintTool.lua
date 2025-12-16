@@ -89,7 +89,7 @@ GradientPaintTool.docs = {
 -- ============================================
 GradientPaintTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

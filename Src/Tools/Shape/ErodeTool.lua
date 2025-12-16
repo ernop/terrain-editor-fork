@@ -83,7 +83,7 @@ ErodeTool.docs = {
 -- ============================================
 ErodeTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

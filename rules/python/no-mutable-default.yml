@@ -1,0 +1,20 @@
+# Rule: no-mutable-default
+# Detect mutable default arguments which are a common Python gotcha
+#
+# This is wrong:
+#   def foo(items=[]):  # Same list reused across calls!
+#
+# Correct pattern:
+#   def foo(items=None):
+#       if items is None:
+#           items = []
+
+id: py-no-list-default
+language: python
+severity: error
+message: "Mutable default argument (list). Use None and create inside function."
+note: "Default mutable arguments are shared across calls. Use: def foo(items=None): items = items or []"
+rule:
+  pattern: "def $FUNC($$$PARAMS): $$$BODY"
+  has:
+    pattern: "$PARAM=[]"

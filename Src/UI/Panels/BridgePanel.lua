@@ -207,6 +207,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 		-- Create start marker
 		local startMarker = Instance.new("Part")
+		startMarker.Archivable = false  -- Exclude from undo history
 		startMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
 		startMarker.CFrame = CFrame.new(S.bridgeStartPoint)
 		startMarker.Anchored = true
@@ -221,6 +222,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		if endPoint then
 			-- Create end marker
 			local endMarker = Instance.new("Part")
+			endMarker.Archivable = false  -- Exclude from undo history
 			endMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
 			endMarker.CFrame = CFrame.new(endPoint)
 			endMarker.Anchored = true
@@ -253,6 +255,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 				for i, pathPoint in ipairs(path) do
 					if i > 1 and i < #path then
 						local pathMarker = Instance.new("Part")
+						pathMarker.Archivable = false  -- Exclude from undo history
 						pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
 						pathMarker.CFrame = CFrame.new(pathPoint.position)
 						pathMarker.Anchored = true
@@ -277,6 +280,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 					local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
 
 					local pathMarker = Instance.new("Part")
+					pathMarker.Archivable = false  -- Exclude from undo history
 					pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
 					pathMarker.CFrame = CFrame.new(pos + finalOffset)
 					pathMarker.Anchored = true

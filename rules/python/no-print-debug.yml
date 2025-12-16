@@ -1,0 +1,17 @@
+# Rule: no-print-debug (Python)
+# Detect debug print statements in Python code
+#
+# For production code, logging module should be used instead.
+# For scripts in this project (terrain-tiles/), print is acceptable
+# since they are CLI tools. This rule is DISABLED.
+#
+# To enable: change severity from "off" to "hint"
+
+id: py-no-bare-print
+language: python
+severity: off
+message: "Consider using logging module instead of print() for better output control."
+note: "logging.info(), logging.debug() etc. allow filtering by level and redirection."
+rule:
+  pattern: print($$$ARGS)
+

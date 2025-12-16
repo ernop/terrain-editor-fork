@@ -89,7 +89,7 @@ CloneTool.docs = {
 -- ============================================
 CloneTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

@@ -1,0 +1,14 @@
+# Rule: terrain-operations
+# Project-specific rules for terrain editor code patterns
+#
+# These rules catch common mistakes in terrain manipulation code.
+
+id: terrain-no-direct-readwritevoxels
+language: lua
+severity: hint
+message: "Consider using OperationHelper for ReadVoxels/WriteVoxels to ensure proper bounds handling."
+note: "Direct terrain:ReadVoxels or terrain:WriteVoxels may miss edge cases. Check if OperationHelper provides the needed abstraction."
+rule:
+  any:
+    - pattern: $TERRAIN:ReadVoxels($$$ARGS)
+    - pattern: terrain:ReadVoxels($$$ARGS)

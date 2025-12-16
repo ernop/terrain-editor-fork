@@ -1,0 +1,20 @@
+# Rule: no-print-debug
+# Detect debug print statements that should be removed before release
+#
+# This catches:
+#   print("debug message")
+#   print(variable)
+#   warn("something") -- often used for debugging
+#
+# Selene can catch unused variables but not debug prints left in code.
+
+id: no-print-debug
+language: lua
+severity: warning
+message: "Debug print statement found. Remove before release or use conditional DEBUG_LOG flag."
+note: "Consider using a DEBUG_LOG constant: if DEBUG_LOG then print(...) end"
+rule:
+  any:
+    - pattern: print($$$ARGS)
+    - pattern: warn($$$ARGS)
+

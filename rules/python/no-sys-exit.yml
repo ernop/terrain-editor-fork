@@ -1,0 +1,13 @@
+# Rule: no-sys-exit
+# Detect sys.exit() which can make code hard to test
+#
+# For CLI scripts, this is often fine. For library code, raise exceptions instead.
+# This rule is a hint, not an error.
+
+id: py-no-sys-exit
+language: python
+severity: hint
+message: "sys.exit() can make testing difficult. Consider raising SystemExit exception in library code."
+note: "For library code, raise SystemExit or a custom exception. CLI entry points can use sys.exit()."
+rule:
+  pattern: sys.exit($$$ARGS)

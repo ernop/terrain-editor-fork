@@ -1,0 +1,11 @@
+# Rule: no-spawn-deprecated
+# Detect deprecated spawn() - use task library instead
+#
+# spawn() -> task.spawn() or task.defer()
+
+id: no-spawn-deprecated
+language: lua
+severity: warning
+message: "Global spawn() is deprecated. Use task.spawn() or task.defer() instead."
+rule:
+  pattern: spawn($$$ARGS)

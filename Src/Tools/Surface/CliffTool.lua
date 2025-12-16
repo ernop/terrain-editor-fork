@@ -86,7 +86,7 @@ CliffTool.docs = {
 -- ============================================
 CliffTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

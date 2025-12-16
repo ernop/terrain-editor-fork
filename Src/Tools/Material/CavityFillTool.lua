@@ -83,7 +83,7 @@ CavityFillTool.docs = {
 -- ============================================
 CavityFillTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

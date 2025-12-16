@@ -1,0 +1,44 @@
+# Rule: no-wait-in-loop
+# Detect wait() or task.wait() inside tight loops - common Roblox performance issue
+#
+# Pattern matches:
+#   while condition do
+#     wait()  -- Bad: can cause performance issues
+#   end
+#
+#   for i = 1, 100 do
+#     task.wait()  -- Bad: 100 frames of delay
+#   end
+
+id: no-wait-in-loop
+language: lua
+severity: error
+message: "wait() or task.wait() inside a loop can cause performance issues. Consider restructuring."
+note: "Use RunService.Heartbeat or batch operations instead of waiting in loops."
+rule:
+  any:
+    - pattern: |
+        while $COND do
+          $$$BEFORE
+          wait($$$ARGS)
+          $$$AFTER
+        end
+    - pattern: |
+        while $COND do
+          $$$BEFORE
+          task.wait($$$ARGS)
+          $$$AFTER
+        end
+    - pattern: |
+        for $VAR = $START, $END do
+          $$$BEFORE
+          wait($$$ARGS)
+          $$$AFTER
+        end
+    - pattern: |
+        for $VAR = $START, $END do
+          $$$BEFORE
+          task.wait($$$ARGS)
+          $$$AFTER
+        end
+

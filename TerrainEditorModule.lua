@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.00000082"
+local VERSION = "0.0.000094"
 
 local TerrainEditorModule = {}
 
@@ -42,8 +42,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- Load terrain operations
 	local performTerrainBrushOperation = require(Src.TerrainOperations.performTerrainBrushOperation)
 
-	print("[DEBUG] Reached A - Requires loaded")
-
 	-- ============================================================================
 	-- State Table
 	-- ============================================================================
@@ -59,7 +57,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		brushShape = BrushShape.Sphere,
 		brushRotation = CFrame.new(),
 		brushMaterial = Enum.Material.Grass,
-		pivotType = PivotType.Center,
+		pivotType = PivotType.Bottom,
 		flattenMode = FlattenMode.Both,
 		autoMaterial = false,
 		ignoreWater = false,
@@ -181,8 +179,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	}
 	local mouse = pluginInstance:GetMouse()
 
-	print("[DEBUG] Reached B - State table created")
-
 	-- Forward declarations
 	local updateHandlesAdornee: () -> ()
 	local hideHandles: () -> ()
@@ -275,6 +271,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local function createPreviewPart(shape: Enum.PartType?): Part
 		local part = Instance.new("Part")
 		part.Name = "TerrainBrushExtra"
+		part.Archivable = false -- Exclude from undo history
 		part.Anchored = true
 		part.CanCollide = false
 		part.CanQuery = false
@@ -368,6 +365,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 		if S.brushPart then
 			S.brushPart.Name = "TerrainBrushVisualization"
+			S.brushPart.Archivable = false -- Exclude from undo history
 			S.brushPart.Anchored = true
 			S.brushPart.CanCollide = false
 			S.brushPart.CanQuery = false
@@ -387,6 +385,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		if needsHandleAdornee then
 			S.handleAdorneePart = Instance.new("Part")
 			S.handleAdorneePart.Name = "BrushHandleAdornee"
+			S.handleAdorneePart.Archivable = false -- Exclude from undo history
 			S.handleAdorneePart.Anchored = true
 			S.handleAdorneePart.CanCollide = false
 			S.handleAdorneePart.CanQuery = false
@@ -729,6 +728,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 						for wedgeIdx = 0, 3 do
 							local wedge = Instance.new("WedgePart")
 							wedge.Name = "TerrainBrushExtra"
+							wedge.Archivable = false -- Exclude from undo history
 							wedge.Anchored = true
 							wedge.CanCollide = false
 							wedge.CanQuery = false
@@ -942,14 +942,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	updateHandlesAdornee = function()
 		-- Use handleAdorneePart for composite shapes, brushPart for simple shapes
 		local adorneePart = S.handleAdorneePart or S.brushPart
-		local showRotation = adorneePart ~= nil and BrushData.ShapeSupportsRotation[S.brushShape] == true
+		-- Only show handles when brush is LOCKED - otherwise they steal mouse clicks
+		local showRotation = S.brushLocked and adorneePart ~= nil and BrushData.ShapeSupportsRotation[S.brushShape] == true
+		local showSize = S.brushLocked and adorneePart ~= nil
 		for _, handle in ipairs(S.rotationHandles) do
 			handle.Adornee = adorneePart
 			handle.Visible = showRotation
 		end
 		if S.sizeHandles then
 			S.sizeHandles.Adornee = adorneePart
-			S.sizeHandles.Visible = adorneePart ~= nil
+			S.sizeHandles.Visible = showSize
 		end
 	end
 
@@ -992,6 +994,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		S.planePart = Instance.new("Part")
 		local part = S.planePart :: Part
 		part.Name = "TerrainPlaneLockVisualization"
+		part.Archivable = false -- Exclude from undo history
 		part.Anchored = true
 		part.CanCollide = false
 		part.CanQuery = false
@@ -1377,7 +1380,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	-- Build UI
 	-- ============================================================================
-	print("[DEBUG] Reached C - Starting Build UI")
 	local mainFrame = Instance.new("ScrollingFrame")
 	mainFrame.Name = "MainFrame"
 	mainFrame.Size = UDim2.fromScale(1, 1)
@@ -1397,6 +1399,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	versionLabel.TextSize = Theme.Sizes.TextSmall
 	versionLabel.TextColor3 = Theme.Colors.TextDim
 	versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+	versionLabel.TextScaled = true
 	versionLabel.Text = "v" .. VERSION
 	versionLabel.ZIndex = 10
 	versionLabel.Parent = parentGui
@@ -1414,6 +1417,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	title.Font = Theme.Fonts.Bold
 	title.TextSize = Theme.Sizes.TextLarge
 	title.TextColor3 = Theme.Colors.Text
+	title.TextScaled = true
 	title.Text = "🌋 Terrain Editor Fork v" .. VERSION
 	title.Parent = mainFrame
 
@@ -1469,6 +1473,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsCloseBtn.Font = Enum.Font.GothamBold
 	docsCloseBtn.TextSize = 14
 	docsCloseBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	docsCloseBtn.TextScaled = true
 	docsCloseBtn.Text = "×"
 	docsCloseBtn.ZIndex = 10
 	docsCloseBtn.Parent = toolDocsContainer
@@ -1486,6 +1491,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsPlaceholder.TextSize = 12
 	docsPlaceholder.TextColor3 = Theme.Colors.TextDim
 	docsPlaceholder.TextWrapped = true
+	docsPlaceholder.TextScaled = true
 	docsPlaceholder.Text = "← Select a tool to see documentation"
 	docsPlaceholder.Parent = toolDocsContainer
 
@@ -1501,8 +1507,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsCloseBtn.MouseButton1Click:Connect(function()
 		setDocsPanelVisible(false)
 	end)
-
-	print("[DEBUG] Reached D - About to create tool categories")
 
 	-- Tool categories with visual sections
 	-- Each category: { label, emoji, color, tools[] }
@@ -1601,6 +1605,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		header.TextSize = 10
 		header.TextColor3 = category.color
 		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.TextScaled = true
 		header.Text = category.emoji .. " " .. category.label
 		header.Parent = toolButtonsContainer
 
@@ -1626,15 +1631,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		currentY = currentY + rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) + SECTION_GAP
 	end
 
-	print("[DEBUG] Reached E - Tool buttons created")
-
 	-- Initialize tool documentation registry
 	local toolsFolder = Src.Tools
 	if toolsFolder then
 		ToolRegistry.init(toolsFolder)
 	end
-
-	print("[DEBUG] Reached F - ToolRegistry initialized")
 
 	-- Create tool documentation panel (in the right side container)
 	local toolDocsResult = ToolDocsPanel.create({
@@ -1643,8 +1644,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			return ToolRegistry.getDocs(toolId)
 		end,
 	})
-
-	print("[DEBUG] Reached G - ToolDocsPanel created")
 
 	-- Assign the updateToolDocs function (forward declared earlier)
 	updateToolDocs = function()
@@ -1682,17 +1681,17 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		toggleBrushLock = function()
 			S.brushLocked = not S.brushLocked
 			if S.brushLocked then
-				print("[TerrainEditor] Brush LOCKED - drag handles to rotate/resize, press R to unlock")
+				print("[TerrainEditor] Brush LOCKED - drag handles to rotate/resize, press L to unlock")
 			else
 				print("[TerrainEditor] Brush UNLOCKED - brush follows mouse")
 			end
+			-- Update handles visibility immediately (only shown when locked)
+			updateHandlesAdornee()
 			if S.lockedBrushPosition then
 				updateBrushVisualization(S.lockedBrushPosition)
 			end
 		end,
 	})
-
-	print("[DEBUG] Reached H - ConfigPanels created")
 
 	local setStrengthValue = configResult.setStrengthValue
 	local updateLockButton = configResult.updateLockButton
@@ -1701,13 +1700,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	local updateBridgePreview = configResult.updateBridgePreview
 	local buildBridge = configResult.buildBridge
 
-	print("[DEBUG] Reached I - About to call updateConfigPanelVisibility")
 	updateConfigPanelVisibility()
-	print("[DEBUG] Reached J - About to call updateToolButtonVisuals")
 	updateToolButtonVisuals()
-	print("[DEBUG] Reached K - About to call updateToolDocs")
 	updateToolDocs()
-	print("[DEBUG] Reached L - updateToolDocs completed")
 	pluginInstance:Activate(true)
 
 	-- ============================================================================
@@ -1730,6 +1725,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	resetBtn.Font = Enum.Font.GothamBold
 	resetBtn.TextSize = 12
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	resetBtn.TextScaled = true
 	resetBtn.Text = "⟲ Reset"
 	resetBtn.Parent = footerPanel
 
@@ -1764,7 +1760,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		S.brushMaterial = Enum.Material.Grass
 
 		-- Pivot and modes
-		S.pivotType = PivotType.Center
+		S.pivotType = PivotType.Bottom
 		S.flattenMode = FlattenMode.Both
 		S.autoMaterial = false
 		S.ignoreWater = false
@@ -1921,6 +1917,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	docsToggleBtn.Font = Enum.Font.GothamMedium
 	docsToggleBtn.TextSize = 11
 	docsToggleBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+	docsToggleBtn.TextScaled = true
 	docsToggleBtn.Text = S.showDocsPanel and "📖 Hide Tool Docs" or "📖 Show Tool Docs"
 	docsToggleBtn.Parent = footerPanel
 
@@ -2169,6 +2166,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			else
 				print("[TerrainEditor] Brush UNLOCKED - brush follows mouse")
 			end
+			-- Update handles visibility immediately (only shown when locked)
+			updateHandlesAdornee()
 			if S.lockedBrushPosition then
 				updateBrushVisualization(S.lockedBrushPosition)
 			end
@@ -2252,6 +2251,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					if not S.voxelInspectHighlight then
 						local highlight = Instance.new("Part")
 						highlight.Name = "VoxelInspectHighlight"
+						highlight.Archivable = false -- Exclude from undo history
 						highlight.Anchored = true
 						highlight.CanCollide = false
 						highlight.Transparency = 0.7

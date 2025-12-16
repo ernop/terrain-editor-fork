@@ -80,7 +80,7 @@ SubtractTool.docs = {
 -- ============================================
 SubtractTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

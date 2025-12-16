@@ -1,0 +1,18 @@
+# Rule: no-bare-except
+# Detect bare except clauses which catch all exceptions including KeyboardInterrupt
+#
+# Always specify the exception type:
+#   except Exception:      # Catches most errors
+#   except ValueError:     # Catches specific error
+#   except (A, B):        # Catches multiple types
+
+id: py-no-bare-except
+language: python
+severity: error
+message: "Bare 'except:' catches all exceptions including KeyboardInterrupt. Specify exception type."
+note: "Use 'except Exception:' to catch standard errors, or specific exception types."
+rule:
+  kind: except_clause
+  not:
+    has:
+      kind: as_pattern

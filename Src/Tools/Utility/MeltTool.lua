@@ -84,7 +84,7 @@ MeltTool.docs = {
 -- ============================================
 MeltTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

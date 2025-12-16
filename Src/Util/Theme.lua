@@ -73,8 +73,10 @@ Theme.Fonts = {
 -- ============================================================================
 Theme.Sizes = {
 	-- Text sizes (larger for better readability)
-	TextSmall = 11,
-	TextDescription = 12,
+	-- NOTE: Minimum font size across the project is TextNormal (matches material labels like "Grass"/"Sand").
+	-- Do not introduce smaller sizes; small text becomes unreadable in the Studio plugin panel.
+	TextSmall = 13,
+	TextDescription = 13,
 	TextNormal = 13,
 	TextMedium = 14,
 	TextLarge = 16,

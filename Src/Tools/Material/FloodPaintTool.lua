@@ -84,7 +84,7 @@ FloodPaintTool.docs = {
 -- ============================================
 FloodPaintTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"floodSettings",
 	"material",

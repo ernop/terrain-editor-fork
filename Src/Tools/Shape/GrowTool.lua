@@ -88,7 +88,7 @@ GrowTool.docs = {
 -- ============================================
 GrowTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

@@ -1,0 +1,26 @@
+# Rule: require-strict-mode
+# Detect missing --!strict annotation at the top of Lua/Luau files
+#
+# In this project, we use Luau strict mode for type safety.
+# This rule helps catch files missing the annotation.
+#
+# NOTE: This rule is DISABLED by default because it produces too many
+# false positives (triggers on every function). Enable manually if needed.
+# Better approach: run a custom script to check file headers.
+
+id: require-strict-mode
+language: lua
+severity: off
+message: "Consider adding --!strict at the top of the file for Luau type checking."
+note: "Strict mode catches type errors at analysis time. Add '--!strict' as first line."
+rule:
+  # Match any function definition that's not preceded by strict annotation
+  # This is a proxy for "file has code but no strict mode"
+  pattern: |
+    function $NAME($$$ARGS)
+      $$$BODY
+    end
+  not:
+    precedes:
+      pattern: "--!strict"
+

@@ -85,7 +85,7 @@ BlobifyTool.docs = {
 -- ============================================
 BlobifyTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

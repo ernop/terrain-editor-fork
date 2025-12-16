@@ -1,0 +1,16 @@
+# Rule: no-script-parent-chain
+# Detect overly long script.Parent chains which are fragile
+#
+# Long chains like script.Parent.Parent.Parent.Parent are:
+# - Hard to read
+# - Break when structure changes
+# - Should use FindFirstAncestor or explicit references
+
+id: no-long-parent-chain
+language: lua
+severity: warning
+message: "Long Parent chain is fragile. Consider using FindFirstAncestor or storing reference."
+note: "Use FindFirstAncestor('Name') or store a reference at module load time."
+rule:
+  pattern: script.Parent.Parent.Parent.Parent
+

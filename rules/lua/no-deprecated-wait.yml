@@ -1,0 +1,17 @@
+# Rule: no-deprecated-wait
+# Detect deprecated global wait() - should use task.wait() instead
+#
+# In modern Roblox Luau, the global wait() is deprecated in favor of task.wait()
+# task.wait() has better precision and doesn't throttle as aggressively
+
+id: no-deprecated-wait
+language: lua
+severity: warning
+message: "Global wait() is deprecated. Use task.wait() instead for better precision."
+note: "Replace wait(n) with task.wait(n) or task.wait() for no-argument version."
+rule:
+  pattern: wait($$$ARGS)
+  not:
+    inside:
+      pattern: task.wait($$$)
+

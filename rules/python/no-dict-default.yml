@@ -1,0 +1,13 @@
+# Rule: no-dict-default
+# Detect dict mutable default arguments
+
+id: py-no-dict-default
+language: python
+severity: error
+message: "Mutable default argument (dict). Use None and create inside function."
+note: "Default mutable arguments are shared across calls. Use: def foo(d=None): d = d or {}"
+rule:
+  pattern: "def $FUNC($$$PARAMS): $$$BODY"
+  has:
+    pattern: "$PARAM={}"
+

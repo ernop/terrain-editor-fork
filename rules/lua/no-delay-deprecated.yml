@@ -1,0 +1,12 @@
+# Rule: no-delay-deprecated
+# Detect deprecated delay() - use task library instead
+#
+# delay() -> task.delay()
+
+id: no-delay-deprecated
+language: lua
+severity: warning
+message: "Global delay() is deprecated. Use task.delay() instead."
+rule:
+  pattern: delay($$$ARGS)
+

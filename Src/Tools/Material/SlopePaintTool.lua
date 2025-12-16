@@ -86,7 +86,7 @@ SlopePaintTool.docs = {
 -- ============================================
 SlopePaintTool.configPanels = {
 	"brushShape",
-	"size",
+	"brushSize",
 	"brushLock",
 	"strength",
 	"brushRate",

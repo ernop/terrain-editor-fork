@@ -89,9 +89,9 @@ TerrainEnums.TabId = {
 
 TerrainEnums.PivotType = {
 	Top = "Top",
-	Center = "Cen",
-	Bottom = "Bot",
-	Surface = "Srf", -- Rests on terrain surface without penetrating
+	Center = "Center",
+	Bottom = "Bottom",
+	Surface = "Surface", -- Rests on terrain surface without penetrating
 }
 
 TerrainEnums.PlaneLockType = {

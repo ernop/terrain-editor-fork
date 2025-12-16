@@ -1,0 +1,11 @@
+# Rule: prefer-pathlib-exists
+# Encourage using pathlib over os.path.exists
+
+id: py-prefer-pathlib-exists
+language: python
+severity: hint
+message: "Consider using pathlib: Path(p).exists() instead of os.path.exists(p)"
+note: "pathlib provides a more Pythonic API for path manipulation."
+rule:
+  pattern: os.path.exists($PATH)
+

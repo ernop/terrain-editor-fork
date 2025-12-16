@@ -2,16 +2,24 @@
 -- TerrainEditorFork Standalone Plugin
 -- This is the distributable version - all code is bundled inside
 
-local PLUGIN_NAME = "Terrain Editor (Fork)"
+local PLUGIN_NAME = "TerrainParkour TerrainEdit"
 
 -- The module is bundled as a child of this script
 local pluginModule = script:WaitForChild("TerrainEditorModule")
+
+-- Create toolbar button
+local toolbar = plugin:CreateToolbar("TerrainParkour")
+local toggleButton = toolbar:CreateButton(
+    "TerrainEdit",
+    "Open TerrainParkour TerrainEdit",
+    "rbxassetid://7229442422" -- terrain icon
+)
 
 -- Create the dock widget
 local widgetInfo = DockWidgetPluginGuiInfo.new(
     Enum.InitialDockState.Float,
     true,   -- enabled
-    false,  -- override previous state
+    true,   -- override previous state (always show on load)
     520,    -- default width
     500,    -- default height
     500,    -- min width
@@ -19,6 +27,19 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
 )
 local pluginGui = plugin:CreateDockWidgetPluginGui("TerrainEditorFork", widgetInfo)
 pluginGui.Title = PLUGIN_NAME
+
+-- Toggle button syncs with widget visibility
+local function updateButtonState()
+    toggleButton:SetActive(pluginGui.Enabled)
+end
+
+toggleButton.Click:Connect(function()
+    pluginGui.Enabled = not pluginGui.Enabled
+    updateButtonState()
+end)
+
+pluginGui:GetPropertyChangedSignal("Enabled"):Connect(updateButtonState)
+updateButtonState()
 
 -- Load and run the module
 local success, err = pcall(function()
