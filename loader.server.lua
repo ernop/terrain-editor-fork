@@ -7,6 +7,8 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local PLUGIN_NAME = "TerrainEditorFork"
 local RETRY_INTERVAL = 1
+local WIDGET_ID = "TerrainEditorForkDev"
+local WIDGET_ENABLED_SETTING_KEY = "TerrainEditorForkDev.DockWidget.Enabled"
 
 -- Wait for the synced code to appear
 local function waitForModule()
@@ -18,6 +20,7 @@ end
 
 -- Toolbar button to reload
 local toolbar = plugin:CreateToolbar("Terrain Editor (Fork) - DEV")
+local toggleButton = toolbar:CreateButton("Open", "Open/close the terrain editor", "rbxassetid://7229442422")
 local reloadButton = toolbar:CreateButton("Reload", "Reload the terrain editor", "rbxassetid://1507949215")
 
 local currentGui: DockWidgetPluginGui? = nil
@@ -30,15 +33,65 @@ local function deepClone(original: Instance): Instance
 	return clone
 end
 
+local function getSavedWidgetEnabled(): boolean?
+	local ok, value = pcall(function()
+		return plugin:GetSetting(WIDGET_ENABLED_SETTING_KEY)
+	end)
+	if not ok then
+		return nil
+	end
+	if type(value) ~= "boolean" then
+		return nil
+	end
+	return value
+end
+
+local function saveWidgetEnabled(enabled: boolean)
+	pcall(function()
+		plugin:SetSetting(WIDGET_ENABLED_SETTING_KEY, enabled)
+	end)
+end
+
+local function ensureGui()
+	if currentGui then
+		return
+	end
+
+	-- Default: do NOT pop open on Studio launch.
+	-- Also: do not override Studio's saved docking state.
+	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, false, false, 520, 500, 500, 300)
+	currentGui = plugin:CreateDockWidgetPluginGui(WIDGET_ID, widgetInfo)
+	currentGui.Title = "TerrainParkour's TerrainCreator - DEV"
+
+	local savedEnabled = getSavedWidgetEnabled()
+	if savedEnabled ~= nil then
+		currentGui.Enabled = savedEnabled
+	end
+
+	currentGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if currentGui then
+			toggleButton:SetActive(currentGui.Enabled)
+			saveWidgetEnabled(currentGui.Enabled)
+		end
+	end)
+
+	toggleButton:SetActive(currentGui.Enabled)
+end
+
 local function loadPlugin()
+	ensureGui()
+
 	-- Clean up previous instance
 	if currentCleanup then
 		pcall(currentCleanup)
 		currentCleanup = nil
 	end
 	if currentGui then
-		currentGui:Destroy()
-		currentGui = nil
+		-- Important: keep the same DockWidgetPluginGui instance so Studio can remember
+		-- docked position/size, and so visibility isn't forcibly reset on each reload.
+		for _, child in currentGui:GetChildren() do
+			child:Destroy()
+		end
 	end
 
 	local pluginModule = waitForModule()
@@ -49,11 +102,6 @@ local function loadPlugin()
 	local moduleClone = deepClone(pluginModule)
 	moduleClone.Name = PLUGIN_NAME .. "_Clone" .. loadCount
 	moduleClone.Parent = ServerStorage
-
-	-- Create the dock widget
-	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, true, false, 520, 500, 500, 300)
-	currentGui = plugin:CreateDockWidgetPluginGui("TerrainEditorForkDev", widgetInfo)
-	currentGui.Title = "TerrainParkour's TerrainCreator - DEV"
 
 	-- Try to load and run the cloned module
 	local success, err = xpcall(function()
@@ -86,6 +134,14 @@ local function loadPlugin()
 		print("[TerrainEditorFork] Loaded successfully! (reload #" .. loadCount .. ")")
 	end
 end
+
+toggleButton.Click:Connect(function()
+	ensureGui()
+	if currentGui then
+		currentGui.Enabled = not currentGui.Enabled
+		toggleButton:SetActive(currentGui.Enabled)
+	end
+end)
 
 reloadButton.Click:Connect(function()
 	print("[TerrainEditorFork] Reloading...")

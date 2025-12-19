@@ -3,6 +3,8 @@
 -- This is the distributable version - all code is bundled inside
 
 local PLUGIN_NAME = "TerrainParkour's TerrainCreator"
+local WIDGET_ID = "TerrainEditorFork"
+local WIDGET_ENABLED_SETTING_KEY = "TerrainEditorFork.DockWidget.Enabled"
 
 -- The module is bundled as a child of this script
 local pluginModule = script:WaitForChild("TerrainEditorModule")
@@ -15,18 +17,42 @@ local toggleButton = toolbar:CreateButton(
     "rbxassetid://7229442422" -- terrain icon
 )
 
+local function getSavedWidgetEnabled(): boolean?
+	local ok, value = pcall(function()
+		return plugin:GetSetting(WIDGET_ENABLED_SETTING_KEY)
+	end)
+	if not ok then
+		return nil
+	end
+	if type(value) ~= "boolean" then
+		return nil
+	end
+	return value
+end
+
+local function saveWidgetEnabled(enabled: boolean)
+	pcall(function()
+		plugin:SetSetting(WIDGET_ENABLED_SETTING_KEY, enabled)
+	end)
+end
+
 -- Create the dock widget
 local widgetInfo = DockWidgetPluginGuiInfo.new(
     Enum.InitialDockState.Float,
-    true,   -- enabled
-    true,   -- override previous state (always show on load)
+    false,  -- enabled (default: do NOT pop open on Studio launch)
+    false,  -- do not override previous state (allow Studio restore)
     520,    -- default width
     500,    -- default height
     500,    -- min width
     300     -- min height
 )
-local pluginGui = plugin:CreateDockWidgetPluginGui("TerrainEditorFork", widgetInfo)
+local pluginGui = plugin:CreateDockWidgetPluginGui(WIDGET_ID, widgetInfo)
 pluginGui.Title = PLUGIN_NAME
+
+local savedEnabled = getSavedWidgetEnabled()
+if savedEnabled ~= nil then
+	pluginGui.Enabled = savedEnabled
+end
 
 -- Toggle button syncs with widget visibility
 local function updateButtonState()
@@ -38,7 +64,10 @@ toggleButton.Click:Connect(function()
     updateButtonState()
 end)
 
-pluginGui:GetPropertyChangedSignal("Enabled"):Connect(updateButtonState)
+pluginGui:GetPropertyChangedSignal("Enabled"):Connect(function()
+	saveWidgetEnabled(pluginGui.Enabled)
+	updateButtonState()
+end)
 updateButtonState()
 
 -- Load and run the module
