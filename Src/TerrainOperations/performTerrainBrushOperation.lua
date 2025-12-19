@@ -94,6 +94,17 @@ local function performOperation(terrain, opSet)
 	-- 1 = soft edge (falloff gradient from center to edge)
 	local falloffExtent = opSet.falloffExtent or 0
 
+	-- Grid brush options (for BrushShape.Grid)
+	local gridOptions = nil
+	if brushShape == BrushShape.Grid then
+		gridOptions = {
+			countX = opSet.gridBrushCountX or 2,
+			countY = opSet.gridBrushCountY or 2,
+			countZ = opSet.gridBrushCountZ or 2,
+			cubeSize = opSet.gridBrushCubeSize or 4,
+		}
+	end
+
 	assert(terrain ~= nil, "performTerrainBrushOperation requires a terrain instance")
 	assert(tool ~= nil and type(tool) == "string", "performTerrainBrushOperation requires a currentTool parameter")
 
@@ -133,8 +144,14 @@ local function performOperation(terrain, opSet)
 	-- Ring: similar to torus but flatter
 	elseif brushShape == BrushShape.Ring then
 		boundsRadiusX = radiusX
-		boundsRadiusY = radiusY * 0.3
+		boundsRadiusY = radiusY
 		boundsRadiusZ = radiusX
+	-- Grid: bounds based on count * cubeSize
+	elseif brushShape == BrushShape.Grid and gridOptions then
+		local cubeSize = gridOptions.cubeSize * Constants.VOXEL_RESOLUTION
+		boundsRadiusX = gridOptions.countX * cubeSize * 0.5
+		boundsRadiusY = gridOptions.countY * cubeSize * 0.5
+		boundsRadiusZ = gridOptions.countZ * cubeSize * 0.5
 	end
 
 	local minBounds = Vector3.new(
@@ -349,7 +366,8 @@ local function performOperation(terrain, opSet)
 					hollowEnabled,
 					wallThickness,
 					falloffType,
-					falloffExtent
+					falloffExtent,
+					gridOptions
 				)
 
 				local cellOccupancy = occupancy

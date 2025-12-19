@@ -59,9 +59,44 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	end)
 	bridgeWidthContainer.LayoutOrder = 4
 
+	-- Intensity slider (how extreme the variations are)
+	local _, intensityContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Intensity", 10, 300, math.floor(S.bridgeIntensity * 100), function(val)
+		S.bridgeIntensity = val / 100
+		S.bridgeLastPreviewParams = nil
+		if updateBridgePreview then
+			updateBridgePreview(S.bridgeHoverPoint)
+		end
+	end)
+	intensityContainer.LayoutOrder = 5
+
+	-- Segments slider (0 = auto)
+	local _, segmentsContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Segments", 0, 100, S.bridgeSegments, function(val)
+		S.bridgeSegments = val
+		S.bridgeLastPreviewParams = nil
+		if updateBridgePreview then
+			updateBridgePreview(S.bridgeHoverPoint)
+		end
+	end)
+	segmentsContainer.LayoutOrder = 6
+
+	-- Use brush shape toggle
+	local useBrushShapeToggle = UIComponents.createCheckbox({
+		parent = bridgeInfoPanel,
+		label = "Use selected brush shape",
+		initialState = S.bridgeUseBrushShape,
+		onChange = function(enabled)
+			S.bridgeUseBrushShape = enabled
+			S.bridgeLastPreviewParams = nil
+			if updateBridgePreview then
+				updateBridgePreview(S.bridgeHoverPoint)
+			end
+		end,
+	})
+	useBrushShapeToggle.container.LayoutOrder = 7
+
 	-- Style header
 	local variantLabel = UIHelpers.createHeader(bridgeInfoPanel, "Style", UDim2.new(0, 0, 0, 0))
-	variantLabel.LayoutOrder = 5
+	variantLabel.LayoutOrder = 8
 
 	-- Variant buttons
 	local variantGroup = UIComponents.createButtonGroup({
@@ -97,7 +132,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		layout = "grid",
 		buttonSize = UDim2.new(0, 80, 0, 26),
 	})
-	variantGroup.container.LayoutOrder = 6
+	variantGroup.container.LayoutOrder = 9
 
 	-- Clear button
 	local clearBridgeBtn = UIHelpers.createButton(bridgeInfoPanel, "Clear Points", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
@@ -117,11 +152,11 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			updateBridgeStatus()
 		end
 	end)
-	clearBridgeBtn.LayoutOrder = 10
+	clearBridgeBtn.LayoutOrder = 20
 
 	-- Meander controls (only visible for MegaMeander with both points set)
 	local meanderControlsContainer = UIHelpers.createAutoContainer(bridgeInfoPanel, "MeanderControls")
-	meanderControlsContainer.LayoutOrder = 11
+	meanderControlsContainer.LayoutOrder = 21
 	meanderControlsContainer.Visible = false
 
 	local redoLayoutBtn = UIHelpers.createActionButton(meanderControlsContainer, "🔄 Re-randomize Layout", function()
@@ -234,7 +269,13 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			table.insert(S.bridgePreviewParts, endMarker)
 
 			local distance = (endPoint - S.bridgeStartPoint).Magnitude
-			local steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
+			-- Use custom segments if set, otherwise auto-calculate
+			local steps
+			if S.bridgeSegments > 0 then
+				steps = S.bridgeSegments
+			else
+				steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
+			end
 
 			-- Generate path preview
 			if S.bridgeVariant == "MegaMeander" then
@@ -249,7 +290,8 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 					S.bridgeCurves,
 					S.terrain,
 					steps,
-					true
+					true,
+					S.bridgeIntensity
 				)
 
 				for i, pathPoint in ipairs(path) do
@@ -276,7 +318,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 				for i = 1, steps - 1 do
 					local t = i / steps
 					local pos = S.bridgeStartPoint:Lerp(endPoint, t)
-					local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
+					local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
 					local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
 
 					local pathMarker = Instance.new("Part")
@@ -304,8 +346,25 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
 
 		local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
-		local steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
+		-- Use custom segments if set, otherwise auto-calculate
+		local steps
+		if S.bridgeSegments > 0 then
+			steps = S.bridgeSegments
+		else
+			steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
+		end
 		local radius = S.bridgeWidth * Constants.VOXEL_RESOLUTION / 2
+
+		-- Helper to fill at a position (uses brush shape if enabled)
+		local function fillAtPosition(position: Vector3)
+			if S.bridgeUseBrushShape and S.performBridgeBrush then
+				-- Use the brush shape via callback
+				S.performBridgeBrush(position)
+			else
+				-- Default: fill with sphere
+				S.terrain:FillBall(position, radius, S.brushMaterial)
+			end
+		end
 
 		if S.bridgeVariant == "MegaMeander" then
 			if #S.bridgeCurves == 0 then
@@ -318,11 +377,12 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 				S.bridgeCurves,
 				S.terrain,
 				steps,
-				true
+				true,
+				S.bridgeIntensity
 			)
 
 			for _, pathPoint in ipairs(path) do
-				S.terrain:FillBall(pathPoint.position, radius, S.brushMaterial)
+				fillAtPosition(pathPoint.position)
 			end
 		else
 			local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
@@ -331,10 +391,10 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			for i = 0, steps do
 				local t = i / steps
 				local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-				local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant)
+				local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
 				local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
 				local bridgePos = pos + finalOffset
-				S.terrain:FillBall(bridgePos, radius, S.brushMaterial)
+				fillAtPosition(bridgePos)
 			end
 		end
 

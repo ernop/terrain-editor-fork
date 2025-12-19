@@ -43,6 +43,9 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 	local S = deps.S
 	local ToolId = deps.ToolId
 
+	-- Forward declaration for visibility update (called when brush shape changes)
+	local updateVisibility: () -> ()
+
 	-- Create Core Panels (Shape, Strength, Rate, Pivot, Hollow, Spin, PlaneLock, Flatten)
 	local coreResult = CorePanels.create({
 		configContainer = deps.configContainer,
@@ -51,6 +54,11 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		hidePlaneVisualization = deps.hidePlaneVisualization,
 		getTerrainHitRaw = deps.getTerrainHitRaw,
 		toggleBrushLock = deps.toggleBrushLock,
+		onBrushShapeChanged = function()
+			if updateVisibility then
+				updateVisibility()
+			end
+		end,
 	})
 	for k, v in pairs(coreResult.panels) do
 		allPanels[k] = v
@@ -125,6 +133,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		"symmetrySettings",
 		"gridSettings",
 		"growthSettings",
+		"gridShapeSettings", -- Grid brush shape settings (count and cube size)
 	}
 
 	for i, panelName in ipairs(panelOrder) do
@@ -147,8 +156,8 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 	noToolMessage.LayoutOrder = 0
 	noToolMessage.Parent = deps.configContainer
 
-	-- Visibility update function
-	local function updateVisibility()
+	-- Visibility update function (assigned to forward-declared variable)
+	updateVisibility = function()
 		-- Try to get config panels from ToolRegistry first, fallback to BrushData
 		local toolConfig = ToolRegistry.getConfigPanels(S.currentTool) or BrushData.ToolConfigs[S.currentTool]
 
@@ -166,6 +175,11 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 					allPanels[panelName].Visible = true
 				end
 			end
+		end
+
+		-- Show Grid Shape Settings panel when Grid brush shape is selected (regardless of tool)
+		if allPanels["gridShapeSettings"] and S.brushShape == "Grid" and S.currentTool ~= ToolId.None then
+			allPanels["gridShapeSettings"].Visible = true
 		end
 
 		-- Update canvas size after visibility change

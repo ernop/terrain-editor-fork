@@ -117,21 +117,24 @@ function BridgePathGenerator.evaluateCurve(curve: Curve, t: number): Vector3
 end
 
 -- Generate a meandering path from start to end using multiple curves
+-- intensity: multiplier for how extreme the path variations are (default 1.0)
 function BridgePathGenerator.generateMeanderingPath(
 	startPoint: Vector3,
 	endPoint: Vector3,
 	curves: { Curve },
 	terrain: Terrain?,
 	numSteps: number,
-	terrainAwareness: boolean
+	terrainAwareness: boolean,
+	intensity: number?
 ): { PathPoint }
 	local path: { PathPoint } = {}
 	local distance = (endPoint - startPoint).Magnitude
 	local pathDir = (endPoint - startPoint).Unit
 	local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
 	local upDir = Vector3.new(0, 1, 0)
+	local intensityMult = intensity or 1.0
 	
-	local baseArcHeight = distance * 0.2 -- Base arc height
+	local baseArcHeight = distance * 0.2 * intensityMult -- Base arc height
 	
 	for i = 0, numSteps do
 		local t = i / numSteps
@@ -154,8 +157,8 @@ function BridgePathGenerator.generateMeanderingPath(
 		-- Apply base arc
 		local arcHeight = math.sin(t * math.pi) * baseArcHeight
 		
-		-- Combine offsets
-		local verticalOffset = Vector3.new(0, arcHeight + curveOffset.Y * distance * 0.3, 0)
+		-- Combine offsets (apply intensity to curve offsets)
+		local verticalOffset = Vector3.new(0, arcHeight + curveOffset.Y * distance * 0.3 * intensityMult, 0)
 		-- Calculate perpendicular direction for Z offset (cross product of pathDir and upDir)
 		local perpDirZ = pathDir:Cross(upDir)
 		if perpDirZ.Magnitude < 0.001 then
@@ -164,8 +167,8 @@ function BridgePathGenerator.generateMeanderingPath(
 		else
 			perpDirZ = perpDirZ.Unit
 		end
-		local horizontalOffset = perpDir * (curveOffset.X * distance * 0.2) 
-			+ perpDirZ * (curveOffset.Z * distance * 0.2)
+		local horizontalOffset = perpDir * (curveOffset.X * distance * 0.2 * intensityMult) 
+			+ perpDirZ * (curveOffset.Z * distance * 0.2 * intensityMult)
 		
 		local finalPos = basePos + verticalOffset + horizontalOffset
 		

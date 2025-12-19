@@ -9,6 +9,7 @@
 local Src = script:FindFirstAncestor("Src")
 local OperationHelper = require(Src.TerrainOperations.OperationHelper)
 local ToolDocFormat = require(Src.Tools.ToolDocFormat)
+local applyPivot = require(Src.Util.applyPivot)
 
 local materialAir = Enum.Material.Air
 
@@ -115,10 +116,11 @@ end
 function AddTool.fastPath(terrain: Terrain, opSet: OperationSet): boolean
 	local shape = opSet.brushShape
 	local material = opSet.material
-	local centerPoint = opSet.centerPoint
 	local sizeX = opSet.cursorSizeX * 4 -- Convert voxels to studs
 	local sizeY = opSet.cursorSizeY * 4
 	local sizeZ = opSet.cursorSizeZ * 4
+	-- Apply pivot to match visualization (pivot adjusts Y position based on brush height)
+	local centerPoint = applyPivot(opSet.pivot, opSet.centerPoint, sizeY)
 	local rotation = opSet.brushRotation or CFrame.new()
 	local fillCFrame = CFrame.new(centerPoint) * rotation
 	
@@ -148,34 +150,34 @@ end
 -- OPERATION
 -- ============================================
 function AddTool.execute(options: SculptSettings)
-	local writeMaterials = options.writeMaterials
-	local writeOccupancies = options.writeOccupancies
-	local readMaterials = options.readMaterials
-	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
-	local sizeX, sizeY, sizeZ = options.sizeX, options.sizeY, options.sizeZ
 	local brushOccupancy = options.brushOccupancy
+
+	-- Early bailout: brush has no effect here (outside shape or in hollow interior)
+	if brushOccupancy <= 0 then
+		return
+	end
+
 	local cellOccupancy = options.cellOccupancy
-	local cellMaterial = options.cellMaterial
-	local desiredMaterial = options.desiredMaterial
-	local autoMaterial = options.autoMaterial
-	
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+
 	-- Add terrain where brush occupancy exceeds current occupancy
 	if brushOccupancy > cellOccupancy then
-		writeOccupancies[voxelX][voxelY][voxelZ] = brushOccupancy
+		options.writeOccupancies[voxelX][voxelY][voxelZ] = brushOccupancy
 	end
-	
+
 	-- Set material where brush is strong enough and cell was air
+	local cellMaterial = options.cellMaterial
 	if brushOccupancy >= 0.5 and cellMaterial == materialAir then
-		local targetMaterial = desiredMaterial
-		if autoMaterial then
+		local targetMaterial = options.desiredMaterial
+		if options.autoMaterial then
 			targetMaterial = OperationHelper.getMaterialForAutoMaterial(
-				readMaterials,
+				options.readMaterials,
 				voxelX, voxelY, voxelZ,
-				sizeX, sizeY, sizeZ,
+				options.sizeX, options.sizeY, options.sizeZ,
 				cellMaterial
 			)
 		end
-		writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
+		options.writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 	end
 end
 

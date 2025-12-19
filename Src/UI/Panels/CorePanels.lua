@@ -25,6 +25,7 @@ export type CorePanelsDeps = {
 	hidePlaneVisualization: () -> (),
 	getTerrainHitRaw: () -> Vector3?,
 	toggleBrushLock: (() -> ())?, -- Optional callback to toggle brush lock
+	onBrushShapeChanged: (() -> ())?, -- Optional callback when brush shape changes
 }
 
 export type CorePanelsResult = {
@@ -436,6 +437,9 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 				rebuildSizeSliders()
 			end
 			deps.createBrushVisualization()
+			if deps.onBrushShapeChanged then
+				deps.onBrushShapeChanged()
+			end
 		end)
 	end
 	updateShapeVisuals()
@@ -502,13 +506,11 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		end
 	end, 3)
 
-	-- Spin Card
-	local spinCard = createMiniCard(miniCardsContainer, "Spin", {
+	-- Spin Type Card (8 options, compact 2-column layout)
+	local spinTypeCard = createMiniCard(miniCardsContainer, "Spin", {
 		{ id = SpinMode.Off, name = "Off" },
 		{ id = SpinMode.WorldY, name = "World Y" },
-		{ id = SpinMode.WorldYFast, name = "World Y\nFast" },
 		{ id = SpinMode.World3D, name = "World 3D" },
-		{ id = SpinMode.World3DFast, name = "World 3D\nFast" },
 		{ id = SpinMode.ShapeY, name = "Shape Y" },
 		{ id = SpinMode.Shape3D, name = "Shape 3D" },
 		{ id = SpinMode.Roll, name = "Roll" },
@@ -517,6 +519,17 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	}, S.spinMode, function(newSpin)
 		S.spinMode = newSpin
 	end, 4)
+
+	-- Spin Speed Card (5 levels)
+	local spinSpeedCard = createMiniCard(miniCardsContainer, "Speed", {
+		{ id = 1, name = "1" },
+		{ id = 2, name = "2" },
+		{ id = 3, name = "3" },
+		{ id = 4, name = "4" },
+		{ id = 5, name = "5" },
+	}, S.spinSpeed, function(newSpeed)
+		S.spinSpeed = newSpeed
+	end, 5)
 
 	-- Plane Card
 	local planeCard = createMiniCard(miniCardsContainer, "Plane", {
@@ -529,7 +542,7 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		if newMode == PlaneLockType.Off then
 			deps.hidePlaneVisualization()
 		end
-	end, 5)
+	end, 6)
 
 	panels["miniCards"] = miniCardsPanel
 	-- Map individual panel names for visibility control
@@ -574,6 +587,25 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 		sizeSliderSetters = {}
 
 		local shapeDims = BrushData.ShapeDimensions[S.brushShape]
+
+		-- Check if shape uses a dedicated panel instead of size sliders
+		if shapeDims and shapeDims.noSizeSliders then
+			-- Grid shape uses gridShapeSettings panel, no size sliders here
+			-- Add a hint label instead
+			local hintLabel = Instance.new("TextLabel")
+			hintLabel.Name = "SizeHint"
+			hintLabel.BackgroundTransparency = 1
+			hintLabel.Size = UDim2.new(1, 0, 0, 24)
+			hintLabel.Font = Theme.Fonts.Default
+			hintLabel.TextSize = Theme.Sizes.TextNormal
+			hintLabel.TextColor3 = Theme.Colors.TextDim
+			hintLabel.Text = "Use Grid Shape Settings below"
+			hintLabel.TextXAlignment = Enum.TextXAlignment.Left
+			hintLabel.TextScaled = false
+			hintLabel.Parent = sizePanel
+			return
+		end
+
 		if not shapeDims then
 			-- Fallback: single uniform slider
 			local _, setter = createInlineSlider(sizePanel, "Size", Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, S.brushSizeX, function(val)
@@ -758,6 +790,45 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	tooltipLabel.Parent = emphasizeCenterPanel
 
 	panels["emphasizeBrushCenter"] = emphasizeCenterPanel
+
+	-- ========================================================================
+	-- Grid Shape Settings Panel - controls for Grid brush shape
+	-- ========================================================================
+	local BrushShape = TerrainEnums.BrushShape
+	local gridShapePanel = UIHelpers.createConfigPanel(deps.configContainer, "gridShapeSettings")
+
+	local gridShapeHeader = UIHelpers.createHeader(gridShapePanel, "Grid Shape Settings", UDim2.new(0, 0, 0, 0))
+	gridShapeHeader.LayoutOrder = 1
+
+	-- Cube Size slider
+	local _, cubeSizeContainer, _ = UIHelpers.createSlider(gridShapePanel, "Cube Size", 1, 20, S.gridBrushCubeSize, function(v)
+		S.gridBrushCubeSize = v
+		deps.createBrushVisualization()
+	end)
+	cubeSizeContainer.LayoutOrder = 2
+
+	-- Count X slider
+	local _, countXContainer, _ = UIHelpers.createSlider(gridShapePanel, "Count X", 1, 10, S.gridBrushCountX, function(v)
+		S.gridBrushCountX = v
+		deps.createBrushVisualization()
+	end)
+	countXContainer.LayoutOrder = 3
+
+	-- Count Y slider
+	local _, countYContainer, _ = UIHelpers.createSlider(gridShapePanel, "Count Y", 1, 10, S.gridBrushCountY, function(v)
+		S.gridBrushCountY = v
+		deps.createBrushVisualization()
+	end)
+	countYContainer.LayoutOrder = 4
+
+	-- Count Z slider
+	local _, countZContainer, _ = UIHelpers.createSlider(gridShapePanel, "Count Z", 1, 10, S.gridBrushCountZ, function(v)
+		S.gridBrushCountZ = v
+		deps.createBrushVisualization()
+	end)
+	countZContainer.LayoutOrder = 5
+
+	panels["gridShapeSettings"] = gridShapePanel
 
 	return {
 		panels = panels,

@@ -484,7 +484,7 @@ end
 
 -- ============================================================================
 -- Checkbox Row Component
--- Compact inline layout: "Label   [ ]"
+-- Compact inline layout: "[✓] Label" - checkbox immediately next to text
 -- ============================================================================
 
 function UIComponents.createCheckbox(config: CheckboxConfig): CheckboxResult
@@ -496,23 +496,16 @@ function UIComponents.createCheckbox(config: CheckboxConfig): CheckboxResult
 	container.Size = UDim2.new(1, 0, 0, 26)
 	container.Parent = config.parent
 
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.BackgroundTransparency = 1
-	label.Position = UDim2.new(0, 0, 0, 0)
-	label.Size = UDim2.new(1, -30, 1, 0)
-	label.Font = Theme.Fonts.Medium
-	label.TextSize = Theme.Sizes.TextNormal
-	label.TextColor3 = Theme.Colors.Text
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextScaled = false
-	label.TextTruncate = Enum.TextTruncate.AtEnd
-	label.Text = config.label
-	label.Parent = container
+	-- Horizontal layout to keep checkbox close to label
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = container
 
 	local checkbox = Instance.new("TextButton")
 	checkbox.Name = "Checkbox"
-	checkbox.Position = UDim2.new(1, -24, 0, 2)
 	checkbox.Size = UDim2.new(0, 22, 0, 22)
 	checkbox.Font = Theme.Fonts.Bold
 	checkbox.TextSize = Theme.Sizes.TextNormal
@@ -520,7 +513,23 @@ function UIComponents.createCheckbox(config: CheckboxConfig): CheckboxResult
 	checkbox.TextScaled = false
 	checkbox.TextTruncate = Enum.TextTruncate.AtEnd
 	checkbox.BorderSizePixel = 0
+	checkbox.LayoutOrder = 1
 	checkbox.Parent = container
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(0, 0, 1, 0)
+	label.AutomaticSize = Enum.AutomaticSize.X
+	label.Font = Theme.Fonts.Medium
+	label.TextSize = Theme.Sizes.TextNormal
+	label.TextColor3 = Theme.Colors.Text
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextScaled = false
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.Text = config.label
+	label.LayoutOrder = 2
+	label.Parent = container
 
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 4)

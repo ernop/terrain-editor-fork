@@ -9,6 +9,7 @@
 local Src = script:FindFirstAncestor("Src")
 local OperationHelper = require(Src.TerrainOperations.OperationHelper)
 local ToolDocFormat = require(Src.Tools.ToolDocFormat)
+local applyPivot = require(Src.Util.applyPivot)
 
 local materialAir = Enum.Material.Air
 local materialWater = Enum.Material.Water
@@ -109,10 +110,11 @@ end
 
 function SubtractTool.fastPath(terrain: Terrain, opSet: OperationSet): boolean
 	local shape = opSet.brushShape
-	local centerPoint = opSet.centerPoint
 	local sizeX = opSet.cursorSizeX * 4
 	local sizeY = opSet.cursorSizeY * 4
 	local sizeZ = opSet.cursorSizeZ * 4
+	-- Apply pivot to match visualization (pivot adjusts Y position based on brush height)
+	local centerPoint = applyPivot(opSet.pivot, opSet.centerPoint, sizeY)
 	local rotation = opSet.brushRotation or CFrame.new()
 	local fillCFrame = CFrame.new(centerPoint) * rotation
 
@@ -141,18 +143,25 @@ end
 -- OPERATION
 -- ============================================
 function SubtractTool.execute(options: SculptSettings)
-	local writeMaterials = options.writeMaterials
-	local writeOccupancies = options.writeOccupancies
-	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
 	local brushOccupancy = options.brushOccupancy
-	local cellOccupancy = options.cellOccupancy
-	local cellMaterial = options.cellMaterial
-	local airFillerMaterial = options.airFillerMaterial or materialAir
 
-	-- Skip air cells
+	-- Early bailout: brush has no effect here (outside shape or in hollow interior)
+	if brushOccupancy <= 0 then
+		return
+	end
+
+	local cellMaterial = options.cellMaterial
+
+	-- Skip air cells - nothing to subtract
 	if cellMaterial == materialAir then
 		return
 	end
+
+	local writeMaterials = options.writeMaterials
+	local writeOccupancies = options.writeOccupancies
+	local voxelX, voxelY, voxelZ = options.x, options.y, options.z
+	local cellOccupancy = options.cellOccupancy
+	local airFillerMaterial = options.airFillerMaterial or materialAir
 
 	-- Calculate desired occupancy (inverse of brush)
 	local desiredOccupancy = 1 - brushOccupancy

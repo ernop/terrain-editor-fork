@@ -110,9 +110,7 @@ TerrainEnums.SpinMode = {
 	Off = "Off",
 	-- World-relative modes (rotate around world axes regardless of brush orientation)
 	WorldY = "WorldY", -- Spin around world Y axis (like a pottery wheel)
-	WorldYFast = "WorldYFast", -- Same but faster
 	World3D = "World3D", -- Tumble around all world axes
-	World3DFast = "World3DFast", -- Same but faster
 	-- Shape-relative modes (rotate around shape's local axes)
 	ShapeY = "ShapeY", -- Spin around shape's local Y axis (top spins on its own axis)
 	Shape3D = "Shape3D", -- Full 3D tumble in shape's local space
@@ -120,6 +118,15 @@ TerrainEnums.SpinMode = {
 	Roll = "Roll", -- Roll around X axis (barrel roll)
 	Wobble = "Wobble", -- Oscillating tilt (pendulum-like)
 	Spiral = "Spiral", -- Y spin + gradual tilt increase (corkscrew)
+}
+
+-- Spin speed multipliers (applied to base spin rate)
+TerrainEnums.SpinSpeed = {
+	Slowest = 1, -- 0.25x
+	Slow = 2, -- 0.5x
+	Normal = 3, -- 1.0x
+	Fast = 4, -- 1.5x
+	Fastest = 5, -- 2.0x
 }
 
 -- Brush falloff curves - controls how brush strength fades from center to edge

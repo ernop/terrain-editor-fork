@@ -6,61 +6,27 @@ alwaysApply: true
 
 # Agent Guidelines
 
-## Communication Style
+Be direct—act first, explain after. Proactively raise observations ("I noticed...").
 
-Be direct and take action. Don't ask for permission - just do the work and explain what you did. Raise issues and observations proactively.
+**Before answering questions:** Read README.md, check source files. Don't speculate.
 
-## When Asked Questions
+**Always mention:** bugs, simplification opportunities, duplication, inconsistencies, performance issues.
 
-1. **Read README.md** - Understand project context first
-2. **Read DEV_SETUP.md** - Understand the development workflow
-3. **Check relevant source files** - Don't speculate, verify
+## Code Quality
 
-## Proactive Observations
+- Prioritize correctness over speed—get the details and implementation right
+- Fix bugs completely, eliminate duplication, keep code self-documenting
+- No "good enough" solutions or unnecessary abstractions
+- No fallback code testing if libraries loaded—fix the loading instead
 
-**Always share what you notice.** Even if it seems tangential:
+### Critical: No Deceptive Code
 
-- Potential bugs or edge cases
-- Code that could be simplified
-- Duplication that could be eliminated
-- Inconsistencies in naming or patterns
-- Performance concerns
-- Missing error handling (but only where it matters)
+Code must not lie. If the UI says one thing, the code must do exactly that—no hidden transformations, multipliers, or mismatched labels. When you find deceptive code, fix the source of dishonesty, not downstream symptoms.
 
-Format: *"By the way, I noticed..."* or *"While looking at this, I saw..."*
+## Terrain Editor
 
-This helps surface important information about the system.
+Roblox terrain plugin using voxel brushes (occupancy 0-1). Core algorithms in `Src/TerrainOperations/`.
 
-## Code Quality Standards
+Tools: Add, Subtract, Grow, Erode, Smooth, Flatten, Paint, and more.
 
-### Do
-- Fix bugs completely, don't paper over them
-- Eliminate duplication
-- Keep code readable and self-documenting
-- Think carefully about architectural changes before making them
-- Test changes in context
-
-### Don't
-- Leave "good enough" solutions
-- Add unnecessary abstractions
-- Make changes without understanding the existing code
-- Write fallback code that tests if a library loaded (fix the original loading instead)
-
-## Terrain Editor Specifics
-
-This plugin modifies Roblox terrain using brushes. Tools include:
-- **Sculpt**: Shape terrain surface
-- **Add/Subtract**: Build up or carve out terrain
-- **Smooth**: Reduce sharp edges
-- **Flatten**: Level terrain to a plane
-- **Erode**: Simulate erosion effects
-- **Paint**: Apply materials
-
-The core algorithms are in `Src/TerrainOperations/`. The voxel-based system works with occupancy values (0-1) per material.
-
-## Development Workflow
-
-- Use `rojo serve` for live sync during development
-- Changes picked up with Reload button in Studio
-- Loader plugin changes require rebuild + Studio restart
-- Always ensure cleanup function properly disconnects all connections
+**Workflow:** `rojo serve` → Connect in Studio → Reload button after changes. Loader changes need rebuild + restart.

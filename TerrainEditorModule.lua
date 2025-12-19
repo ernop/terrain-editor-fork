@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.000096"
+local VERSION = "0.0.000097"
 
 local TerrainEditorModule = {}
 
@@ -65,6 +65,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		planePositionY = Constants.INITIAL_PLANE_POSITION_Y,
 		autoPlaneActive = false,
 		spinMode = SpinMode.Off,
+		spinSpeed = 3, -- 1=Slowest, 2=Slow, 3=Normal, 4=Fast, 5=Fastest
 		spinAngle = 0,
 		hollowEnabled = false,
 		wallThickness = 0.2,
@@ -123,6 +124,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		gridCellSize = 8,
 		gridVariation = 0.3,
 		gridSeed = 0,
+		-- Grid brush shape settings (for BrushShape.Grid, not VariationGrid tool)
+		gridBrushCountX = 2, -- Number of cubes on X axis
+		gridBrushCountY = 2, -- Number of cubes on Y axis
+		gridBrushCountZ = 2, -- Number of cubes on Z axis
+		gridBrushCubeSize = 4, -- Size of each individual cube in studs
 		growthRate = 0.3,
 		growthBias = 0,
 		growthPattern = "organic",
@@ -143,6 +149,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		lastMouseWorldPos = nil :: Vector3?,
 		lastBrushTime = 0,
 		lastBrushPosition = nil :: Vector3?,
+		brushMadeChanges = false,
 		isMouseDown = false,
 		brushPart = nil :: BasePart?,
 		brushExtraParts = {} :: { BasePart },
@@ -168,12 +175,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		bridgePreviewParts = {} :: { BasePart },
 		bridgeWidth = 4,
 		bridgeVariant = "Arc",
+		bridgeIntensity = 1.0, -- How extreme the path variations are (0.1 to 3.0)
+		bridgeSegments = 0, -- Number of segments (0 = auto based on distance)
+		bridgeUseBrushShape = false, -- Use selected brush shape instead of spheres
 		bridgeCurves = {} :: { { type: string, amplitude: number, frequency: number, phase: number, offset: Vector3 } },
 		bridgeEditMode = false,
 		bridgeSelectedConnection = nil :: number?,
 		bridgeMeanderComplexity = 5,
 		bridgeHoverPoint = nil :: Vector3?,
 		bridgeLastPreviewParams = nil :: any?,
+		performBridgeBrush = nil :: ((position: Vector3) -> ())?, -- Callback to perform brush at position for Bridge
 		updateGradientStatus = nil :: (() -> ())?,
 		showDocsPanel = true, -- Toggle for tool documentation panel visibility
 	}
@@ -403,10 +414,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- Returns whether spin mode is world-relative (applied before brush rotation)
 	-- vs shape-relative (applied after brush rotation)
 	local function isWorldRelativeSpin(spinMode: string): boolean
-		return spinMode == SpinMode.WorldY
-			or spinMode == SpinMode.WorldYFast
-			or spinMode == SpinMode.World3D
-			or spinMode == SpinMode.World3DFast
+		return spinMode == SpinMode.WorldY or spinMode == SpinMode.World3D
+	end
+
+	-- Get speed multiplier from spinSpeed (1-5)
+	local function getSpeedMultiplier(spinSpeed: number): number
+		local multipliers = { 0.25, 0.5, 1.0, 1.5, 2.0 }
+		return multipliers[spinSpeed] or 1.0
 	end
 
 	local function calculateSpinRotation(spinMode: string, spinAngle: number): CFrame
@@ -416,12 +430,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		-- World-relative modes (rotate around world axes)
 		elseif spinMode == SpinMode.WorldY then
 			return CFrame.Angles(0, spinAngle, 0)
-		elseif spinMode == SpinMode.WorldYFast then
-			return CFrame.Angles(0, spinAngle * 2, 0)
 		elseif spinMode == SpinMode.World3D then
 			return CFrame.Angles(spinAngle * 0.7, spinAngle, spinAngle * 0.3)
-		elseif spinMode == SpinMode.World3DFast then
-			return CFrame.Angles(spinAngle * 1.4, spinAngle * 2, spinAngle * 0.6)
 
 		-- Shape-relative modes (rotate around shape's local axes)
 		elseif spinMode == SpinMode.ShapeY then
@@ -447,14 +457,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		return CFrame.new()
 	end
 
-	local function updateSpinAngle(spinMode: string, currentAngle: number): number
+	local function updateSpinAngle(spinMode: string, spinSpeed: number, currentAngle: number): number
 		if spinMode == SpinMode.Off then
 			return currentAngle
-		elseif spinMode == SpinMode.WorldYFast or spinMode == SpinMode.World3DFast then
-			return currentAngle + 0.1
-		else
-			return currentAngle + 0.05
 		end
+		local baseIncrement = 0.05
+		local speedMultiplier = getSpeedMultiplier(spinSpeed)
+		return currentAngle + (baseIncrement * speedMultiplier)
 	end
 
 	-- Find the highest terrain surface within the brush footprint
@@ -523,7 +532,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			local baseCFrame = CFrame.new(pivotedPosition)
 
 			if S.spinMode ~= SpinMode.Off and not S.brushLocked then
-				S.spinAngle = updateSpinAngle(S.spinMode, S.spinAngle)
+				S.spinAngle = updateSpinAngle(S.spinMode, S.spinSpeed, S.spinAngle)
 			end
 
 			local finalCFrame = baseCFrame
@@ -659,7 +668,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				S.brushPart.CFrame = finalCFrame
 				clearExtraParts()
 				local outerRadius = sizeX * 0.5
-				local thickness = sizeY * 0.5
+				local thickness = sizeY * 0.5 -- Half-thickness (radiusY)
 				for i = 0, 15 do
 					local angle = (i / 16) * math.pi * 2
 					local nextAngle = ((i + 1) / 16) * math.pi * 2
@@ -681,36 +690,52 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				S.brushPart.Size = Vector3.new(1, 1, 1)
 				S.brushPart.CFrame = finalCFrame
 				clearExtraParts()
-				local gridSize = 3
-				local cellSize = sizeX / gridSize
-				for gx = 0, gridSize - 1 do
-					for gy = 0, gridSize - 1 do
-						for gz = 0, gridSize - 1 do
+				-- Use grid brush settings for count and cube size
+				local countX = S.gridBrushCountX
+				local countY = S.gridBrushCountY
+				local countZ = S.gridBrushCountZ
+				local cubeSize = S.gridBrushCubeSize * Constants.VOXEL_RESOLUTION
+				-- Calculate total grid dimensions
+				local totalX = countX * cubeSize
+				local totalY = countY * cubeSize
+				local totalZ = countZ * cubeSize
+				-- Generate checkerboard pattern cubes
+				for gx = 0, countX - 1 do
+					for gy = 0, countY - 1 do
+						for gz = 0, countZ - 1 do
 							if (gx + gy + gz) % 2 == 0 then
-								local localPos = Vector3.new((gx - 1) * cellSize, (gy - 1) * cellSize, (gz - 1) * cellSize)
+								-- Position cube relative to grid center
+								local localPos = Vector3.new(
+									(gx - (countX - 1) * 0.5) * cubeSize,
+									(gy - (countY - 1) * 0.5) * cubeSize,
+									(gz - (countZ - 1) * 0.5) * cubeSize
+								)
 								local worldPos = finalCFrame:PointToWorldSpace(localPos)
 								local cell = createPreviewPart(Enum.PartType.Block)
-								cell.Size = Vector3.new(cellSize * 0.9, cellSize * 0.9, cellSize * 0.9)
+								cell.Size = Vector3.new(cubeSize * 0.9, cubeSize * 0.9, cubeSize * 0.9)
 								cell.CFrame = CFrame.new(worldPos) * finalCFrame.Rotation
 								table.insert(S.brushExtraParts, cell)
 							end
 						end
 					end
 				end
-				-- Update handle adornee part for proper handle sizing
+				-- Update handle adornee part for proper handle sizing (total bounds)
 				if S.handleAdorneePart then
-					S.handleAdorneePart.Size = Vector3.new(sizeX, sizeX, sizeX) -- Grid is uniform
+					S.handleAdorneePart.Size = Vector3.new(totalX, totalY, totalZ)
 					S.handleAdorneePart.CFrame = finalCFrame
 				end
 			elseif S.brushShape == BrushShape.Stick then
-				S.brushPart.Size = Vector3.new(sizeY, sizeX * 0.3, sizeX * 0.3)
+				-- Stick: sizeX/Z = thickness (diameter), sizeY = length
+				-- Cylinder Part: X = length, Y/Z = diameter
+				S.brushPart.Size = Vector3.new(sizeY, sizeX, sizeX)
 				finalCFrame = baseCFrame * S.brushRotation * CFrame.Angles(0, 0, math.rad(90))
 				S.brushPart.CFrame = finalCFrame
 			elseif S.brushShape == BrushShape.Sheet then
-				-- Sheet is a curved surface - uses Cylinder part
-				-- Operation code has curve around Y axis, Roblox Cylinder has axis along X
-				-- Apply 90° rotation to align, and scale to show thin curved surface
-				S.brushPart.Size = Vector3.new(sizeY, sizeX * 2, sizeX * 2)
+				-- Sheet is a curved surface - uses Cylinder part to show the arc
+				-- Operation: curveRadius = sizeX/2, sheetHeight = sizeY/2, sheetThickness = sizeZ/2
+				-- The sheet surface is at distance curveRadius from Y axis, spanning height sizeY
+				-- Cylinder Part: X = length (our height), Y/Z = diameter (our arc diameter = sizeX)
+				S.brushPart.Size = Vector3.new(sizeY, sizeX, sizeX)
 				S.brushPart.CFrame = finalCFrame * CFrame.Angles(0, 0, math.rad(90))
 			elseif S.brushShape == BrushShape.ZigZag then
 				-- ZigZag is a Z-shaped profile - just use box for visualization
@@ -1126,8 +1151,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		local brushRotation = BrushData.ShapeSupportsRotation[S.brushShape] and S.brushRotation or CFrame.new()
 		local effectiveRotation = brushRotation
 		if S.spinMode ~= SpinMode.Off then
-			local operationSpeed = (S.spinMode == SpinMode.WorldYFast or S.spinMode == SpinMode.World3DFast) and 2 or 1
-			S.spinAngle = S.spinAngle + (0.1 * operationSpeed)
+			local speedMultiplier = getSpeedMultiplier(S.spinSpeed)
+			S.spinAngle = S.spinAngle + (0.05 * speedMultiplier)
 			local spinRotation = calculateSpinRotation(S.spinMode, S.spinAngle)
 			if isWorldRelativeSpin(S.spinMode) then
 				-- World-relative: spin applied before brush rotation
@@ -1227,6 +1252,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			gridCellSize = S.gridCellSize,
 			gridVariation = S.gridVariation,
 			gridSeed = S.gridSeed,
+			-- Grid brush shape parameters
+			gridBrushCountX = S.gridBrushCountX,
+			gridBrushCountY = S.gridBrushCountY,
+			gridBrushCountZ = S.gridBrushCountZ,
+			gridBrushCubeSize = S.gridBrushCubeSize,
 			growthRate = S.growthRate,
 			growthBias = S.growthBias,
 			growthPattern = S.growthPattern,
@@ -1291,9 +1321,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		if S.brushConnection then
 			return
 		end
-		-- Note: We only set a waypoint in stopBrushing() AFTER the edit completes.
-		-- Setting one here would create duplicate waypoints (the end of one stroke
-		-- and start of the next are at the same terrain state), causing extra undo steps.
+		-- Set a waypoint BEFORE any terrain changes to mark the "before" state.
+		-- This ensures undo can restore to the state before brushing began.
+		-- We track whether any changes were made to avoid duplicate waypoints.
+		S.brushMadeChanges = false
+		ChangeHistoryService:SetWaypoint("TerrainEdit_Start")
 
 		S.brushConnection = RunService.Heartbeat:Connect(function()
 			-- Don't run during play test
@@ -1367,6 +1399,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				S.lastMouseWorldPos = hitPosition
 				performBrushOperation(hitPosition)
 				S.lastBrushPosition = hitPosition
+				S.brushMadeChanges = true -- Track that we made terrain changes
 			end
 		end)
 	end
@@ -1376,9 +1409,54 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			S.brushConnection:Disconnect()
 			S.brushConnection = nil
 		end
-		ChangeHistoryService:SetWaypoint("TerrainEdit_End")
+		-- Only set end waypoint if we actually made terrain changes.
+		-- This prevents duplicate waypoints when clicking without changing terrain.
+		if S.brushMadeChanges then
+			ChangeHistoryService:SetWaypoint("TerrainEdit_End")
+		end
+		S.brushMadeChanges = false
 		S.lastBrushPosition = nil
 		S.lastBrushTime = 0
+	end
+
+	-- ============================================================================
+	-- Bridge Brush Callback
+	-- Used by Bridge tool to stamp the selected brush shape at each path point
+	-- ============================================================================
+	S.performBridgeBrush = function(position: Vector3)
+		local opSet = {
+			currentTool = ToolId.Add,
+			brushShape = S.brushShape,
+			flattenMode = S.flattenMode,
+			pivot = PivotType.Center,
+			centerPoint = position,
+			planePoint = position,
+			planeNormal = Vector3.new(0, 1, 0),
+			cursorSizeX = S.bridgeWidth,
+			cursorSizeY = S.bridgeWidth,
+			cursorSizeZ = S.bridgeWidth,
+			cursorSize = S.bridgeWidth,
+			cursorHeight = S.bridgeWidth,
+			strength = 1,
+			autoMaterial = false,
+			material = S.brushMaterial,
+			ignoreWater = S.ignoreWater,
+			source = Enum.Material.Grass,
+			target = S.brushMaterial,
+			brushRotation = S.brushRotation,
+			hollowEnabled = S.hollowEnabled,
+			wallThickness = S.wallThickness,
+			falloffType = "Cosine",
+			falloffExtent = 0,
+			-- Grid brush parameters
+			gridBrushCountX = S.gridBrushCountX,
+			gridBrushCountY = S.gridBrushCountY,
+			gridBrushCountZ = S.gridBrushCountZ,
+			gridBrushCubeSize = S.gridBrushCubeSize,
+		}
+		pcall(function()
+			performTerrainBrushOperation(S.terrain, opSet)
+		end)
 	end
 
 	-- ============================================================================

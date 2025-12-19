@@ -132,18 +132,19 @@ BrushData.ShapeDimensions = {
 		primaryMaps = { "x", "z" },
 	},
 	[BrushShape.Sheet] = {
-		-- Sheet: arc radius (curve), thickness, and height
+		-- Sheet: arc radius (curve), height, and thickness
+		-- X = curve radius, Y = height (vertical extent), Z = thickness (how thick the sheet is)
 		axes = {
 			{ label = "Arc Radius", maps = { "x" }, primary = true },
-			{ label = "Thickness", maps = { "y" }, secondary = true },
-			{ label = "Height", maps = { "z" } },
+			{ label = "Height", maps = { "y" }, secondary = true },
+			{ label = "Thickness", maps = { "z" } },
 		},
 	},
 	[BrushShape.Grid] = {
-		-- Grid: uniform cell size
-		axes = {
-			{ label = "Size", maps = { "x", "y", "z" }, primary = true },
-		},
+		-- Grid: size is controlled by Grid Shape Settings panel (count * cubeSize)
+		-- No standard size sliders for Grid - it uses dedicated controls
+		axes = {}, -- Empty: Grid uses gridShapeSettings panel instead
+		noSizeSliders = true, -- Flag to skip size slider generation
 	},
 	[BrushShape.Stick] = {
 		-- Stick: length (Y) and thickness (X=Z)
@@ -329,10 +330,12 @@ BrushData.Materials = {
 	{ enum = Enum.Material.WoodPlanks, key = "woodplanks", name = "Wood Planks" },
 }
 
--- Compute bridge path offset for a given t (0 to 1), distance, and variant
-function BrushData.getBridgeOffset(t: number, distance: number, variant: string): Vector3
-	local baseArc = math.sin(t * math.pi) * distance * 0.1
-	local waveAmplitude = distance * 0.15
+-- Compute bridge path offset for a given t (0 to 1), distance, variant, and intensity
+-- intensity: multiplier for how extreme the variations are (0.1 to 3.0, default 1.0)
+function BrushData.getBridgeOffset(t: number, distance: number, variant: string, intensity: number?): Vector3
+	local i = intensity or 1.0
+	local baseArc = math.sin(t * math.pi) * distance * 0.1 * i
+	local waveAmplitude = distance * 0.15 * i
 
 	if variant == "Arc" then
 		return Vector3.new(0, baseArc, 0)
@@ -357,16 +360,16 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string)
 	elseif variant == "MegaMeander" then
 		-- Wild flying path that soars high and swoops dramatically
 		-- Multiple overlapping frequencies for organic feel
-		local megaArc = math.sin(t * math.pi) * distance * 0.5 -- Much higher base arc (5x normal)
-		local bigSwoop = math.sin(t * math.pi * 2.5) * distance * 0.3 -- Big swoops
-		local medSwoop = math.cos(t * math.pi * 4) * distance * 0.15 -- Medium frequency variation
-		local smallWiggle = math.sin(t * math.pi * 7) * distance * 0.05 -- Small wiggles
+		local megaArc = math.sin(t * math.pi) * distance * 0.5 * i
+		local bigSwoop = math.sin(t * math.pi * 2.5) * distance * 0.3 * i
+		local medSwoop = math.cos(t * math.pi * 4) * distance * 0.15 * i
+		local smallWiggle = math.sin(t * math.pi * 7) * distance * 0.05 * i
 		-- Dramatic dips that "try to go under arches"
-		local dipFactor = math.max(0, math.sin(t * math.pi * 3)) ^ 3 * distance * -0.2
+		local dipFactor = math.max(0, math.sin(t * math.pi * 3)) ^ 3 * distance * -0.2 * i
 		local vertOffset = megaArc + bigSwoop + medSwoop + smallWiggle + dipFactor
 		-- Horizontal meandering (side to side wandering)
-		local horizMeander = math.sin(t * math.pi * 3.5) * distance * 0.25
-		local horizWiggle = math.cos(t * math.pi * 6) * distance * 0.1
+		local horizMeander = math.sin(t * math.pi * 3.5) * distance * 0.25 * i
+		local horizWiggle = math.cos(t * math.pi * 6) * distance * 0.1 * i
 		return Vector3.new(horizMeander + horizWiggle, vertOffset, 0)
 	end
 

@@ -134,6 +134,7 @@ end
 -- brushRotation: CFrame representing the brush orientation (or nil for no rotation)
 -- falloffType: string key for falloff function ("Cosine", "Linear", "Plateau", etc.)
 -- falloffExtent: how far falloff extends beyond brush edge (0 = none, 1 = 100% of brush radius)
+-- gridOptions: optional table for Grid shape { countX, countY, countZ, cubeSize }
 function OperationHelper.calculateBrushPowerForCellRotated(
 	cellVectorX,
 	cellVectorY,
@@ -148,7 +149,8 @@ function OperationHelper.calculateBrushPowerForCellRotated(
 	hollowEnabled,
 	wallThickness,
 	falloffType,
-	falloffExtent
+	falloffExtent,
+	gridOptions
 )
 	-- Transform world-space cell offset into brush-local space if rotation is provided
 	local localX, localY, localZ = cellVectorX, cellVectorY, cellVectorZ
@@ -174,13 +176,15 @@ function OperationHelper.calculateBrushPowerForCellRotated(
 		hollowEnabled,
 		wallThickness,
 		falloffType,
-		falloffExtent
+		falloffExtent,
+		gridOptions
 	)
 end
 
 -- New function supporting per-axis radii for ellipsoid/box brushes
 -- falloffType: string key for falloff function ("Cosine", "Linear", "Plateau", etc.)
 -- falloffExtent: how far falloff extends beyond brush edge (0 = none, 1 = 100% of brush radius)
+-- gridOptions: optional table for Grid shape { countX, countY, countZ, cubeSize }
 function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	cellVectorX,
 	cellVectorY,
@@ -194,7 +198,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	hollowEnabled,
 	wallThickness,
 	falloffType,
-	falloffExtent
+	falloffExtent,
+	gridOptions
 )
 	local brushOccupancy = 1
 	local magnitudePercent = 1
@@ -287,17 +292,16 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 				magnitudePercent = 0
 			end
 		elseif brushShape == BrushShape.Wedge then
-			-- Wedge: ramps from bottom-back to top-front
-			-- The wedge occupies space where: Y <= (radiusY) * (1 - Z/radiusZ)
-			-- Normalized: normY <= 1 - normZ (for positive Z side)
+			-- Wedge: ramps from bottom-back to top-front (matches Roblox WedgePart)
+			-- Back (-Z) has slope starting at bottom, Front (+Z) has full height
 			local normX = math.abs(cellVectorX) / radiusX
 			local normY = (cellVectorY + radiusY) / (2 * radiusY) -- 0 at bottom, 1 at top
 			local normZ = (cellVectorZ + radiusZ) / (2 * radiusZ) -- 0 at back, 1 at front
 
-			-- Wedge condition: height decreases as we go forward (Z increases)
-			-- At back (normZ=0), full height allowed (normY can be 0-1)
-			-- At front (normZ=1), no height allowed (normY must be 0)
-			local maxAllowedY = 1 - normZ
+			-- Wedge condition: height increases as we go forward (Z increases)
+			-- At back (normZ=0), no height allowed (slope starts at bottom)
+			-- At front (normZ=1), full height allowed (normY can be 0-1)
+			local maxAllowedY = normZ
 
 			if normX <= 1 and normY >= 0 and normY <= maxAllowedY and normZ >= 0 and normZ <= 1 then
 				local edgeDist = math.min(1 - normX, normY, maxAllowedY - normY, normZ, 1 - normZ)
@@ -390,9 +394,9 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			end
 		elseif brushShape == BrushShape.Ring then
 			-- Ring (flat washer shape - thin torus)
-			-- radiusX = outer radius, radiusY = ring thickness (very thin)
+			-- radiusX = outer radius, radiusY = ring thickness (half-height)
 			local outerRadius = radiusX
-			local thickness = radiusY * 0.3 -- Make it thin
+			local thickness = radiusY -- Actual half-thickness from user setting
 			local innerRadius = outerRadius * 0.6 -- Hollow center
 
 			-- Distance from Y axis in XZ plane
@@ -450,7 +454,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			-- radiusX = curve radius, radiusY = sheet height, radiusZ = sheet thickness
 			local curveRadius = radiusX
 			local sheetHeight = radiusY
-			local sheetThickness = radiusZ * 0.15 -- Very thin
+			local sheetThickness = radiusZ -- Actual thickness from user setting
 
 			-- Distance from the curve axis (along Y)
 			local distFromAxis = math.sqrt(cellVectorX * cellVectorX + cellVectorZ * cellVectorZ)
@@ -472,21 +476,30 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			end
 		elseif brushShape == BrushShape.Grid then
 			-- Grid (3D checkerboard pattern)
-			-- Creates an 8x8x8 grid where every other cell is filled
-			-- Each cell is (totalSize/8) in each dimension
-			local gridSize = 8
-			local cellSize = (radiusX * 2) / gridSize -- Size of each grid cell
+			-- Uses gridOptions for independent axis counts and cube size
+			local countX = (gridOptions and gridOptions.countX) or 2
+			local countY = (gridOptions and gridOptions.countY) or 2
+			local countZ = (gridOptions and gridOptions.countZ) or 2
+			local cubeSize = ((gridOptions and gridOptions.cubeSize) or 4) * Constants.VOXEL_RESOLUTION
+
+			-- Total grid dimensions
+			local totalX = countX * cubeSize
+			local totalY = countY * cubeSize
+			local totalZ = countZ * cubeSize
 
 			-- Find which grid cell this voxel is in
-			local gridX = math.floor((cellVectorX + radiusX) / cellSize)
-			local gridY = math.floor((cellVectorY + radiusY) / cellSize)
-			local gridZ = math.floor((cellVectorZ + radiusZ) / cellSize)
+			local gridX = math.floor((cellVectorX + totalX * 0.5) / cubeSize)
+			local gridY = math.floor((cellVectorY + totalY * 0.5) / cubeSize)
+			local gridZ = math.floor((cellVectorZ + totalZ * 0.5) / cubeSize)
 
 			-- Checkerboard pattern: fill if sum of coordinates is even
 			local isFilledCell = ((gridX + gridY + gridZ) % 2) == 0
 
-			-- Check bounds
-			local inBounds = math.abs(cellVectorX) <= radiusX and math.abs(cellVectorY) <= radiusY and math.abs(cellVectorZ) <= radiusZ
+			-- Check bounds (within the total grid area)
+			local inBoundsX = gridX >= 0 and gridX < countX
+			local inBoundsY = gridY >= 0 and gridY < countY
+			local inBoundsZ = gridZ >= 0 and gridZ < countZ
+			local inBounds = inBoundsX and inBoundsY and inBoundsZ
 
 			if isFilledCell and inBounds then
 				magnitudePercent = 1
@@ -497,8 +510,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			end
 		elseif brushShape == BrushShape.Stick then
 			-- Stick (long thin rod)
-			-- radiusX = stick thickness, radiusY = stick length
-			local stickRadius = radiusX * 0.15 -- Very thin
+			-- radiusX = stick thickness (radius), radiusY = stick length (half-length)
+			local stickRadius = radiusX -- Actual radius from user setting
 			local stickLength = radiusY
 
 			-- Distance from Y axis
