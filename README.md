@@ -8,8 +8,8 @@ An expanded version of Roblox Studio's terrain tools. More shapes, more tools, m
 
 The built-in terrain editor is fine for basics. This one goes further:
 
-- **14 brush shapes** instead of 3
-- **25 tools** across sculpting, painting, and advanced categories
+- **15 brush shapes** instead of 3
+- **28 tools** across sculpting, painting, and advanced categories
 - **Per-axis sizing** and **rotation** for most shapes
 - **Hollow mode** for caves and shells
 - **Plane lock** for precision work
@@ -76,6 +76,7 @@ The built-in terrain editor is fine for basics. This one goes further:
 | **Wedge** | X, Y, Z | ✓ |
 | **Corner Wedge** | X, Y, Z | ✓ |
 | **Dome** | X, Y, Z | — |
+| **Rotated Dome** | X, Y, Z | — |
 
 ### Creative Shapes
 
@@ -87,6 +88,7 @@ The built-in terrain editor is fine for basics. This one goes further:
 | **Sheet** | Curved surface, like bent paper. |
 | **Grid** | 3D checkerboard pattern. |
 | **Stick** | Long thin rod. Precision lines. |
+| **Spinner** | Auto-rotating cube. Twisted columns. |
 | **Spikepad** | Flat base with spikes on top. |
 
 ---
@@ -208,21 +210,50 @@ Grass, Sand, Rock, Ground, Snow, Ice, Glacier, Water, Mud, Slate, Concrete, Bric
 
 ## Setup
 
-### First Time
+### Prerequisites
 
-Build the loader plugin once:
+- [Aftman](https://github.com/LPGhatguy/aftman) for toolchain management
+- [Roblox Studio](https://create.roblox.com/docs/studio/setting-up-roblox-studio)
+- VS Code or Cursor IDE with [Luau LSP](https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.luau-lsp) extension
 
+### First Time Setup
+
+Run the setup script for your platform - it auto-detects your Rojo installation and configures everything:
+
+**Windows (PowerShell):**
 ```powershell
-rojo build loader.project.json -o "YOUR_PLUGINS_FOLDER/TerrainEditorLoader.rbxm"
+.\setup.ps1
 ```
 
-### Every Time
+**macOS/Linux:**
+```bash
+./setup.sh
+```
+
+Or use VS Code tasks: `Ctrl+Shift+P` → "Tasks: Run Task" → "Setup Environment"
+
+Then build the loader plugin (once):
+```powershell
+rojo build loader.project.json -o "$env:LOCALAPPDATA\Roblox\Plugins\TerrainEditorLoader.rbxm"
+```
+
+### Development Workflow
 
 ```powershell
 rojo serve
 ```
 
 Then in Studio: Connect via Rojo, and click **Reload** after making changes.
+
+### What the Setup Script Does
+
+1. **Installs required extensions** - Luau LSP (mandatory for development)
+2. **Removes conflicting extensions** - uninstalls legacy Roblox LSP if present
+3. **Finds Rojo** - checks PATH, Aftman, and common install locations
+4. **Creates `.vscode/settings.json`** - with your machine-specific paths (gitignored)
+5. **Installs Wally packages** - if `wally.toml` exists
+
+No recommendations or prompts - just installs what's needed.
 
 ---
 

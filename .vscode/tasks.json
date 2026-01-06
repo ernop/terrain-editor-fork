@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Environment",
+            "type": "shell",
+            "command": "${workspaceFolder}/setup.ps1",
+            "windows": {
+                "command": "powershell",
+                "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/setup.ps1"]
+            },
+            "linux": {
+                "command": "bash",
+                "args": ["${workspaceFolder}/setup.sh"]
+            },
+            "osx": {
+                "command": "bash",
+                "args": ["${workspaceFolder}/setup.sh"]
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Rojo Serve",
+            "type": "shell",
+            "command": "rojo",
+            "args": ["serve"],
+            "problemMatcher": [],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Build Standalone Plugin",
+            "type": "shell",
+            "command": "rojo",
+            "args": ["build", "standalone.project.json", "-o", "TerrainEditorFork.rbxm"],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            }
+        }
+    ]
+}
+
+
+
+

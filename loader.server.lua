@@ -59,7 +59,7 @@ local function ensureGui()
 
 	-- Default: do NOT pop open on Studio launch.
 	-- Also: do not override Studio's saved docking state.
-	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, false, false, 520, 500, 500, 300)
+	local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, false, false, 260, 500, 260, 300)
 	currentGui = plugin:CreateDockWidgetPluginGui(WIDGET_ID, widgetInfo)
 	currentGui.Title = "TerrainParkour's TerrainCreator - DEV"
 

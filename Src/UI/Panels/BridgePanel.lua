@@ -69,8 +69,8 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	end)
 	intensityContainer.LayoutOrder = 5
 
-	-- Segments slider (0 = auto)
-	local _, segmentsContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Segments", 0, 100, S.bridgeSegments, function(val)
+	-- Segments slider (0 = auto, up to 1000 for dense paths)
+	local _, segmentsContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Segments", 0, 1000, S.bridgeSegments, function(val)
 		S.bridgeSegments = val
 		S.bridgeLastPreviewParams = nil
 		if updateBridgePreview then
@@ -93,6 +93,56 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		end,
 	})
 	useBrushShapeToggle.container.LayoutOrder = 7
+
+	-- Anchor endpoints toggle (prevents start/end drift with intensity changes)
+	local anchorEndpointsToggle = UIComponents.createCheckbox({
+		parent = bridgeInfoPanel,
+		label = "Anchor start/end points",
+		initialState = S.bridgeAnchorEndpoints == nil and true or S.bridgeAnchorEndpoints,
+		onChange = function(enabled)
+			S.bridgeAnchorEndpoints = enabled
+			S.bridgeLastPreviewParams = nil
+			if updateBridgePreview then
+				updateBridgePreview(S.bridgeHoverPoint)
+			end
+		end,
+	})
+	anchorEndpointsToggle.container.LayoutOrder = 7.1
+
+	-- Terrain awareness toggle
+	local terrainAwarenessToggle = UIComponents.createCheckbox({
+		parent = bridgeInfoPanel,
+		label = "Terrain aware (avoid collisions)",
+		initialState = S.bridgeTerrainAware or false,
+		onChange = function(enabled)
+			S.bridgeTerrainAware = enabled
+			S.bridgeLastPreviewParams = nil
+			if updateBridgePreview then
+				updateBridgePreview(S.bridgeHoverPoint)
+			end
+		end,
+	})
+	terrainAwarenessToggle.container.LayoutOrder = 7.2
+
+	-- Plane constraint slider
+	local _, planeConstraintContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Plane Lock", 0, 100, math.floor((S.bridgePlaneConstraint or 0) * 100), function(val)
+		S.bridgePlaneConstraint = val / 100
+		S.bridgeLastPreviewParams = nil
+		if updateBridgePreview then
+			updateBridgePreview(S.bridgeHoverPoint)
+		end
+	end)
+	planeConstraintContainer.LayoutOrder = 7.3
+
+	-- Axis rotation slider (rotate bridge around its own axis)
+	local _, axisRotationContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Axis Roll", 0, 360, S.bridgeAxisRotation or 0, function(val)
+		S.bridgeAxisRotation = val
+		S.bridgeLastPreviewParams = nil
+		if updateBridgePreview then
+			updateBridgePreview(S.bridgeHoverPoint)
+		end
+	end)
+	axisRotationContainer.LayoutOrder = 7.4
 
 	-- Style header
 	local variantLabel = UIHelpers.createHeader(bridgeInfoPanel, "Style", UDim2.new(0, 0, 0, 0))
@@ -313,13 +363,59 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			else
 				-- Use original path generation for other variants
 				local pathDir = (endPoint - S.bridgeStartPoint).Unit
-				local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
+				
+				-- Build a coordinate frame aligned with the path direction
+				-- Then rotate it around the path axis by bridgeAxisRotation
+				local axisRotation = math.rad(S.bridgeAxisRotation or 0)
+				
+				-- Create a CFrame looking along the path direction
+				-- CFrame.lookAt creates a frame where -Z points at target, Y is up
+				-- We want the path direction as our axis of rotation
+				local baseCFrame = CFrame.lookAt(Vector3.zero, pathDir)
+				
+				-- Rotate around the path axis (LookVector = -Z in CFrame, so we rotate around -Z)
+				local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
+				
+				-- Extract the perpendicular directions from the rotated frame
+				-- RightVector (X) and UpVector (Y) are perpendicular to path
+				local perpDirX = rotatedCFrame.RightVector -- For X offset (was horizontal)
+				local perpDirY = rotatedCFrame.UpVector    -- For Y offset (was vertical)
+				local perpDirZ = -rotatedCFrame.LookVector:Cross(rotatedCFrame.UpVector) -- For Z offset
+
+				-- Determine which offset function to use
+				local useAnchored = S.bridgeAnchorEndpoints ~= false -- Default true
+				local planeConstraint = S.bridgePlaneConstraint or 0
 
 				for i = 1, steps - 1 do
 					local t = i / steps
 					local pos = S.bridgeStartPoint:Lerp(endPoint, t)
-					local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
-					local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
+					
+					-- Get offset using appropriate function
+					local offset
+					if useAnchored and planeConstraint > 0 then
+						offset = BrushData.getBridgeOffsetPlaneAware(t, distance, S.bridgeVariant, S.bridgeIntensity, planeConstraint)
+					elseif useAnchored then
+						offset = BrushData.getBridgeOffsetAnchored(t, distance, S.bridgeVariant, S.bridgeIntensity)
+					else
+						offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
+					end
+					
+					-- Apply offset using rotated perpendicular directions
+					-- offset.X = lateral (perpendicular horizontal in unrotated)
+					-- offset.Y = vertical (perpendicular up in unrotated)
+					-- offset.Z = depth (along secondary perpendicular)
+					local finalOffset = perpDirX * offset.X + perpDirY * offset.Y + perpDirZ * offset.Z
+
+					-- Terrain awareness: adjust if path would intersect terrain
+					if S.bridgeTerrainAware and S.terrain then
+						local testPos = pos + finalOffset
+						local terrainHeight = BridgePathGenerator.getTerrainHeight(S.terrain, testPos)
+						if terrainHeight and testPos.Y < terrainHeight + 4 then
+							-- Push up to clear terrain (always push in world Y direction)
+							local adjustment = (terrainHeight + 4) - testPos.Y
+							finalOffset = finalOffset + Vector3.new(0, adjustment, 0)
+						end
+					end
 
 					local pathMarker = Instance.new("Part")
 					pathMarker.Archivable = false  -- Exclude from undo history
@@ -386,13 +482,54 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			end
 		else
 			local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
-			local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
+			
+			-- Build a coordinate frame aligned with the path direction
+			-- Then rotate it around the path axis by bridgeAxisRotation
+			local axisRotation = math.rad(S.bridgeAxisRotation or 0)
+			
+			-- Create a CFrame looking along the path direction
+			local baseCFrame = CFrame.lookAt(Vector3.zero, pathDir)
+			
+			-- Rotate around the path axis
+			local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
+			
+			-- Extract the perpendicular directions from the rotated frame
+			local perpDirX = rotatedCFrame.RightVector
+			local perpDirY = rotatedCFrame.UpVector
+			local perpDirZ = -rotatedCFrame.LookVector:Cross(rotatedCFrame.UpVector)
+
+			-- Determine which offset function to use
+			local useAnchored = S.bridgeAnchorEndpoints ~= false -- Default true
+			local planeConstraint = S.bridgePlaneConstraint or 0
 
 			for i = 0, steps do
 				local t = i / steps
 				local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-				local offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
-				local finalOffset = Vector3.new(0, offset.Y, 0) + perpDir * offset.X
+				
+				-- Get offset using appropriate function
+				local offset
+				if useAnchored and planeConstraint > 0 then
+					offset = BrushData.getBridgeOffsetPlaneAware(t, distance, S.bridgeVariant, S.bridgeIntensity, planeConstraint)
+				elseif useAnchored then
+					offset = BrushData.getBridgeOffsetAnchored(t, distance, S.bridgeVariant, S.bridgeIntensity)
+				else
+					offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
+				end
+				
+				-- Apply offset using rotated perpendicular directions
+				local finalOffset = perpDirX * offset.X + perpDirY * offset.Y + perpDirZ * offset.Z
+
+				-- Terrain awareness: adjust if path would intersect terrain
+				if S.bridgeTerrainAware and S.terrain then
+					local testPos = pos + finalOffset
+					local terrainHeight = BridgePathGenerator.getTerrainHeight(S.terrain, testPos)
+					if terrainHeight and testPos.Y < terrainHeight + 4 then
+						-- Push up to clear terrain (always push in world Y direction)
+						local adjustment = (terrainHeight + 4) - testPos.Y
+						finalOffset = finalOffset + Vector3.new(0, adjustment, 0)
+					end
+				end
+
 				local bridgePos = pos + finalOffset
 				fillAtPosition(bridgePos)
 			end

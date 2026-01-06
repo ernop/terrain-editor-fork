@@ -1,23 +1,36 @@
 # Brush System Analysis & Expansion Options
 
-> **Update (Dec 2024):** Multi-axis sizing and brush rotation have been implemented!
-> See [brush-sizing-rotation-plan.md](brush-sizing-rotation-plan.md) for details.
-> - Press **R** to lock brush, then drag handles to rotate/resize
-> - Cube supports full X/Y/Z sizing
-> - Cylinder supports Radius + Height
-> - ArcHandles for rotation, Handles for resizing
+> **Status (Jan 2025):** This document was created during early analysis. Most features described as "planned" are now **implemented**.
+> 
+> **Current brush shape count: 15**
+> 
+> See [brush-sizing-rotation-plan.md](brush-sizing-rotation-plan.md) for implementation details.
 
 ## Current Architecture
 
-### Brush Shapes Defined
+### Brush Shapes Implemented
 
 From `TerrainEnums.lua`:
 
 ```lua
 TerrainEnums.BrushShape = {
-	Sphere = "Sphere",
-	Cube = "Cube",
-	Cylinder = "Cylinder",
+    -- Standard shapes
+    Sphere = "Sphere",
+    Cube = "Cube",
+    Cylinder = "Cylinder",
+    Wedge = "Wedge",
+    CornerWedge = "CornerWedge",
+    Dome = "Dome",
+    RotatedDome = "RotatedDome",  -- Dome facing forward
+    -- Creative shapes
+    Torus = "Torus",              -- Donut shape
+    Ring = "Ring",                -- Flat washer
+    ZigZag = "ZigZag",            -- Z-shaped profile
+    Sheet = "Sheet",              -- Curved surface
+    Grid = "Grid",                -- 3D checkerboard
+    Stick = "Stick",              -- Long thin rod
+    Spinner = "Spinner",          -- Auto-rotating cube
+    Spikepad = "Spikepad",        -- Flat base with spikes
 }
 ```
 
@@ -276,17 +289,31 @@ To add a new brush shape, you'd need to modify:
 
 ---
 
-## Recommendations
+## Implementation Status
 
-### Quick Wins
-1. **Wedge** — Minimal work, native API support, immediate value for ramps/slopes
-2. **Dome/Half-Sphere** — Simple math modification, useful for hills
+This analysis was written before the major brush expansion. Here's what happened:
 
-### Medium-Term
-3. **Cone** — Moderate math, good for mountains and decorative pillars
-4. **Capsule** — Organic shapes, smooth edges
+| Recommendation | Status | Notes |
+|----------------|--------|-------|
+| Wedge | ✅ Implemented | Native FillWedge fast path |
+| Dome/Half-Sphere | ✅ Implemented | Plus RotatedDome for tunnel entrances |
+| Cone | ❌ Not implemented | Use Stalactite tool instead |
+| Capsule | ❌ Not implemented | Could still be useful |
+| Torus | ✅ Implemented | With Ring variant |
+| Ellipsoid | ✅ Implemented | Sphere with per-axis sizing |
 
-### Long-Term (If Warranted)
-5. **Torus** — More complex but unique functionality
-6. **Ellipsoid** — Requires UI work for 3 axis sizes
+**Beyond original recommendations:**
+- ZigZag, Sheet, Grid, Stick, Spinner, Spikepad shapes added
+- Per-axis sizing for most shapes
+- Brush rotation with ArcHandles
+- Hollow mode for all shapes
+- 6 falloff curve types
+
+## Future Expansion Ideas
+
+Remaining shapes that could still add value:
+- **Capsule** - Pill shape for organic tunnels
+- **Pyramid** - For Egyptian or ceremonial terrain
+- **Star** - Multi-pointed extrusion
+- **Helix** - Spiral shape for twisted towers
 

@@ -6,13 +6,16 @@
 	],
 	"settings": {
 		"editor.suggest.showStatusBar": false,
+		"// Luau LSP configuration (sourcemap path goes in .vscode/settings.json)": null,
 		"luau-lsp.platform": "roblox",
 		"luau-lsp.ignoreGlobs": [
 			"**/_Index/**"
 		],
-		"luau-lsp.sourcemap.autogenerate": true,
+		"luau-lsp.sourcemap.autogenerate": false,
 		"luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
-		"luau-lsp.sourcemap.rojoPath": "C:\\Users\\ernie\\.aftman\\bin\\rojo.exe",
+		"// Disable legacy Roblox LSP extension - use luau-lsp instead": null,
+		"robloxLsp.enable": false,
+		"// Diff colors": null,
 		"workbench.colorCustomizations": {
 			"diffEditor.insertedTextBackground": "#2ea04355",
 			"diffEditor.removedTextBackground": "#f8514955",

@@ -234,7 +234,7 @@ function UIHelpers.createActionButton(parent: Frame, text: string, callback: () 
 	local button = Instance.new("TextButton")
 	button.BackgroundColor3 = Theme.Colors.ButtonSecondary
 	button.BorderSizePixel = 0
-	button.AutomaticSize = Enum.AutomaticSize.X  -- Size to fit text
+	button.AutomaticSize = Enum.AutomaticSize.X -- Size to fit text
 	button.Size = UDim2.new(0, 0, 0, Theme.Sizes.ButtonHeight)
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextButton
@@ -301,7 +301,6 @@ function UIHelpers.createSlider(
 	callback: (number) -> ()
 ): (TextLabel, Frame, (number) -> ())
 	local currentValue = initial
-	local UserInputService = game:GetService("UserInputService")
 
 	-- Main container - responsive width with padding so it doesn't hug panel edges
 	local container = Instance.new("Frame")
@@ -357,7 +356,7 @@ function UIHelpers.createSlider(
 	sliderBg.Parent = container
 
 	local sliderCorner = Instance.new("UICorner")
-	sliderCorner.CornerRadius = UDim.new(0, 7)
+	sliderCorner.CornerRadius = UDim.new(0, 2)
 	sliderCorner.Parent = sliderBg
 
 	-- Slider fill
@@ -369,27 +368,27 @@ function UIHelpers.createSlider(
 	sliderFill.Parent = sliderBg
 
 	local fillCorner = Instance.new("UICorner")
-	fillCorner.CornerRadius = UDim.new(0, 7)
+	fillCorner.CornerRadius = UDim.new(0, 2)
 	fillCorner.Parent = sliderFill
 
-	-- Thumb
+	-- Thumb (square with slight rounding)
 	local thumb = Instance.new("Frame")
 	thumb.Name = "Thumb"
 	thumb.BackgroundColor3 = Theme.Colors.SliderThumb
 	thumb.BorderSizePixel = 0
 	thumb.AnchorPoint = Vector2.new(0.5, 0.5)
 	thumb.Position = UDim2.new((initial - min) / (max - min), 0, 0.5, 0)
-	thumb.Size = UDim2.new(0, Theme.Sizes.SliderThumbSize, 0, Theme.Sizes.SliderThumbSize)
+	thumb.Size = UDim2.new(0, 12, 0, 18)
 	thumb.ZIndex = 2
 	thumb.Parent = sliderBg
 
 	local thumbCorner = Instance.new("UICorner")
-	thumbCorner.CornerRadius = UDim.new(1, 0)
+	thumbCorner.CornerRadius = UDim.new(0, 2)
 	thumbCorner.Parent = thumb
 
 	local thumbStroke = Instance.new("UIStroke")
 	thumbStroke.Color = Theme.Colors.SliderThumbStroke
-	thumbStroke.Thickness = Theme.Sizes.SliderThumbStroke
+	thumbStroke.Thickness = 1
 	thumbStroke.Parent = thumb
 
 	-- Hover preview tooltip
@@ -467,11 +466,10 @@ function UIHelpers.createSlider(
 		hoverPreview.Visible = false
 	end)
 
-	-- Click on track to set value
+	-- Click-only: no drag mode, just set value on each click
 	sliderBg.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			local value = getValueAtPosition(input.Position.X)
-			setValue(value)
+			setValue(getValueAtPosition(input.Position.X))
 		end
 	end)
 

@@ -142,20 +142,6 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		end
 	end
 
-	-- Create "no tool selected" message
-	local noToolMessage = Instance.new("TextLabel")
-	noToolMessage.Name = "NoToolMessage"
-	noToolMessage.BackgroundTransparency = 1
-	noToolMessage.Size = UDim2.new(1, 0, 0, 60)
-	noToolMessage.Font = Theme.Fonts.Default
-	noToolMessage.TextSize = Theme.Sizes.TextMedium
-	noToolMessage.TextColor3 = Theme.Colors.Text
-	noToolMessage.TextScaled = false
-	noToolMessage.Text = "Select a tool above to see its settings"
-	noToolMessage.TextWrapped = true
-	noToolMessage.LayoutOrder = 0
-	noToolMessage.Parent = deps.configContainer
-
 	-- Visibility update function (assigned to forward-declared variable)
 	updateVisibility = function()
 		-- Try to get config panels from ToolRegistry first, fallback to BrushData
@@ -166,10 +152,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 			panel.Visible = false
 		end
 
-		if S.currentTool == ToolId.None or not toolConfig then
-			noToolMessage.Visible = true
-		else
-			noToolMessage.Visible = false
+		if S.currentTool ~= ToolId.None and toolConfig then
 			for _, panelName in ipairs(toolConfig) do
 				if allPanels[panelName] then
 					allPanels[panelName].Visible = true
@@ -186,7 +169,9 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 		task.defer(function()
 			local configLayout = deps.configContainer:FindFirstChildOfClass("UIListLayout")
 			if configLayout then
-				local totalHeight = Theme.Sizes.ConfigStartY + configLayout.AbsoluteContentSize.Y + 20
+				-- Use configContainer's position (dynamically set) plus its content height
+				local configStartY = deps.configContainer.Position.Y.Offset
+				local totalHeight = configStartY + configLayout.AbsoluteContentSize.Y + 20
 				local mainFrame = deps.configContainer.Parent
 				if mainFrame and mainFrame:IsA("ScrollingFrame") then
 					mainFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight, 400))
@@ -209,4 +194,3 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 end
 
 return ConfigPanels
-

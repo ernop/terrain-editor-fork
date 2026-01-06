@@ -57,12 +57,35 @@ BridgeTool.docs = {
 			},
 		},
 		{
-			heading = "Variants",
+			heading = "Classic Variants",
 			bullets = {
-				"**Arc** — Curved arch bridge",
-				"**Flat** — Straight level bridge",
-				"**Suspension** — Dips in middle",
-				"**Natural** — Irregular, organic",
+				"**Arc** — Classic curved arch bridge",
+				"**Sinusoidal** — Gentle wave path",
+				"**Blippy** — Stepping stone bumps",
+				"**SquareWave** — Stepped platform heights",
+				"**Rollercoaster** — Dramatic ups and downs",
+				"**TwistySwingly** — Side-to-side curves",
+				"**MegaMeander** — Wild flying paths",
+			},
+		},
+		{
+			heading = "Mathematical Variants",
+			bullets = {
+				"**Fibonacci** — Golden ratio spiral ascent",
+				"**Fractal** — Self-similar multi-scale waves",
+				"**Exponential** — Rockets skyward at end",
+				"**Logarithmic** — Quick rise, slow finish",
+				"**Corkscrew** — 3D helix spiral",
+				"**Catenary** — Hanging chain curve (suspension)",
+			},
+		},
+		{
+			heading = "Fun Variants",
+			bullets = {
+				"**Drunkard** — Chaotic wobbly stumble",
+				"**Heartbeat** — ECG-style cardiac spikes",
+				"**Staircase** — Stepped grand staircase",
+				"**TrollBridge** — Loop-the-loop surprise!",
 			},
 		},
 		{
@@ -91,7 +114,7 @@ BridgeTool.docs = {
 		"Meander adds natural curves",
 	},
 	
-	docVersion = "2.1",
+	docVersion = "3.0",
 }
 
 -- ============================================

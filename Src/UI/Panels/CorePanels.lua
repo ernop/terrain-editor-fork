@@ -38,13 +38,11 @@ export type CorePanelsResult = {
 -- ============================================================================
 -- Mini Card Helper - creates a small card with title and 2-column button grid
 -- ============================================================================
--- These cards must stay readable: fixed-height, flexible-width, and no tiny scaled text.
-local MINI_CARD_HEIGHT = 150
-local MINI_CARD_TITLE_HEIGHT = 16
-local MINI_CARD_BUTTON_HEIGHT = 28
-local MINI_CARD_CARD_PADDING = 4
-local MINI_CARD_GAP = 3
-local MINI_CARD_CELL_PADDING = 3
+-- Mini card constants
+local MINI_CARD_BUTTON_HEIGHT = 24
+local MINI_CARD_CARD_PADDING = 5
+local MINI_CARD_CELL_PADDING = 2
+local MINI_CARD_BUTTON_WIDTH = 64
 
 local function createMiniCard(
 	parent: Frame,
@@ -54,61 +52,59 @@ local function createMiniCard(
 	onChange: (string) -> (),
 	layoutOrder: number
 ): { card: Frame, buttons: { [string]: TextButton }, updateVisuals: () -> () }
+	-- Calculate exact size needed
+	local columns = (#options > 6) and 3 or 2
+	local rows = math.ceil(#options / columns)
+	local gridWidth = columns * MINI_CARD_BUTTON_WIDTH + (columns - 1) * MINI_CARD_CELL_PADDING
+	local gridHeight = rows * MINI_CARD_BUTTON_HEIGHT + (rows - 1) * MINI_CARD_CELL_PADDING
+	local cardWidth = gridWidth + MINI_CARD_CARD_PADDING * 2
+	local cardHeight = gridHeight + MINI_CARD_CARD_PADDING * 2 + 2
+
+	-- Fieldset-style card with tight border
 	local card = Instance.new("Frame")
 	card.Name = title .. "Card"
-	card.BackgroundColor3 = Color3.fromRGB(35, 38, 42)
+	card.BackgroundTransparency = 1
 	card.BorderSizePixel = 0
-	-- Size is controlled by the parent UIGridLayout; keep this fixed-height and non-auto to avoid wasted space.
-	card.Size = UDim2.new(0, 0, 0, MINI_CARD_HEIGHT)
-	card.AutomaticSize = Enum.AutomaticSize.None
+	card.Size = UDim2.new(0, cardWidth, 0, cardHeight)
 	card.LayoutOrder = layoutOrder
 	card.Parent = parent
 
-	local cardCorner = Instance.new("UICorner")
-	cardCorner.CornerRadius = UDim.new(0, 6)
-	cardCorner.Parent = card
+	-- Border stroke around the card
+	local borderStroke = Instance.new("UIStroke")
+	borderStroke.Color = Color3.fromRGB(70, 70, 75)
+	borderStroke.Thickness = 1
+	borderStroke.Parent = card
 
-	local cardPadding = Instance.new("UIPadding")
-	cardPadding.PaddingTop = UDim.new(0, MINI_CARD_CARD_PADDING)
-	cardPadding.PaddingBottom = UDim.new(0, MINI_CARD_CARD_PADDING)
-	cardPadding.PaddingLeft = UDim.new(0, MINI_CARD_CARD_PADDING)
-	cardPadding.PaddingRight = UDim.new(0, MINI_CARD_CARD_PADDING)
-	cardPadding.Parent = card
+	local borderCorner = Instance.new("UICorner")
+	borderCorner.CornerRadius = UDim.new(0, 3)
+	borderCorner.Parent = card
 
-	local cardLayout = Instance.new("UIListLayout")
-	cardLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	cardLayout.Padding = UDim.new(0, MINI_CARD_GAP)
-	cardLayout.Parent = card
-
-	-- Title
+	-- Title label positioned to "cut through" the top border
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "Title"
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Size = UDim2.new(1, 0, 0, MINI_CARD_TITLE_HEIGHT)
-	titleLabel.Font = Theme.Fonts.Bold
-	titleLabel.TextSize = Theme.Sizes.TextNormal
-	titleLabel.TextColor3 = Theme.Colors.Text
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.BackgroundColor3 = Theme.Colors.Background
+	titleLabel.BorderSizePixel = 0
+	titleLabel.Position = UDim2.new(0, 6, 0, -6)
+	titleLabel.Size = UDim2.new(0, 0, 0, 12)
+	titleLabel.AutomaticSize = Enum.AutomaticSize.X
+	titleLabel.Font = Enum.Font.GothamMedium
+	titleLabel.TextSize = 10
+	titleLabel.TextColor3 = Color3.fromRGB(140, 140, 145)
 	titleLabel.TextScaled = false
-	titleLabel.Text = title
-	titleLabel.LayoutOrder = 1
+	titleLabel.Text = " " .. title .. " "
+	titleLabel.ZIndex = 2
 	titleLabel.Parent = card
 
 	-- Button grid container
 	local buttonGrid = Instance.new("Frame")
 	buttonGrid.Name = "ButtonGrid"
 	buttonGrid.BackgroundTransparency = 1
-	buttonGrid.Size = UDim2.new(1, 0, 1, -(MINI_CARD_TITLE_HEIGHT + MINI_CARD_GAP))
-	buttonGrid.AutomaticSize = Enum.AutomaticSize.None
-	buttonGrid.LayoutOrder = 2
+	buttonGrid.Position = UDim2.new(0, MINI_CARD_CARD_PADDING, 0, MINI_CARD_CARD_PADDING + 2)
+	buttonGrid.Size = UDim2.new(0, gridWidth, 0, gridHeight)
 	buttonGrid.Parent = card
 
-	-- Choose columns based on option count to keep the card compact without shrinking text.
-	-- 2 columns for small sets; 3 columns for larger sets like Spin.
-	local columns = (#options > 6) and 3 or 2
-
 	local gridLayout = Instance.new("UIGridLayout")
-	gridLayout.CellSize = UDim2.new(1 / columns, -(MINI_CARD_CELL_PADDING * 2), 0, MINI_CARD_BUTTON_HEIGHT)
+	gridLayout.CellSize = UDim2.new(0, MINI_CARD_BUTTON_WIDTH, 0, MINI_CARD_BUTTON_HEIGHT)
 	gridLayout.CellPadding = UDim2.new(0, MINI_CARD_CELL_PADDING, 0, MINI_CARD_CELL_PADDING)
 	gridLayout.FillDirection = Enum.FillDirection.Horizontal
 	gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
@@ -135,8 +131,8 @@ local function createMiniCard(
 		btn.TextSize = Theme.Sizes.TextButton
 		btn.TextColor3 = Theme.Colors.Text
 		btn.TextScaled = false
-		btn.TextTruncate = Enum.TextTruncate.AtEnd
-		btn.TextWrapped = true
+		btn.TextTruncate = Enum.TextTruncate.None
+		btn.TextWrapped = false
 		btn.TextXAlignment = Enum.TextXAlignment.Center
 		btn.TextYAlignment = Enum.TextYAlignment.Center
 		btn.Text = opt.name
@@ -179,7 +175,6 @@ local function createInlineSlider(
 	callback: (number) -> ()
 ): (Frame, (number) -> ())
 	local currentValue = initial
-	local UserInputService = game:GetService("UserInputService")
 
 	local container = Instance.new("Frame")
 	container.Name = label .. "Slider"
@@ -238,7 +233,7 @@ local function createInlineSlider(
 	sliderBg.Parent = container
 
 	local sliderCorner = Instance.new("UICorner")
-	sliderCorner.CornerRadius = UDim.new(0, 7)
+	sliderCorner.CornerRadius = UDim.new(0, 2)
 	sliderCorner.Parent = sliderBg
 
 	-- Slider fill
@@ -250,27 +245,27 @@ local function createInlineSlider(
 	sliderFill.Parent = sliderBg
 
 	local fillCorner = Instance.new("UICorner")
-	fillCorner.CornerRadius = UDim.new(0, 7)
+	fillCorner.CornerRadius = UDim.new(0, 2)
 	fillCorner.Parent = sliderFill
 
-	-- Thumb
+	-- Thumb (square with slight rounding)
 	local thumb = Instance.new("Frame")
 	thumb.Name = "Thumb"
 	thumb.BackgroundColor3 = Theme.Colors.SliderThumb
 	thumb.BorderSizePixel = 0
 	thumb.AnchorPoint = Vector2.new(0.5, 0.5)
 	thumb.Position = UDim2.new((initial - min) / (max - min), 0, 0.5, 0)
-	thumb.Size = UDim2.new(0, 16, 0, 16)
+	thumb.Size = UDim2.new(0, 12, 0, 18)
 	thumb.ZIndex = 2
 	thumb.Parent = sliderBg
 
 	local thumbCorner = Instance.new("UICorner")
-	thumbCorner.CornerRadius = UDim.new(1, 0)
+	thumbCorner.CornerRadius = UDim.new(0, 2)
 	thumbCorner.Parent = thumb
 
 	local thumbStroke = Instance.new("UIStroke")
 	thumbStroke.Color = Theme.Colors.SliderThumbStroke
-	thumbStroke.Thickness = 2
+	thumbStroke.Thickness = 1
 	thumbStroke.Parent = thumb
 
 	-- Update function
@@ -289,25 +284,10 @@ local function createInlineSlider(
 		return math.floor(min + relativeX * (max - min) + 0.5)
 	end
 
-	-- Dragging state
-	local isDragging = false
-
+	-- Click-only: no drag mode, just set value on each click
 	sliderBg.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			isDragging = true
 			setValue(getValueAtPosition(input.Position.X))
-		end
-	end)
-
-	sliderBg.InputChanged:Connect(function(input)
-		if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-			setValue(getValueAtPosition(input.Position.X))
-		end
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			isDragging = false
 		end
 	end)
 
@@ -458,91 +438,132 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	miniCardsContainer.AutomaticSize = Enum.AutomaticSize.Y
 	miniCardsContainer.Parent = miniCardsPanel
 
-	-- UIGridLayout with fixed cell height (tallest card is Spin with 5 rows of buttons)
-	-- Cards are fixed-height and flexible-width so text never has to shrink.
-	local miniCardsGrid = Instance.new("UIGridLayout")
-	miniCardsGrid.FillDirectionMaxCells = 2
-	miniCardsGrid.CellSize = UDim2.new(0.5, -3, 0, MINI_CARD_HEIGHT)
-	miniCardsGrid.CellPadding = UDim2.new(0, 6, 0, 6)
-	miniCardsGrid.FillDirection = Enum.FillDirection.Horizontal
-	miniCardsGrid.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	miniCardsGrid.SortOrder = Enum.SortOrder.LayoutOrder
-	miniCardsGrid.Parent = miniCardsContainer
+	-- Flow layout - cards wrap naturally based on their size
+	local miniCardsLayout = Instance.new("UIListLayout")
+	miniCardsLayout.FillDirection = Enum.FillDirection.Horizontal
+	miniCardsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	miniCardsLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+	miniCardsLayout.Wraps = true
+	miniCardsLayout.Padding = UDim.new(0, 4)
+	miniCardsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	miniCardsLayout.Parent = miniCardsContainer
 
 	-- Rate Card
-	local rateCard = createMiniCard(miniCardsContainer, "Rate", {
-		{ id = "no_repeat", name = "Once" },
-		{ id = "on_move_only", name = "Move" },
-		{ id = "very_slow", name = "Very\nSlow" },
-		{ id = "slow", name = "Slow" },
-		{ id = "normal", name = "Normal" },
-		{ id = "fast", name = "Fast" },
-	}, S.brushRate, function(newRate)
-		S.brushRate = newRate
-	end, 1)
+	local rateCard = createMiniCard(
+		miniCardsContainer,
+		"Rate",
+		{
+			{ id = "no_repeat", name = "Once" },
+			{ id = "on_move_only", name = "Move" },
+			{ id = "very_slow", name = "Slowest" },
+			{ id = "slow", name = "Slow" },
+			{ id = "normal", name = "Normal" },
+			{ id = "fast", name = "Fast" },
+		},
+		S.brushRate,
+		function(newRate)
+			S.brushRate = newRate
+		end,
+		1
+	)
 
 	-- Pivot Card
-	local pivotCard = createMiniCard(miniCardsContainer, "Pivot", {
-		{ id = PivotType.Bottom, name = "Bottom" },
-		{ id = PivotType.Center, name = "Center" },
-		{ id = PivotType.Top, name = "Top" },
-		{ id = PivotType.Surface, name = "Surface" },
-	}, S.pivotType, function(newPivot)
-		S.pivotType = newPivot
-	end, 2)
+	local pivotCard = createMiniCard(
+		miniCardsContainer,
+		"Pivot",
+		{
+			{ id = PivotType.Bottom, name = "Bottom" },
+			{ id = PivotType.Center, name = "Center" },
+			{ id = PivotType.Top, name = "Top" },
+			{ id = PivotType.Surface, name = "Surface" },
+		},
+		S.pivotType,
+		function(newPivot)
+			S.pivotType = newPivot
+		end,
+		2
+	)
 
 	-- Falloff Card
-	local falloffCard = createMiniCard(miniCardsContainer, "Falloff", {
-		{ id = FalloffType.Cosine, name = "Cosine" },
-		{ id = FalloffType.Linear, name = "Linear" },
-		{ id = FalloffType.Plateau, name = "Plateau" },
-		{ id = FalloffType.Gaussian, name = "Gaussian" },
-		{ id = FalloffType.Quadratic, name = "Quadratic" },
-		{ id = FalloffType.Sharp, name = "Sharp" },
-	}, S.falloffType, function(newFalloff)
-		S.falloffType = newFalloff
-		if deps.createBrushVisualization and S.brushPart then
-			deps.createBrushVisualization()
-		end
-	end, 3)
+	local falloffCard = createMiniCard(
+		miniCardsContainer,
+		"Falloff",
+		{
+			{ id = FalloffType.Cosine, name = "Cosine" },
+			{ id = FalloffType.Linear, name = "Linear" },
+			{ id = FalloffType.Plateau, name = "Plateau" },
+			{ id = FalloffType.Gaussian, name = "Gaussian" },
+			{ id = FalloffType.Quadratic, name = "Quadratic" },
+			{ id = FalloffType.Sharp, name = "Sharp" },
+		},
+		S.falloffType,
+		function(newFalloff)
+			S.falloffType = newFalloff
+			if deps.createBrushVisualization and S.brushPart then
+				deps.createBrushVisualization()
+			end
+		end,
+		3
+	)
 
 	-- Spin Type Card (8 options, compact 2-column layout)
-	local spinTypeCard = createMiniCard(miniCardsContainer, "Spin", {
-		{ id = SpinMode.Off, name = "Off" },
-		{ id = SpinMode.WorldY, name = "World Y" },
-		{ id = SpinMode.World3D, name = "World 3D" },
-		{ id = SpinMode.ShapeY, name = "Shape Y" },
-		{ id = SpinMode.Shape3D, name = "Shape 3D" },
-		{ id = SpinMode.Roll, name = "Roll" },
-		{ id = SpinMode.Wobble, name = "Wobble" },
-		{ id = SpinMode.Spiral, name = "Spiral" },
-	}, S.spinMode, function(newSpin)
-		S.spinMode = newSpin
-	end, 4)
+	local spinTypeCard = createMiniCard(
+		miniCardsContainer,
+		"Spin",
+		{
+			{ id = SpinMode.Off, name = "Off" },
+			{ id = SpinMode.WorldY, name = "World Y" },
+			{ id = SpinMode.World3D, name = "World 3D" },
+			{ id = SpinMode.ShapeY, name = "Shape Y" },
+			{ id = SpinMode.Shape3D, name = "Shape 3D" },
+			{ id = SpinMode.Roll, name = "Roll" },
+			{ id = SpinMode.Wobble, name = "Wobble" },
+			{ id = SpinMode.Spiral, name = "Spiral" },
+		},
+		S.spinMode,
+		function(newSpin)
+			S.spinMode = newSpin
+		end,
+		4
+	)
 
 	-- Spin Speed Card (5 levels)
-	local spinSpeedCard = createMiniCard(miniCardsContainer, "Speed", {
-		{ id = 1, name = "1" },
-		{ id = 2, name = "2" },
-		{ id = 3, name = "3" },
-		{ id = 4, name = "4" },
-		{ id = 5, name = "5" },
-	}, S.spinSpeed, function(newSpeed)
-		S.spinSpeed = newSpeed
-	end, 5)
+	local spinSpeedCard = createMiniCard(
+		miniCardsContainer,
+		"Speed",
+		{
+			{ id = 1, name = "1" },
+			{ id = 2, name = "2" },
+			{ id = 3, name = "3" },
+			{ id = 4, name = "4" },
+			{ id = 5, name = "5" },
+		},
+		S.spinSpeed,
+		function(newSpeed)
+			S.spinSpeed = newSpeed
+		end,
+		5
+	)
 
 	-- Plane Card
-	local planeCard = createMiniCard(miniCardsContainer, "Plane", {
-		{ id = PlaneLockType.Off, name = "Off" },
-		{ id = PlaneLockType.Auto, name = "Auto" },
-		{ id = PlaneLockType.Manual, name = "Manual" },
-	}, S.planeLockMode, function(newMode)
-		S.planeLockMode = newMode
-		S.autoPlaneActive = false
-		if newMode == PlaneLockType.Off then
-			deps.hidePlaneVisualization()
-		end
-	end, 6)
+	local planeCard = createMiniCard(
+		miniCardsContainer,
+		"Plane",
+		{
+			{ id = PlaneLockType.Off, name = "Off" },
+			{ id = PlaneLockType.Auto, name = "Auto" },
+			{ id = PlaneLockType.Manual, name = "Manual" },
+		},
+		S.planeLockMode,
+		function(newMode)
+			S.planeLockMode = newMode
+			S.autoPlaneActive = false
+			if newMode == PlaneLockType.Off then
+				deps.hidePlaneVisualization()
+			end
+		end,
+		6
+	)
 
 	panels["miniCards"] = miniCardsPanel
 	-- Map individual panel names for visibility control
@@ -557,16 +578,9 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	-- ========================================================================
 	local strengthPanel = UIHelpers.createConfigPanel(deps.configContainer, "strength")
 
-	local _, setStrengthValue = createInlineSlider(
-		strengthPanel,
-		"Strength",
-		1,
-		100,
-		math.floor(S.brushStrength * 100),
-		function(value)
-			S.brushStrength = value / 100
-		end
-	)
+	local _, setStrengthValue = createInlineSlider(strengthPanel, "Strength", 1, 100, math.floor(S.brushStrength * 100), function(value)
+		S.brushStrength = value / 100
+	end)
 
 	panels["strength"] = strengthPanel
 
@@ -608,11 +622,18 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 
 		if not shapeDims then
 			-- Fallback: single uniform slider
-			local _, setter = createInlineSlider(sizePanel, "Size", Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, S.brushSizeX, function(val)
-				S.brushSizeX = val
-				S.brushSizeY = val
-				S.brushSizeZ = val
-			end)
+			local _, setter = createInlineSlider(
+				sizePanel,
+				"Size",
+				Constants.MIN_BRUSH_SIZE,
+				Constants.MAX_BRUSH_SIZE,
+				S.brushSizeX,
+				function(val)
+					S.brushSizeX = val
+					S.brushSizeY = val
+					S.brushSizeZ = val
+				end
+			)
 			sizeSliderSetters["uniform"] = setter
 			return
 		end
@@ -626,17 +647,24 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 				currentVal = S.brushSizeZ
 			end
 
-			local sliderFrame, setter = createInlineSlider(sizePanel, axis.label, Constants.MIN_BRUSH_SIZE, Constants.MAX_BRUSH_SIZE, currentVal, function(val)
-				for _, axisName in ipairs(axis.maps) do
-					if axisName == "x" then
-						S.brushSizeX = val
-					elseif axisName == "y" then
-						S.brushSizeY = val
-					elseif axisName == "z" then
-						S.brushSizeZ = val
+			local sliderFrame, setter = createInlineSlider(
+				sizePanel,
+				axis.label,
+				Constants.MIN_BRUSH_SIZE,
+				Constants.MAX_BRUSH_SIZE,
+				currentVal,
+				function(val)
+					for _, axisName in ipairs(axis.maps) do
+						if axisName == "x" then
+							S.brushSizeX = val
+						elseif axisName == "y" then
+							S.brushSizeY = val
+						elseif axisName == "z" then
+							S.brushSizeZ = val
+						end
 					end
 				end
-			end)
+			)
 			sliderFrame.LayoutOrder = i
 			sizeSliderSetters[axis.label] = setter
 		end

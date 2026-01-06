@@ -25,9 +25,9 @@ Theme.Colors = {
 
 	-- Text (always white/bright - no gray garbage!)
 	Text = Color3.fromRGB(255, 255, 255),
-	TextMuted = Color3.fromRGB(240, 240, 240),  -- Still readable white
-	TextDim = Color3.fromRGB(220, 220, 220),    -- Slightly softer white
-	TextNote = Color3.fromRGB(200, 210, 220),   -- Hint of blue-white for tips
+	TextMuted = Color3.fromRGB(240, 240, 240), -- Still readable white
+	TextDim = Color3.fromRGB(220, 220, 220), -- Slightly softer white
+	TextNote = Color3.fromRGB(200, 210, 220), -- Hint of blue-white for tips
 
 	-- Accents
 	Accent = Color3.fromRGB(0, 162, 255),
@@ -46,13 +46,13 @@ Theme.Colors = {
 	-- Brush visualization
 	BrushNormal = Color3.fromRGB(0, 162, 255),
 	BrushLocked = Color3.fromRGB(255, 170, 0),
-	BrushEdge = Color3.fromRGB(0, 100, 160),           -- Darker edge lines for depth
-	BrushEdgeLocked = Color3.fromRGB(180, 100, 0),     -- Darker orange for locked edges
+	BrushEdge = Color3.fromRGB(0, 100, 160), -- Darker edge lines for depth
+	BrushEdgeLocked = Color3.fromRGB(180, 100, 0), -- Darker orange for locked edges
 	PlaneViz = Color3.fromRGB(0, 200, 100),
-	HandleRotation = Color3.fromRGB(255, 170, 0),    -- Legacy, use axis colors instead
-	HandleRotationX = Color3.fromRGB(255, 80, 80),   -- Red for X axis
-	HandleRotationY = Color3.fromRGB(80, 255, 80),   -- Green for Y axis
-	HandleRotationZ = Color3.fromRGB(80, 140, 255),  -- Blue for Z axis
+	HandleRotation = Color3.fromRGB(255, 170, 0), -- Legacy, use axis colors instead
+	HandleRotationX = Color3.fromRGB(255, 80, 80), -- Red for X axis
+	HandleRotationY = Color3.fromRGB(80, 255, 80), -- Green for Y axis
+	HandleRotationZ = Color3.fromRGB(80, 140, 255), -- Blue for Z axis
 	HandleSize = Color3.fromRGB(0, 200, 255),
 
 	-- Bridge preview
@@ -90,15 +90,15 @@ Theme.Sizes = {
 	ButtonHeight = 26,
 	ButtonWidth = 70,
 	ButtonWidthWide = 80,
-	ActionButtonWidth = 120,     -- Natural width for action buttons
+	ActionButtonWidth = 120, -- Natural width for action buttons
 	ToolButtonWidth = 70,
 	ToolButtonHeight = 32,
 
 	-- Slider dimensions
-	SliderHeight = 50,           -- Reduced from 70, more compact
-	SliderTrackHeight = 14,      -- Reduced from 18
-	SliderTrackWidth = 200,      -- Not full width!
-	SliderThumbSize = 18,        -- Slightly smaller
+	SliderHeight = 50, -- Reduced from 70, more compact
+	SliderTrackHeight = 14, -- Reduced from 18
+	SliderTrackWidth = 200, -- Not full width!
+	SliderThumbSize = 18, -- Slightly smaller
 	SliderThumbStroke = 2,
 
 	-- Material tile dimensions
@@ -115,8 +115,8 @@ Theme.Sizes = {
 	PaddingLarge = 10,
 
 	-- Panel layout
-	PanelPadding = 8,
-	ConfigStartY = 625,  -- After tools section (55 + 560 + 10 padding)
+	PanelPadding = 6,
+	-- ConfigStartY removed - config container now positioned dynamically below tools section
 }
 
 -- ============================================================================
@@ -131,4 +131,3 @@ Theme.Transparency = {
 }
 
 return Theme
-

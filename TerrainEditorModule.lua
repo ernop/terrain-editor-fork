@@ -4,7 +4,7 @@
 -- This module is loaded by the loader plugin for hot-reloading
 -- Refactored to use modular panel system
 
-local VERSION = "0.0.000097"
+local VERSION = "0.0.105"
 
 local TerrainEditorModule = {}
 
@@ -145,6 +145,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		voxelInspectOccupancy = 0,
 		voxelInspectMaterial = Enum.Material.Air,
 		voxelInspectHighlight = nil :: Part?,
+		occupancyOverlayParts = {} :: { Part },
+		occupancyOverlayEnabled = false,
+		occupancyOverlayRange = 30,
 		brushRate = "normal",
 		lastMouseWorldPos = nil :: Vector3?,
 		lastBrushTime = 0,
@@ -178,6 +181,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		bridgeIntensity = 1.0, -- How extreme the path variations are (0.1 to 3.0)
 		bridgeSegments = 0, -- Number of segments (0 = auto based on distance)
 		bridgeUseBrushShape = false, -- Use selected brush shape instead of spheres
+		bridgeAnchorEndpoints = true, -- Anchor start/end so intensity changes don't drift them
+		bridgeTerrainAware = false, -- Push path up to avoid terrain collisions
+		bridgePlaneConstraint = 0, -- 0-1: how much to constrain lateral drift to start-end plane
+		bridgeAxisRotation = 0, -- Rotation around the start-to-end axis (degrees)
 		bridgeCurves = {} :: { { type: string, amplitude: number, frequency: number, phase: number, offset: Vector3 } },
 		bridgeEditMode = false,
 		bridgeSelectedConnection = nil :: number?,
@@ -244,6 +251,17 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			end
 			if S.updateVoxelInspectDisplay then
 				S.updateVoxelInspectDisplay()
+			end
+		end
+
+		-- Clean up occupancy overlay when switching away
+		if S.currentTool == ToolId.OccupancyOverlay and toolId ~= ToolId.OccupancyOverlay then
+			S.occupancyOverlayEnabled = false
+			if S.clearOccupancyOverlay then
+				S.clearOccupancyOverlay()
+			end
+			if S.occupancyOverlayUI and S.occupancyOverlayUI.statusLabel then
+				S.occupancyOverlayUI.statusLabel.Text = "Overlay: OFF"
 			end
 		end
 
@@ -1054,6 +1072,143 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end
 
 	-- ============================================================================
+	-- Occupancy Overlay Functions
+	-- ============================================================================
+	local function clearOccupancyOverlay()
+		for _, part in ipairs(S.occupancyOverlayParts) do
+			part:Destroy()
+		end
+		S.occupancyOverlayParts = {}
+	end
+
+	local function getOccupancyColor(occupancy: number): Color3
+		-- Color gradient: green (low) -> yellow (mid) -> red (high)
+		if occupancy < 0.5 then
+			-- Green to Yellow
+			local t = occupancy * 2 -- 0 to 1
+			return Color3.new(t, 1, 0) -- Green (0,1,0) to Yellow (1,1,0)
+		else
+			-- Yellow to Red
+			local t = (occupancy - 0.5) * 2 -- 0 to 1
+			return Color3.new(1, 1 - t, 0) -- Yellow (1,1,0) to Red (1,0,0)
+		end
+	end
+
+	local function updateOccupancyOverlay()
+		if not S.occupancyOverlayEnabled then
+			return
+		end
+
+		-- Clear existing overlay
+		clearOccupancyOverlay()
+
+		-- Get camera position as center
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+
+		local center = camera.CFrame.Position
+		local range = S.occupancyOverlayRange or 30
+
+		-- Constants
+		local VOXEL_SIZE = 4
+
+		-- Calculate region bounds (aligned to voxel grid)
+		local halfRange = range * VOXEL_SIZE / 2
+		local minBound = Vector3.new(
+			math.floor((center.X - halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
+			math.floor((center.Y - halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
+			math.floor((center.Z - halfRange) / VOXEL_SIZE) * VOXEL_SIZE
+		)
+		local maxBound = Vector3.new(
+			math.ceil((center.X + halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
+			math.ceil((center.Y + halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
+			math.ceil((center.Z + halfRange) / VOXEL_SIZE) * VOXEL_SIZE
+		)
+
+		local region = Region3.new(minBound, maxBound)
+		local materials, occupancies = S.terrain:ReadVoxels(region, VOXEL_SIZE)
+
+		if not materials or not occupancies then
+			return
+		end
+
+		-- Create overlay parts for non-air voxels
+		local partCount = 0
+		local maxParts = 2000 -- Limit for performance
+		local sizeX = #materials
+		local sizeY = sizeX > 0 and #materials[1] or 0
+		local sizeZ = sizeY > 0 and #materials[1][1] or 0
+
+		for x = 1, sizeX do
+			for y = 1, sizeY do
+				for z = 1, sizeZ do
+					if partCount >= maxParts then
+						break
+					end
+
+					local occ = occupancies[x][y][z]
+					local mat = materials[x][y][z]
+
+					-- Only show voxels with partial occupancy (0 < occ < 1)
+					-- or fully solid ones near surface (has an adjacent air voxel)
+					if occ > 0 then
+						-- Check if this voxel is near surface
+						local isSurface = false
+
+						-- Check if any neighbor is air (approximate surface check)
+						if x == 1 or x == sizeX or y == 1 or y == sizeY or z == 1 or z == sizeZ then
+							isSurface = true
+						else
+							-- Check adjacent cells
+							if occupancies[x - 1][y][z] == 0
+								or occupancies[x + 1][y][z] == 0
+								or occupancies[x][y - 1][z] == 0
+								or occupancies[x][y + 1][z] == 0
+								or occupancies[x][y][z - 1] == 0
+								or occupancies[x][y][z + 1] == 0
+							then
+								isSurface = true
+							end
+						end
+
+						if isSurface then
+							local worldPos = minBound + Vector3.new((x - 0.5) * VOXEL_SIZE, (y - 0.5) * VOXEL_SIZE, (z - 0.5) * VOXEL_SIZE)
+
+							local part = Instance.new("Part")
+							part.Name = "OccupancyOverlay"
+							part.Archivable = false
+							part.Anchored = true
+							part.CanCollide = false
+							part.CastShadow = false
+							part.Size = Vector3.new(VOXEL_SIZE * 0.9, VOXEL_SIZE * 0.9, VOXEL_SIZE * 0.9)
+							part.Position = worldPos
+							part.Color = getOccupancyColor(occ)
+							part.Material = Enum.Material.Neon
+							part.Transparency = 0.4
+							part.Parent = workspace
+
+							table.insert(S.occupancyOverlayParts, part)
+							partCount = partCount + 1
+						end
+					end
+				end
+				if partCount >= maxParts then
+					break
+				end
+			end
+			if partCount >= maxParts then
+				break
+			end
+		end
+	end
+
+	-- Store functions in S for access from panels
+	S.clearOccupancyOverlay = clearOccupancyOverlay
+	S.updateOccupancyOverlay = updateOccupancyOverlay
+
+	-- ============================================================================
 	-- Terrain Operations
 	-- ============================================================================
 	local function intersectPlane(ray: any): Vector3?
@@ -1079,6 +1234,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		end
 		-- Filter bridge preview parts so they don't interfere with terrain hits
 		for _, part in ipairs(S.bridgePreviewParts) do
+			table.insert(filterInstances, part)
+		end
+		-- Filter occupancy overlay parts
+		for _, part in ipairs(S.occupancyOverlayParts) do
 			table.insert(filterInstances, part)
 		end
 		raycastParams.FilterDescendantsInstances = filterInstances
@@ -1120,6 +1279,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		end
 		-- Filter bridge preview parts so they don't interfere with terrain hits
 		for _, part in ipairs(S.bridgePreviewParts) do
+			table.insert(filterInstances, part)
+		end
+		-- Filter occupancy overlay parts
+		for _, part in ipairs(S.occupancyOverlayParts) do
 			table.insert(filterInstances, part)
 		end
 		raycastParams.FilterDescendantsInstances = filterInstances
@@ -1471,15 +1634,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	mainFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
 	mainFrame.Parent = parentGui
 
+	-- Version label (upper right, small text)
 	local versionLabel = Instance.new("TextLabel")
 	versionLabel.Name = "VersionLabel"
 	versionLabel.BackgroundTransparency = 1
-	versionLabel.Position = UDim2.new(1, -8, 0, 4)
-	versionLabel.Size = UDim2.new(0, 100, 0, 14)
+	versionLabel.Position = UDim2.new(1, -6, 0, 2)
+	versionLabel.Size = UDim2.new(0, 80, 0, 12)
 	versionLabel.AnchorPoint = Vector2.new(1, 0)
 	versionLabel.Font = Theme.Fonts.Default
-	versionLabel.TextSize = Theme.Sizes.TextSmall
-	versionLabel.TextColor3 = Theme.Colors.Text
+	versionLabel.TextSize = 11
+	versionLabel.TextColor3 = Theme.Colors.TextMuted
 	versionLabel.TextXAlignment = Enum.TextXAlignment.Right
 	versionLabel.TextScaled = false
 	versionLabel.Text = "v" .. VERSION
@@ -1488,335 +1652,278 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 18)
-	padding.PaddingTop = UDim.new(0, 8)
+	padding.PaddingRight = UDim.new(0, 10)
+	padding.PaddingTop = UDim.new(0, 18) -- Extra space for version label
 	padding.Parent = mainFrame
 
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1
-	title.Position = UDim2.new(0, 0, 0, 0)
-	title.Size = UDim2.new(1, 0, 0, 22)
-	title.Font = Theme.Fonts.Bold
-	title.TextSize = Theme.Sizes.TextLarge
-	title.TextColor3 = Theme.Colors.Text
-	title.TextScaled = false
-	title.Text = "TerrainParkour's TerrainCreator"
-	title.Parent = mainFrame
-
-	UIHelpers.createHeader(mainFrame, "Tools", UDim2.new(0, 0, 0, 35))
-
-	-- Tools section: buttons on left, documentation on right
+	-- Tools section: auto-sizes to fit content
 	local toolsSection = Instance.new("Frame")
 	toolsSection.Name = "ToolsSection"
 	toolsSection.BackgroundTransparency = 1
-	toolsSection.Position = UDim2.new(0, 0, 0, 55)
-	toolsSection.Size = UDim2.new(1, 0, 0, 560) -- 6 categories with 3-col layout
+	toolsSection.Position = UDim2.new(0, 0, 0, 0)
+	toolsSection.Size = UDim2.new(1, 0, 0, 0) -- Height set dynamically by relayoutToolButtons
+	toolsSection.AutomaticSize = Enum.AutomaticSize.Y
 	toolsSection.Parent = mainFrame
 
-	-- Tool buttons container (left side)
+	-- Tool buttons container (adapts based on docs panel state)
 	local toolButtonsContainer = Instance.new("Frame")
 	toolButtonsContainer.Name = "ToolButtonsContainer"
 	toolButtonsContainer.BackgroundTransparency = 1
 	toolButtonsContainer.Position = UDim2.new(0, 0, 0, 0)
-	toolButtonsContainer.Size = UDim2.new(0, 230, 1, 0) -- 3 columns × 74px + padding
+	-- Size will be set by updateDocsLayout() based on docs panel expanded/collapsed state
 	toolButtonsContainer.Parent = toolsSection
 
-	-- Tool documentation container (right side, toggleable)
+	-- Tool documentation panel (minimizable, not killable)
+	local docsPanel = Instance.new("Frame")
+	docsPanel.Name = "DocsPanel"
+	docsPanel.BackgroundColor3 = Theme.Colors.Panel
+	docsPanel.BorderSizePixel = 0
+	-- Position will be set by updateDocsLayout()
+	docsPanel.Parent = toolsSection
+
+	local docsPanelCorner = Instance.new("UICorner")
+	docsPanelCorner.CornerRadius = UDim.new(0, 6)
+	docsPanelCorner.Parent = docsPanel
+
+	-- Docs panel header (always visible, contains minimize toggle)
+	local docsHeader = Instance.new("Frame")
+	docsHeader.Name = "DocsHeader"
+	docsHeader.BackgroundTransparency = 1
+	docsHeader.Size = UDim2.new(1, 0, 0, 28)
+	docsHeader.Parent = docsPanel
+
+	local docsHeaderLabel = Instance.new("TextLabel")
+	docsHeaderLabel.Name = "HeaderLabel"
+	docsHeaderLabel.BackgroundTransparency = 1
+	docsHeaderLabel.Position = UDim2.new(0, 8, 0, 0)
+	docsHeaderLabel.Size = UDim2.new(1, -36, 1, 0)
+	docsHeaderLabel.Font = Theme.Fonts.Bold
+	docsHeaderLabel.TextSize = 12
+	docsHeaderLabel.TextColor3 = Theme.Colors.Text
+	docsHeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
+	docsHeaderLabel.TextScaled = false
+	docsHeaderLabel.Text = "📖 Tool Docs"
+	docsHeaderLabel.Parent = docsHeader
+
+	-- Minimize/expand toggle button
+	local docsToggleBtn = Instance.new("TextButton")
+	docsToggleBtn.Name = "MinimizeToggle"
+	docsToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 75)
+	docsToggleBtn.BorderSizePixel = 0
+	docsToggleBtn.Position = UDim2.new(1, -28, 0, 4)
+	docsToggleBtn.Size = UDim2.new(0, 22, 0, 20)
+	docsToggleBtn.Font = Enum.Font.GothamBold
+	docsToggleBtn.TextSize = 12
+	docsToggleBtn.TextColor3 = Theme.Colors.Text
+	docsToggleBtn.TextScaled = false
+	docsToggleBtn.Text = S.showDocsPanel and "▼" or "▶"
+	docsToggleBtn.ZIndex = 10
+	docsToggleBtn.Parent = docsHeader
+
+	local toggleCornerHeader = Instance.new("UICorner")
+	toggleCornerHeader.CornerRadius = UDim.new(0, 4)
+	toggleCornerHeader.Parent = docsToggleBtn
+
+	-- Scrollable content area (hidden when minimized)
 	local toolDocsContainer = Instance.new("ScrollingFrame")
 	toolDocsContainer.Name = "ToolDocsContainer"
-	toolDocsContainer.BackgroundColor3 = Theme.Colors.Panel
+	toolDocsContainer.BackgroundTransparency = 1
 	toolDocsContainer.BorderSizePixel = 0
-	toolDocsContainer.Position = UDim2.new(0, 232, 0, 0) -- Right after buttons
-	toolDocsContainer.Size = UDim2.new(1, -242, 1, 0)
+	toolDocsContainer.Position = UDim2.new(0, 0, 0, 28) -- Below header
+	toolDocsContainer.Size = UDim2.new(1, 0, 1, -28)
 	toolDocsContainer.ScrollBarThickness = 4
 	toolDocsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
 	toolDocsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	toolDocsContainer.Visible = S.showDocsPanel
-	toolDocsContainer.Parent = toolsSection
-
-	local docsCorner = Instance.new("UICorner")
-	docsCorner.CornerRadius = UDim.new(0, 6)
-	docsCorner.Parent = toolDocsContainer
+	toolDocsContainer.Parent = docsPanel
 
 	local docsPadding = Instance.new("UIPadding")
 	docsPadding.PaddingLeft = UDim.new(0, 10)
 	docsPadding.PaddingRight = UDim.new(0, 10)
-	docsPadding.PaddingTop = UDim.new(0, 8)
+	docsPadding.PaddingTop = UDim.new(0, 4)
 	docsPadding.PaddingBottom = UDim.new(0, 8)
 	docsPadding.Parent = toolDocsContainer
 
-	-- Close button for docs panel (top-right)
-	local docsCloseBtn = Instance.new("TextButton")
-	docsCloseBtn.Name = "CloseButton"
-	docsCloseBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-	docsCloseBtn.BorderSizePixel = 0
-	docsCloseBtn.Position = UDim2.new(1, -24, 0, 4)
-	docsCloseBtn.Size = UDim2.new(0, 20, 0, 20)
-	docsCloseBtn.Font = Enum.Font.GothamBold
-	docsCloseBtn.TextSize = 14
-	docsCloseBtn.TextColor3 = Theme.Colors.Text
-	docsCloseBtn.TextScaled = false
-	docsCloseBtn.Text = "×"
-	docsCloseBtn.ZIndex = 10
-	docsCloseBtn.Parent = toolDocsContainer
+	-- No placeholder - docs panel is just empty when no tool selected
 
-	local closeCorner = Instance.new("UICorner")
-	closeCorner.CornerRadius = UDim.new(0, 4)
-	closeCorner.Parent = docsCloseBtn
+	-- Forward declaration for relayout function (defined later)
+	local relayoutToolButtons: () -> ()
 
-	-- Placeholder message when no tool selected
-	local docsPlaceholder = Instance.new("TextLabel")
-	docsPlaceholder.Name = "Placeholder"
-	docsPlaceholder.BackgroundTransparency = 1
-	docsPlaceholder.Size = UDim2.new(1, 0, 1, 0)
-	docsPlaceholder.Font = Theme.Fonts.Default
-	docsPlaceholder.TextSize = Theme.Sizes.TextNormal
-	docsPlaceholder.TextColor3 = Theme.Colors.Text
-	docsPlaceholder.TextWrapped = true
-	docsPlaceholder.TextScaled = false
-	docsPlaceholder.Text = "← Select a tool to see documentation"
-	docsPlaceholder.Parent = toolDocsContainer
+	-- Function to update layout based on docs panel expanded/collapsed state
+	local function updateDocsLayout()
+		-- Get current height from toolButtonsContainer (set by relayoutToolButtons)
+		local currentHeight = toolButtonsContainer.Size.Y.Offset
+		if currentHeight <= 0 then
+			currentHeight = 200 -- Fallback
+		end
+
+		if S.showDocsPanel then
+			-- Expanded: side-by-side layout - only set width, preserve height
+			toolButtonsContainer.Size = UDim2.new(0, 230, 0, currentHeight)
+			docsPanel.Position = UDim2.new(0, 232, 0, 0)
+			docsPanel.Size = UDim2.new(1, -242, 0, currentHeight)
+			toolDocsContainer.Visible = true
+			docsToggleBtn.Text = "▼"
+		else
+			-- Minimized: tool buttons fill space, docs panel collapses to header bar
+			toolButtonsContainer.Size = UDim2.new(1, -36, 0, currentHeight)
+			docsPanel.Position = UDim2.new(1, -32, 0, 0)
+			docsPanel.Size = UDim2.new(0, 28, 0, 28)
+			toolDocsContainer.Visible = false
+			docsToggleBtn.Text = "▶"
+		end
+
+		-- Trigger relayout to recalculate with new width
+		if relayoutToolButtons then
+			task.defer(relayoutToolButtons)
+		end
+	end
+
+	-- Initial layout
+	updateDocsLayout()
 
 	-- Function to toggle docs panel visibility
 	setDocsPanelVisible = function(visible: boolean)
 		S.showDocsPanel = visible
-		toolDocsContainer.Visible = visible
+		updateDocsLayout()
 		if updateDocsToggleButton then
 			updateDocsToggleButton()
 		end
 	end
 
-	docsCloseBtn.MouseButton1Click:Connect(function()
+	docsToggleBtn.MouseButton1Click:Connect(function()
 		if setDocsPanelVisible then
-			setDocsPanelVisible(false)
+			setDocsPanelVisible(not S.showDocsPanel)
 		end
 	end)
 
-	-- Tool categories with visual sections
-	-- Each category: { label, emoji, color, tools[] }
-	type ToolButtonInfo = { id: string, name: string }
-	type ToolCategory = {
-		label: string,
-		emoji: string,
-		color: Color3,
-		tools: { ToolButtonInfo },
-		-- Optional: category-specific base button color
-		btnColor: Color3?,
-		-- Optional: foldout behavior
-		foldout: boolean?,
-		defaultOpen: boolean?,
+	-- Also make header clickable to expand when minimized
+	docsHeader.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 and not S.showDocsPanel then
+			if setDocsPanelVisible then
+				setDocsPanelVisible(true)
+			end
+		end
+	end)
+
+	-- ============================================================================
+	-- Tool Buttons: Continuous Flow Grid with Category Colors
+	-- ============================================================================
+	-- Category colors - muted background tints that visually group tools
+	local categoryColors = {
+		Shape = Color3.fromRGB(45, 60, 85), -- Blue tint
+		Surface = Color3.fromRGB(45, 70, 60), -- Green tint
+		Material = Color3.fromRGB(70, 55, 40), -- Orange/brown tint
+		Generate = Color3.fromRGB(60, 45, 75), -- Purple tint
+		Utility = Color3.fromRGB(55, 55, 55), -- Neutral gray
+		Analysis = Color3.fromRGB(40, 55, 70), -- Steel blue tint
+		More = Color3.fromRGB(50, 50, 50), -- Darker gray for extras
 	}
 
-	local toolCategories: { ToolCategory } = {
-		-- Default-collapsed "More tools" foldout (no sub-sections inside)
-		{
-			label = "More tools",
-			emoji = "➕",
-			color = Color3.fromRGB(200, 200, 200),
-			foldout = true,
-			defaultOpen = false,
-			tools = {
-				{ id = ToolId.Blobify, name = "Blobify" },
-				{ id = ToolId.Terrace, name = "Terrace" },
-				{ id = ToolId.Cliff, name = "Cliff" },
-				{ id = ToolId.Stalactite, name = "Stalactite" },
-				{ id = ToolId.VariationGrid, name = "Grid" },
-			},
-		},
-		{
-			label = "SHAPE",
-			emoji = "🔷",
-			color = Color3.fromRGB(100, 180, 255),
-			tools = {
-				{ id = ToolId.Add, name = "Add" },
-				{ id = ToolId.Subtract, name = "Subtract" },
-				{ id = ToolId.Grow, name = "Grow" },
-				{ id = ToolId.Erode, name = "Erode" },
-				{ id = ToolId.Smooth, name = "Smooth" },
-				{ id = ToolId.Flatten, name = "Flatten" },
-			},
-		},
-		{
-			label = "SURFACE",
-			emoji = "🌊",
-			color = Color3.fromRGB(120, 200, 160),
-			tools = {
-				{ id = ToolId.Noise, name = "Noise" },
-				{ id = ToolId.Path, name = "Path" },
-			},
-		},
-		{
-			label = "MATERIAL",
-			emoji = "🎨",
-			color = Color3.fromRGB(255, 180, 100),
-			tools = {
-				{ id = ToolId.Paint, name = "Paint" },
-				{ id = ToolId.SlopePaint, name = "Slope" },
-				{ id = ToolId.Megarandomize, name = "Random" },
-				{ id = ToolId.GradientPaint, name = "Gradient" },
-				{ id = ToolId.CavityFill, name = "Cavity" },
-				{ id = ToolId.FloodPaint, name = "Flood" },
-			},
-		},
-		{
-			label = "GENERATE",
-			emoji = "✨",
-			color = Color3.fromRGB(200, 150, 255),
-			tools = {
-				{ id = ToolId.Tendril, name = "Tendril" },
-				{ id = ToolId.GrowthSim, name = "Growth" },
-			},
-		},
-		{
-			label = "UTILITY",
-			emoji = "🔧",
-			color = Color3.fromRGB(180, 180, 180),
-			tools = {
-				{ id = ToolId.Clone, name = "Clone" },
-				{ id = ToolId.Melt, name = "Melt" },
-				{ id = ToolId.Symmetry, name = "Symmetry" },
-				{ id = ToolId.Bridge, name = "Bridge" },
-			},
-		},
-		{
-			label = "ANALYSIS",
-			emoji = "🔍",
-			color = Color3.fromRGB(150, 200, 255),
-			btnColor = Color3.fromRGB(40, 60, 80),
-			tools = {
-				{ id = ToolId.VoxelInspect, name = "Inspect" },
-				{ id = ToolId.ComponentAnalyzer, name = "Islands" },
-				{ id = ToolId.OccupancyOverlay, name = "Overlay" },
-			},
-		},
+	-- All tools in display order with their category
+	local allTools = {
+		-- Shape tools (core sculpting)
+		{ id = ToolId.Add, name = "Add", category = "Shape" },
+		{ id = ToolId.Subtract, name = "Subtract", category = "Shape" },
+		{ id = ToolId.Grow, name = "Grow", category = "Shape" },
+		{ id = ToolId.Erode, name = "Erode", category = "Shape" },
+		{ id = ToolId.Smooth, name = "Smooth", category = "Shape" },
+		{ id = ToolId.Flatten, name = "Flatten", category = "Shape" },
+		-- Surface tools
+		{ id = ToolId.Noise, name = "Noise", category = "Surface" },
+		{ id = ToolId.Path, name = "Path", category = "Surface" },
+		-- Material tools
+		{ id = ToolId.Paint, name = "Paint", category = "Material" },
+		{ id = ToolId.SlopePaint, name = "Slope", category = "Material" },
+		{ id = ToolId.Megarandomize, name = "Random", category = "Material" },
+		{ id = ToolId.GradientPaint, name = "Gradient", category = "Material" },
+		{ id = ToolId.CavityFill, name = "Cavity", category = "Material" },
+		{ id = ToolId.FloodPaint, name = "Flood", category = "Material" },
+		-- Generate tools
+		{ id = ToolId.Tendril, name = "Tendril", category = "Generate" },
+		{ id = ToolId.GrowthSim, name = "Growth", category = "Generate" },
+		-- Utility tools
+		{ id = ToolId.Clone, name = "Clone", category = "Utility" },
+		{ id = ToolId.Melt, name = "Melt", category = "Utility" },
+		{ id = ToolId.Symmetry, name = "Symmetry", category = "Utility" },
+		{ id = ToolId.Bridge, name = "Bridge", category = "Utility" },
+		-- Analysis tools
+		{ id = ToolId.VoxelInspect, name = "Inspect", category = "Analysis" },
+		{ id = ToolId.ComponentAnalyzer, name = "Islands", category = "Analysis" },
+		{ id = ToolId.OccupancyOverlay, name = "Overlay", category = "Analysis" },
+		-- More tools (less common)
+		{ id = ToolId.Blobify, name = "Blobify", category = "More" },
+		{ id = ToolId.Terrace, name = "Terrace", category = "More" },
+		{ id = ToolId.Cliff, name = "Cliff", category = "More" },
+		{ id = ToolId.Stalactite, name = "Stalactite", category = "More" },
+		{ id = ToolId.VariationGrid, name = "Grid", category = "More" },
 	}
 
 	-- Layout constants
-	local BUTTON_HEIGHT = 32
-	local BUTTON_SPACING = 4
-	local HEADER_HEIGHT = 20
-	local SECTION_GAP = 6
-	local MIN_TOOL_BUTTON_WIDTH = 92 -- responsive "flow right" minimum
+	local BUTTON_HEIGHT = 28
+	local BUTTON_SPACING = 3
+	local MIN_TOOL_BUTTON_WIDTH = 72
 
-	-- Build all headers/buttons, then lay them out so the "More tools" foldout can expand/collapse cleanly.
-	local layoutSections = {}
-	local foldoutOpen: { [string]: boolean } = {}
-
-	for _, category in ipairs(toolCategories) do
-		local headerInstance: GuiObject
-		if category.foldout then
-			foldoutOpen[category.label] = (category.defaultOpen == true)
-
-			local headerBtn = Instance.new("TextButton")
-			headerBtn.Name = "Foldout_" .. category.label:gsub("%s+", "")
-			headerBtn.BackgroundTransparency = 1
-			headerBtn.AutoButtonColor = false
-			headerBtn.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
-			headerBtn.Font = Enum.Font.GothamBold
-			headerBtn.TextSize = Theme.Sizes.TextNormal
-			headerBtn.TextColor3 = Theme.Colors.Text
-			headerBtn.TextXAlignment = Enum.TextXAlignment.Left
-			headerBtn.TextScaled = false
-			headerBtn.Text = (foldoutOpen[category.label] and "▼ " or "▶ ") .. category.emoji .. " " .. category.label
-			headerBtn.Parent = toolButtonsContainer
-			headerInstance = headerBtn
-		else
-			local header = Instance.new("TextLabel")
-			header.Name = category.label .. "Header"
-			header.BackgroundTransparency = 1
-			header.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
-			header.Font = Enum.Font.GothamBold
-			header.TextSize = Theme.Sizes.TextNormal
-			header.TextColor3 = category.color
-			header.TextXAlignment = Enum.TextXAlignment.Left
-			header.TextScaled = false
-			header.Text = category.emoji .. " " .. category.label
-			header.Parent = toolButtonsContainer
-			headerInstance = header
-		end
-
-		local buttons = {}
-		for i, toolInfo in ipairs(category.tools) do
-			local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, UDim2.new(0, 0, 0, 0))
-			btn.Visible = true
-			if category.btnColor then
-				btn.BackgroundColor3 = category.btnColor
-				btn:SetAttribute("UnselectedColor", category.btnColor)
-			end
-			toolButtons[toolInfo.id] = btn
-			btn.MouseButton1Click:Connect(function()
-				selectTool(toolInfo.id)
-			end)
-			buttons[i] = btn
-		end
-
-		table.insert(layoutSections, {
-			category = category,
-			header = headerInstance,
-			buttons = buttons,
-		})
+	-- Create all tool buttons
+	local allButtonInstances = {}
+	for _, toolInfo in ipairs(allTools) do
+		local categoryColor = categoryColors[toolInfo.category] or categoryColors.Utility
+		local btn = UIHelpers.createToolButton(toolButtonsContainer, toolInfo.id, toolInfo.name, UDim2.new(0, 0, 0, 0))
+		btn.BackgroundColor3 = categoryColor
+		btn:SetAttribute("UnselectedColor", categoryColor)
+		btn:SetAttribute("Category", toolInfo.category)
+		toolButtons[toolInfo.id] = btn
+		btn.MouseButton1Click:Connect(function()
+			selectTool(toolInfo.id)
+		end)
+		table.insert(allButtonInstances, btn)
 	end
 
-	local function relayoutToolButtons()
-		local currentY = 0
+	-- Forward declaration for config container repositioning
+	local updateConfigPosition: () -> ()
+
+	-- Assign to forward-declared variable from updateDocsLayout
+	relayoutToolButtons = function()
 		local availableWidth = toolButtonsContainer.AbsoluteSize.X
+		if availableWidth <= 0 then
+			availableWidth = 300 -- Fallback for initial layout
+		end
+
+		-- Calculate columns and button width to fill available space
 		local cols = math.max(1, math.floor((availableWidth + BUTTON_SPACING) / (MIN_TOOL_BUTTON_WIDTH + BUTTON_SPACING)))
-		cols = math.clamp(cols, 2, 5)
 		local buttonWidth = math.floor((availableWidth - (cols - 1) * BUTTON_SPACING) / cols)
-		if buttonWidth < MIN_TOOL_BUTTON_WIDTH then
-			buttonWidth = MIN_TOOL_BUTTON_WIDTH
-			cols = math.max(1, math.floor((availableWidth + BUTTON_SPACING) / (buttonWidth + BUTTON_SPACING)))
-			cols = math.max(cols, 1)
+
+		-- Position all buttons in a continuous flow
+		for i, btn in ipairs(allButtonInstances) do
+			local col = (i - 1) % cols
+			local row = math.floor((i - 1) / cols)
+			btn.Size = UDim2.new(0, buttonWidth, 0, BUTTON_HEIGHT)
+			btn.Position = UDim2.new(0, col * (buttonWidth + BUTTON_SPACING), 0, row * (BUTTON_HEIGHT + BUTTON_SPACING))
 		end
 
-		for _, section in ipairs(layoutSections) do
-			local category = section.category
+		-- Calculate total height needed
+		local rowsUsed = math.ceil(#allButtonInstances / cols)
+		local totalHeight = rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) - BUTTON_SPACING
 
-			section.header.Position = UDim2.new(0, 0, 0, currentY)
-			currentY = currentY + HEADER_HEIGHT + 2
+		-- Update container sizes
+		toolButtonsContainer.Size = UDim2.new(toolButtonsContainer.Size.X.Scale, toolButtonsContainer.Size.X.Offset, 0, totalHeight)
+		toolsSection.Size = UDim2.new(1, 0, 0, totalHeight + 10) -- Small padding at bottom
 
-			local isFoldout = category.foldout == true
-			local isOpen = (not isFoldout) or (foldoutOpen[category.label] == true)
+		-- Also update docs panel height if expanded
+		if S.showDocsPanel then
+			docsPanel.Size = UDim2.new(docsPanel.Size.X.Scale, docsPanel.Size.X.Offset, 0, totalHeight)
+		end
 
-			if isFoldout and not isOpen then
-				-- Hide foldout contents when closed
-				for _, btn in ipairs(section.buttons) do
-					btn.Visible = false
-				end
-				currentY = currentY + SECTION_GAP
-			else
-				-- Tool buttons for this category / foldout
-				for i, btn in ipairs(section.buttons) do
-					btn.Visible = true
-					local col = (i - 1) % cols
-					local row = math.floor((i - 1) / cols)
-					btn.Size = UDim2.new(0, buttonWidth, 0, BUTTON_HEIGHT)
-					btn.Position = UDim2.new(0, col * (buttonWidth + BUTTON_SPACING), 0, currentY + row * (BUTTON_HEIGHT + BUTTON_SPACING))
-				end
-
-				local rowsUsed = math.ceil(#section.buttons / cols)
-				currentY = currentY + rowsUsed * (BUTTON_HEIGHT + BUTTON_SPACING) + SECTION_GAP
-			end
+		-- Reposition config container below tools section
+		if updateConfigPosition then
+			updateConfigPosition()
 		end
 	end
 
-	-- Wire up foldout toggle(s)
-	for _, section in ipairs(layoutSections) do
-		if section.category.foldout then
-			local headerBtn = section.header :: TextButton
-			headerBtn.MouseButton1Click:Connect(function()
-				local label = section.category.label
-				foldoutOpen[label] = not foldoutOpen[label]
-				headerBtn.Text = (foldoutOpen[label] and "▼ " or "▶ ") .. section.category.emoji .. " " .. label
-				relayoutToolButtons()
-			end)
-		end
-	end
-
-	-- Initial layout (foldout closed by default)
+	-- Initial layout
 	relayoutToolButtons()
 
-	-- Keep tool grids responsive (e.g. when docs/help panel is dismissed and layout widens)
+	-- Keep tool grids responsive
 	toolButtonsContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		task.defer(relayoutToolButtons)
 	end)
@@ -1839,18 +1946,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	updateToolDocs = function()
 		if S.currentTool == ToolId.None then
 			toolDocsResult.setVisible(false)
-			docsPlaceholder.Visible = true
 		else
-			docsPlaceholder.Visible = false
 			toolDocsResult.update(S.currentTool)
 		end
 	end
 
-	-- Config container
+	-- Config container - positioned dynamically below tools section
 	local configContainer = Instance.new("Frame")
 	configContainer.Name = "ConfigContainer"
 	configContainer.BackgroundTransparency = 1
-	configContainer.Position = UDim2.new(0, 0, 0, Theme.Sizes.ConfigStartY)
+	configContainer.Position = UDim2.new(0, 0, 0, 0) -- Set by updateConfigPosition
 	configContainer.Size = UDim2.new(1, 0, 0, 800)
 	configContainer.Parent = mainFrame
 
@@ -1858,6 +1963,16 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	configLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	configLayout.Padding = UDim.new(0, Theme.Sizes.PanelPadding)
 	configLayout.Parent = configContainer
+
+	-- Function to reposition config container below tools section
+	updateConfigPosition = function()
+		local toolsSectionHeight = toolsSection.AbsoluteSize.Y
+		if toolsSectionHeight <= 0 then
+			toolsSectionHeight = 200 -- Fallback
+		end
+		configContainer.Position = UDim2.new(0, 0, 0, toolsSectionHeight + 10)
+	end
+	updateConfigPosition()
 
 	-- Create all panels using ConfigPanels module
 	local configResult = ConfigPanels.create({
@@ -1900,39 +2015,44 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	pluginInstance:Activate(true)
 
 	-- ============================================================================
-	-- Footer Panel (Reset + Docs Toggle) - inside configContainer for proper flow
+	-- Footer Panel (Reset + Docs Toggle) - horizontal flow
 	-- ============================================================================
 	local footerPanel = Instance.new("Frame")
 	footerPanel.Name = "FooterPanel"
 	footerPanel.BackgroundTransparency = 1
-	footerPanel.Size = UDim2.new(1, 0, 0, 70)
+	footerPanel.Size = UDim2.new(1, 0, 0, 32)
 	footerPanel.LayoutOrder = 999 -- Always at the bottom
 	footerPanel.Parent = configContainer
 
-	-- Reset button - stands out with accent color
+	local footerLayout = Instance.new("UIListLayout")
+	footerLayout.FillDirection = Enum.FillDirection.Horizontal
+	footerLayout.Padding = UDim.new(0, 6)
+	footerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	footerLayout.Parent = footerPanel
+
+	-- Reset button
 	local resetBtn = Instance.new("TextButton")
 	resetBtn.Name = "ResetButton"
-	resetBtn.BackgroundColor3 = Color3.fromRGB(180, 70, 70) -- Red-ish to stand out
+	resetBtn.BackgroundColor3 = Color3.fromRGB(140, 55, 55)
 	resetBtn.BorderSizePixel = 0
-	resetBtn.Position = UDim2.new(0, 0, 0, 0)
-	resetBtn.Size = UDim2.new(0, 100, 0, 28)
-	resetBtn.Font = Enum.Font.GothamBold
-	resetBtn.TextSize = Theme.Sizes.TextNormal
+	resetBtn.Size = UDim2.new(0, 70, 0, 26)
+	resetBtn.Font = Enum.Font.GothamMedium
+	resetBtn.TextSize = 12
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	resetBtn.TextScaled = false
-	resetBtn.Text = "⟲ Reset"
+	resetBtn.Text = "Reset"
+	resetBtn.LayoutOrder = 1
 	resetBtn.Parent = footerPanel
 
 	local resetCorner = Instance.new("UICorner")
-	resetCorner.CornerRadius = UDim.new(0, 5)
+	resetCorner.CornerRadius = UDim.new(0, 3)
 	resetCorner.Parent = resetBtn
 
-	-- Subtle glow effect on hover
 	resetBtn.MouseEnter:Connect(function()
-		resetBtn.BackgroundColor3 = Color3.fromRGB(200, 90, 90)
+		resetBtn.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
 	end)
 	resetBtn.MouseLeave:Connect(function()
-		resetBtn.BackgroundColor3 = Color3.fromRGB(180, 70, 70)
+		resetBtn.BackgroundColor3 = Color3.fromRGB(140, 55, 55)
 	end)
 
 	-- Reset function - restores all settings to defaults
@@ -2101,31 +2221,30 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 	resetBtn.MouseButton1Click:Connect(resetAllSettings)
 
-	-- Docs toggle button
-	local docsToggleBtn = Instance.new("TextButton")
-	docsToggleBtn.Name = "DocsToggle"
-	docsToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-	docsToggleBtn.BorderSizePixel = 0
-	docsToggleBtn.Position = UDim2.new(0, 0, 0, 36) -- Below reset button
-	docsToggleBtn.Size = UDim2.new(0, 160, 0, 26)
-	docsToggleBtn.Font = Enum.Font.GothamMedium
-	docsToggleBtn.TextSize = Theme.Sizes.TextNormal
-	docsToggleBtn.TextColor3 = Theme.Colors.Text
-	docsToggleBtn.TextScaled = false
-	docsToggleBtn.Text = S.showDocsPanel and "📖 Hide Tool Docs" or "📖 Show Tool Docs"
-	docsToggleBtn.Parent = footerPanel
+	-- Docs toggle button (footer shortcut)
+	local docsFooterToggle = Instance.new("TextButton")
+	docsFooterToggle.Name = "DocsToggle"
+	docsFooterToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+	docsFooterToggle.BorderSizePixel = 0
+	docsFooterToggle.Size = UDim2.new(0, 70, 0, 26)
+	docsFooterToggle.Font = Enum.Font.GothamMedium
+	docsFooterToggle.TextSize = 12
+	docsFooterToggle.TextColor3 = Theme.Colors.Text
+	docsFooterToggle.TextScaled = false
+	docsFooterToggle.Text = S.showDocsPanel and "Docs" or "Docs"
+	docsFooterToggle.LayoutOrder = 2
+	docsFooterToggle.Parent = footerPanel
 
-	local toggleCorner = Instance.new("UICorner")
-	toggleCorner.CornerRadius = UDim.new(0, 4)
-	toggleCorner.Parent = docsToggleBtn
+	local toggleCornerFooter = Instance.new("UICorner")
+	toggleCornerFooter.CornerRadius = UDim.new(0, 3)
+	toggleCornerFooter.Parent = docsFooterToggle
 
 	-- Assign to forward-declared variable
 	updateDocsToggleButton = function()
-		docsToggleBtn.Text = S.showDocsPanel and "📖 Hide Tool Docs" or "📖 Show Tool Docs"
-		docsToggleBtn.BackgroundColor3 = S.showDocsPanel and Color3.fromRGB(60, 80, 60) or Color3.fromRGB(50, 50, 55)
+		docsFooterToggle.BackgroundColor3 = S.showDocsPanel and Color3.fromRGB(55, 75, 55) or Color3.fromRGB(50, 50, 55)
 	end
 
-	docsToggleBtn.MouseButton1Click:Connect(function()
+	docsFooterToggle.MouseButton1Click:Connect(function()
 		if setDocsPanelVisible then
 			setDocsPanelVisible(not S.showDocsPanel)
 		end
@@ -2524,6 +2643,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			S.voxelInspectHighlight:Destroy()
 			S.voxelInspectHighlight = nil
 		end
+		-- Cleanup occupancy overlay
+		for _, part in ipairs(S.occupancyOverlayParts) do
+			part:Destroy()
+		end
+		S.occupancyOverlayParts = {}
 		pluginInstance:Deactivate()
 	end
 end

@@ -41,9 +41,9 @@ local widgetInfo = DockWidgetPluginGuiInfo.new(
     Enum.InitialDockState.Float,
     false,  -- enabled (default: do NOT pop open on Studio launch)
     false,  -- do not override previous state (allow Studio restore)
-    520,    -- default width
+    260,    -- default width
     500,    -- default height
-    500,    -- min width
+    260,    -- min width
     300     -- min height
 )
 local pluginGui = plugin:CreateDockWidgetPluginGui(WIDGET_ID, widgetInfo)
