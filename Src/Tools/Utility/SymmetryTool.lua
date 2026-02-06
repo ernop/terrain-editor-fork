@@ -33,7 +33,7 @@ SymmetryTool.traits = {
 	hasLargeBrushPath = false,
 	requiresGlobalState = false,
 	usesBrush = true,
-	usesStrength = false,
+	usesStrength = true,
 	needsMaterial = true,  -- Need material selection for adding terrain
 }
 

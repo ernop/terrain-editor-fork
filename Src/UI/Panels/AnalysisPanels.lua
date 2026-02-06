@@ -96,7 +96,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 	-- Occupancy bar visualization
 	local occBarContainer = Instance.new("Frame")
 	occBarContainer.Name = "OccupancyBarContainer"
-	occBarContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	occBarContainer.BackgroundColor3 = Theme.Colors.ResultsBackground
 	occBarContainer.BorderSizePixel = 0
 	occBarContainer.Size = UDim2.new(1, -20, 0, 16)
 	occBarContainer.LayoutOrder = 8
@@ -104,7 +104,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 
 	local occBar = Instance.new("Frame")
 	occBar.Name = "OccupancyBar"
-	occBar.BackgroundColor3 = Color3.fromRGB(80, 180, 255)
+	occBar.BackgroundColor3 = Theme.Colors.Accent
 	occBar.BorderSizePixel = 0
 	occBar.Size = UDim2.new(0, 0, 1, 0)
 	occBar.Parent = occBarContainer
@@ -132,7 +132,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 	editHeader.Size = UDim2.new(1, 0, 0, 20)
 	editHeader.Font = Enum.Font.GothamBold
 	editHeader.TextSize = Theme.Sizes.TextNormal
-	editHeader.TextColor3 = Color3.fromRGB(100, 200, 255)
+	editHeader.TextColor3 = Theme.Colors.EditModeHeader
 	editHeader.TextXAlignment = Enum.TextXAlignment.Left
 	editHeader.TextScaled = false
 	editHeader.Text = "--- EDIT MODE ---"
@@ -232,7 +232,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 
 		if S.voxelInspectLocked then
 			ui.statusLabel.Text = "LOCKED - Click terrain to unlock"
-			ui.statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+			ui.statusLabel.TextColor3 = Theme.Colors.InspectLocked
 			ui.editSection.Visible = true
 		else
 			ui.statusLabel.Text = "Move over terrain..."
@@ -257,7 +257,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 		local mat = S.voxelInspectMaterial
 		if mat and mat ~= Enum.Material.Air then
 			ui.matLabel.Text = "Material: " .. mat.Name
-			ui.matLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+			ui.matLabel.TextColor3 = Theme.Colors.MaterialPresent
 		else
 			ui.matLabel.Text = "Material: Air"
 			ui.matLabel.TextColor3 = Theme.Colors.TextDim
@@ -269,11 +269,11 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 
 		-- Color the bar based on occupancy
 		if occ > 0.8 then
-			ui.occBar.BackgroundColor3 = Color3.fromRGB(80, 255, 120) -- Green for solid
+			ui.occBar.BackgroundColor3 = Theme.Colors.OccupancySolid
 		elseif occ > 0.3 then
-			ui.occBar.BackgroundColor3 = Color3.fromRGB(255, 220, 80) -- Yellow for partial
+			ui.occBar.BackgroundColor3 = Theme.Colors.OccupancyPartial
 		else
-			ui.occBar.BackgroundColor3 = Color3.fromRGB(255, 100, 100) -- Red for sparse
+			ui.occBar.BackgroundColor3 = Theme.Colors.OccupancySparse
 		end
 	end
 
@@ -364,7 +364,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 	-- Results container (will be populated after scan)
 	local compResultsContainer = Instance.new("ScrollingFrame")
 	compResultsContainer.Name = "ResultsContainer"
-	compResultsContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	compResultsContainer.BackgroundColor3 = Theme.Colors.ResultsBackground
 	compResultsContainer.BorderSizePixel = 0
 	compResultsContainer.Size = UDim2.new(1, 0, 0, 120)
 	compResultsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -473,7 +473,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 
 			local resultItem = Instance.new("TextButton")
 			resultItem.Name = "Island" .. i
-			resultItem.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+			resultItem.BackgroundColor3 = Theme.Colors.ResultItem
 			resultItem.BorderSizePixel = 0
 			resultItem.Size = UDim2.new(1, 0, 0, 28)
 			resultItem.Font = Theme.Fonts.Medium
@@ -483,7 +483,7 @@ function AnalysisPanels.create(deps: AnalysisPanelsDeps): AnalysisPanelsResult
 			resultItem.TextScaled = false
 			resultItem.Text = string.format("  #%d: %s (%s)", i, sizeLabel, island.material)
 			resultItem.LayoutOrder = i
-			resultItem:SetAttribute("UnselectedColor", Color3.fromRGB(50, 50, 55))
+			resultItem:SetAttribute("UnselectedColor", Theme.Colors.ResultItem)
 			resultItem:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
 			resultItem:SetAttribute("IsSelected", false)
 			UIHelpers.installStrongHover(resultItem)

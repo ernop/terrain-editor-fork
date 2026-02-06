@@ -153,7 +153,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 	local function createQuickTips(tips: { string }, order: number): Frame
 		local tipsFrame = Instance.new("Frame")
 		tipsFrame.Name = "QuickTips"
-		tipsFrame.BackgroundColor3 = Color3.fromRGB(50, 60, 70)
+		tipsFrame.BackgroundColor3 = Theme.Colors.TipsBackground
 		tipsFrame.Size = UDim2.new(1, 0, 0, 0)
 		tipsFrame.AutomaticSize = Enum.AutomaticSize.Y
 		tipsFrame.LayoutOrder = order

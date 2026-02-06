@@ -36,7 +36,7 @@ GrowthSimTool.traits = {
 	requiresGlobalState = false,
 	usesBrush = true,
 	usesStrength = true,
-	needsMaterial = false,
+	needsMaterial = true,
 }
 
 -- ============================================

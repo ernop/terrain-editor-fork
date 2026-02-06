@@ -69,6 +69,40 @@ Theme.Colors = {
 	-- Mini card UI
 	MiniCardBorder = Color3.fromRGB(70, 70, 75),
 	MiniCardTitle = Color3.fromRGB(140, 140, 145),
+
+	-- Slider
+	SliderHoverPreview = Color3.fromRGB(60, 60, 65),
+
+	-- Panel backgrounds
+	TipsBackground = Color3.fromRGB(50, 60, 70),
+	ResultsBackground = Color3.fromRGB(30, 30, 35),
+	ResultItem = Color3.fromRGB(50, 50, 55),
+	DocsToggle = Color3.fromRGB(70, 70, 75),
+	DocsFooterOff = Color3.fromRGB(50, 50, 55),
+	DocsFooterOn = Color3.fromRGB(55, 75, 55),
+	ResetButton = Color3.fromRGB(140, 55, 55),
+	ResetButtonHover = Color3.fromRGB(170, 70, 70),
+
+	-- Tool category background tints
+	CategoryShape = Color3.fromRGB(45, 60, 85),
+	CategorySurface = Color3.fromRGB(45, 70, 60),
+	CategoryMaterial = Color3.fromRGB(70, 55, 40),
+	CategoryGenerate = Color3.fromRGB(60, 45, 75),
+	CategoryUtility = Color3.fromRGB(55, 55, 55),
+	CategoryAnalysis = Color3.fromRGB(40, 55, 70),
+	CategoryMore = Color3.fromRGB(50, 50, 50),
+
+	-- Analysis tool status colors
+	OccupancySolid = Color3.fromRGB(80, 255, 120),
+	OccupancyPartial = Color3.fromRGB(255, 220, 80),
+	OccupancySparse = Color3.fromRGB(255, 100, 100),
+	EditModeHeader = Color3.fromRGB(100, 200, 255),
+	MaterialPresent = Color3.fromRGB(150, 255, 150),
+	InspectLocked = Color3.fromRGB(255, 200, 100),
+
+	-- Voxel inspect highlights
+	InspectHighlight = Color3.fromRGB(100, 200, 255),
+	InspectHighlightLocked = Color3.fromRGB(255, 200, 100),
 }
 
 -- ============================================================================

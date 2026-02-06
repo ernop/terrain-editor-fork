@@ -253,7 +253,7 @@ function UIComponents.createMaterialCycleButton(config: MaterialCycleButtonConfi
 	-- Material image thumbnail
 	local thumbnail = Instance.new("ImageLabel")
 	thumbnail.Name = "Thumbnail"
-	thumbnail.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	thumbnail.BackgroundColor3 = Theme.Colors.SliderTrack
 	thumbnail.BorderSizePixel = 0
 	thumbnail.Position = UDim2.new(0, 3, 0, 3)
 	thumbnail.Size = UDim2.new(0, 20, 0, 20)

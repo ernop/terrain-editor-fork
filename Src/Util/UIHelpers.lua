@@ -394,7 +394,7 @@ function UIHelpers.createSlider(
 	-- Hover preview tooltip
 	local hoverPreview = Instance.new("TextLabel")
 	hoverPreview.Name = "HoverPreview"
-	hoverPreview.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+	hoverPreview.BackgroundColor3 = Theme.Colors.SliderHoverPreview
 	hoverPreview.BorderSizePixel = 0
 	hoverPreview.Size = UDim2.new(0, 40, 0, 22)
 	hoverPreview.AnchorPoint = Vector2.new(0.5, 1)

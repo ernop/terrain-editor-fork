@@ -1677,7 +1677,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- Minimize/expand toggle button
 	local docsToggleBtn = Instance.new("TextButton")
 	docsToggleBtn.Name = "MinimizeToggle"
-	docsToggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 75)
+	docsToggleBtn.BackgroundColor3 = Theme.Colors.DocsToggle
 	docsToggleBtn.BorderSizePixel = 0
 	docsToggleBtn.Position = UDim2.new(1, -28, 0, 4)
 	docsToggleBtn.Size = UDim2.new(0, 22, 0, 20)
@@ -1780,13 +1780,13 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- ============================================================================
 	-- Category colors - muted background tints that visually group tools
 	local categoryColors = {
-		Shape = Color3.fromRGB(45, 60, 85), -- Blue tint
-		Surface = Color3.fromRGB(45, 70, 60), -- Green tint
-		Material = Color3.fromRGB(70, 55, 40), -- Orange/brown tint
-		Generate = Color3.fromRGB(60, 45, 75), -- Purple tint
-		Utility = Color3.fromRGB(55, 55, 55), -- Neutral gray
-		Analysis = Color3.fromRGB(40, 55, 70), -- Steel blue tint
-		More = Color3.fromRGB(50, 50, 50), -- Darker gray for extras
+		Shape = Theme.Colors.CategoryShape,
+		Surface = Theme.Colors.CategorySurface,
+		Material = Theme.Colors.CategoryMaterial,
+		Generate = Theme.Colors.CategoryGenerate,
+		Utility = Theme.Colors.CategoryUtility,
+		Analysis = Theme.Colors.CategoryAnalysis,
+		More = Theme.Colors.CategoryMore,
 	}
 
 	-- All tools in display order with their category
@@ -2002,12 +2002,12 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- Reset button
 	local resetBtn = Instance.new("TextButton")
 	resetBtn.Name = "ResetButton"
-	resetBtn.BackgroundColor3 = Color3.fromRGB(140, 55, 55)
+	resetBtn.BackgroundColor3 = Theme.Colors.ResetButton
 	resetBtn.BorderSizePixel = 0
 	resetBtn.Size = UDim2.new(0, 70, 0, 26)
 	resetBtn.Font = Enum.Font.GothamMedium
 	resetBtn.TextSize = 12
-	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	resetBtn.TextColor3 = Theme.Colors.Text
 	resetBtn.TextScaled = false
 	resetBtn.Text = "Reset"
 	resetBtn.LayoutOrder = 1
@@ -2018,10 +2018,10 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	resetCorner.Parent = resetBtn
 
 	resetBtn.MouseEnter:Connect(function()
-		resetBtn.BackgroundColor3 = Color3.fromRGB(170, 70, 70)
+		resetBtn.BackgroundColor3 = Theme.Colors.ResetButtonHover
 	end)
 	resetBtn.MouseLeave:Connect(function()
-		resetBtn.BackgroundColor3 = Color3.fromRGB(140, 55, 55)
+		resetBtn.BackgroundColor3 = Theme.Colors.ResetButton
 	end)
 
 	-- Reset function - restores all settings to defaults
@@ -2191,7 +2191,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	-- Docs toggle button (footer shortcut)
 	local docsFooterToggle = Instance.new("TextButton")
 	docsFooterToggle.Name = "DocsToggle"
-	docsFooterToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+	docsFooterToggle.BackgroundColor3 = Theme.Colors.DocsFooterOff
 	docsFooterToggle.BorderSizePixel = 0
 	docsFooterToggle.Size = UDim2.new(0, 70, 0, 26)
 	docsFooterToggle.Font = Enum.Font.GothamMedium
@@ -2208,7 +2208,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 	-- Assign to forward-declared variable
 	updateDocsToggleButton = function()
-		docsFooterToggle.BackgroundColor3 = S.showDocsPanel and Color3.fromRGB(55, 75, 55) or Color3.fromRGB(50, 50, 55)
+		docsFooterToggle.BackgroundColor3 = S.showDocsPanel and Theme.Colors.DocsFooterOn or Theme.Colors.DocsFooterOff
 	end
 
 	docsFooterToggle.MouseButton1Click:Connect(function()
@@ -2535,7 +2535,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 						highlight.Anchored = true
 						highlight.CanCollide = false
 						highlight.Transparency = 0.7
-						highlight.Color = Color3.fromRGB(100, 200, 255)
+						highlight.Color = Theme.Colors.InspectHighlight
 						highlight.Material = Enum.Material.Neon
 						highlight.Size = Vector3.new(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE)
 						highlight.Parent = workspace
@@ -2552,7 +2552,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			elseif S.currentTool == ToolId.VoxelInspect and S.voxelInspectLocked and S.voxelInspectHighlight then
 				-- When locked, make the highlight more visible
 				S.voxelInspectHighlight.Transparency = 0.3
-				S.voxelInspectHighlight.Color = Color3.fromRGB(255, 200, 100)
+				S.voxelInspectHighlight.Color = Theme.Colors.InspectHighlightLocked
 			elseif S.currentTool ~= ToolId.VoxelInspect and S.voxelInspectHighlight then
 				-- Hide highlight when not using inspect tool
 				S.voxelInspectHighlight.Transparency = 1
