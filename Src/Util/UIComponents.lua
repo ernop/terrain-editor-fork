@@ -802,8 +802,8 @@ local BrushShape = TerrainEnums.BrushShape
 
 -- Shape icon size constants
 local SHAPE_ICON_SIZE = 24
-local SHAPE_ICON_COLOR = Color3.fromRGB(180, 200, 220)
-local SHAPE_ICON_COLOR_DIM = Color3.fromRGB(100, 115, 130)
+local SHAPE_ICON_COLOR = Theme.Colors.ShapeIconLight
+local SHAPE_ICON_COLOR_DIM = Theme.Colors.ShapeIconDim
 
 -- Helper: Create a simple colored frame element
 local function createIconElement(parent: Frame, props: {
@@ -926,7 +926,7 @@ function UIComponents.createShapeIcon(shapeId: string, size: number?): Frame
 		
 		-- Inner cutout (using background color)
 		local innerCut = Instance.new("Frame")
-		innerCut.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		innerCut.BackgroundColor3 = Theme.Colors.ShapeIconHole
 		innerCut.BorderSizePixel = 0
 		innerCut.Position = UDim2.new(0.5, 0, 0.6, 0)
 		innerCut.Size = UDim2.new(0, s * 0.5, 0, s * 0.5)
@@ -957,7 +957,7 @@ function UIComponents.createShapeIcon(shapeId: string, size: number?): Frame
 		
 		-- Inner hole
 		local innerHole = Instance.new("Frame")
-		innerHole.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		innerHole.BackgroundColor3 = Theme.Colors.ShapeIconHole
 		innerHole.BorderSizePixel = 0
 		innerHole.Position = UDim2.new(0.5, 0, 0.5, 0)
 		innerHole.Size = UDim2.new(0, s * 0.4, 0, s * 0.4)
@@ -978,7 +978,7 @@ function UIComponents.createShapeIcon(shapeId: string, size: number?): Frame
 		
 		-- Inner hole (ellipse)
 		local innerHole = Instance.new("Frame")
-		innerHole.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		innerHole.BackgroundColor3 = Theme.Colors.ShapeIconHole
 		innerHole.BorderSizePixel = 0
 		innerHole.Position = UDim2.new(0.5, 0, 0.5, 0)
 		innerHole.Size = UDim2.new(0, s * 0.45, 0, s * 0.22)

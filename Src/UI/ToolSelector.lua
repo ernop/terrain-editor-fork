@@ -4,6 +4,7 @@
 -- Creates and manages tool selection buttons
 
 local UIHelpers = require(script.Parent.Parent.Util.UIHelpers)
+local Theme = require(script.Parent.Parent.Util.Theme)
 local TerrainEnums = require(script.Parent.Parent.Util.TerrainEnums)
 local ToolId = TerrainEnums.ToolId
 
@@ -33,11 +34,11 @@ function ToolSelector.create(
 	local function updateVisuals(currentTool: string)
 		for toolId, button in pairs(toolButtons) do
 			if toolId == currentTool then
-				button.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-				button.TextColor3 = Color3.fromRGB(255, 255, 255)
+				button.BackgroundColor3 = Theme.Colors.ButtonSelected
+				button.TextColor3 = Theme.Colors.Text
 			else
-				button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-				button.TextColor3 = Color3.fromRGB(255, 255, 255)
+				button.BackgroundColor3 = Theme.Colors.ButtonDefault
+				button.TextColor3 = Theme.Colors.Text
 			end
 		end
 	end

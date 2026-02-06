@@ -71,7 +71,7 @@ local function createMiniCard(
 
 	-- Border stroke around the card
 	local borderStroke = Instance.new("UIStroke")
-	borderStroke.Color = Color3.fromRGB(70, 70, 75)
+	borderStroke.Color = Theme.Colors.MiniCardBorder
 	borderStroke.Thickness = 1
 	borderStroke.Parent = card
 
@@ -89,7 +89,7 @@ local function createMiniCard(
 	titleLabel.AutomaticSize = Enum.AutomaticSize.X
 	titleLabel.Font = Enum.Font.GothamMedium
 	titleLabel.TextSize = 10
-	titleLabel.TextColor3 = Color3.fromRGB(140, 140, 145)
+	titleLabel.TextColor3 = Theme.Colors.MiniCardTitle
 	titleLabel.TextScaled = false
 	titleLabel.Text = " " .. title .. " "
 	titleLabel.ZIndex = 2
@@ -344,13 +344,11 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 			local icon = btn:FindFirstChild("ShapeIcon")
 			if icon then
 				for _, child in ipairs(icon:GetDescendants()) do
-					if child:IsA("Frame") and child.BackgroundColor3 ~= Color3.fromRGB(50, 50, 50) then
-						-- Don't change "hole" colors, only shape colors
-						if child.BackgroundColor3 == Color3.fromRGB(100, 115, 130) then
-							-- Dim color stays relative
-							child.BackgroundColor3 = isSelected and Color3.fromRGB(140, 160, 180) or Color3.fromRGB(100, 115, 130)
+					if child:IsA("Frame") and child.BackgroundColor3 ~= Theme.Colors.ShapeIconHole then
+						if child.BackgroundColor3 == Theme.Colors.ShapeIconDim or child.BackgroundColor3 == Theme.Colors.ShapeIconDimSelected then
+							child.BackgroundColor3 = isSelected and Theme.Colors.ShapeIconDimSelected or Theme.Colors.ShapeIconDim
 						else
-							child.BackgroundColor3 = isSelected and Color3.fromRGB(220, 235, 255) or Color3.fromRGB(180, 200, 220)
+							child.BackgroundColor3 = isSelected and Theme.Colors.ShapeIconLightSelected or Theme.Colors.ShapeIconLight
 						end
 					end
 				end
@@ -694,31 +692,31 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 	local lockButton = Instance.new("TextButton")
 	lockButton.Name = "LockButton"
 	lockButton.Size = UDim2.new(1, 0, 0, 32)
-	lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	lockButton.BackgroundColor3 = Theme.Colors.ButtonDefault
 	lockButton.BorderSizePixel = 0
 	lockButton.Font = Theme.Fonts.Bold
 	lockButton.TextSize = Theme.Sizes.TextNormal
-	lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lockButton.TextColor3 = Theme.Colors.Text
 	lockButton.TextScaled = false
-	lockButton.Text = "🔓 LOCK BRUSH [L]"
+	lockButton.Text = "LOCK BRUSH [L]"
 	lockButton.Parent = lockPanel
-	lockButton:SetAttribute("UnselectedColor", Color3.fromRGB(60, 60, 60))
-	lockButton:SetAttribute("SelectedColor", Color3.fromRGB(200, 120, 40))
+	lockButton:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
+	lockButton:SetAttribute("SelectedColor", Theme.Colors.BrushLocked)
 	lockButton:SetAttribute("IsSelected", false)
 	UIHelpers.installStrongHover(lockButton)
 
 	local lockCorner = Instance.new("UICorner")
-	lockCorner.CornerRadius = UDim.new(0, 6)
+	lockCorner.CornerRadius = UDim.new(0, Theme.Sizes.CornerRadius)
 	lockCorner.Parent = lockButton
 
 	local function updateLockButton()
 		if S.brushLocked then
-			lockButton.Text = "🔒 UNLOCK BRUSH [L]"
-			lockButton.BackgroundColor3 = Color3.fromRGB(200, 120, 40)
+			lockButton.Text = "LOCKED [L]"
+			lockButton.BackgroundColor3 = Theme.Colors.BrushLocked
 			lockButton:SetAttribute("IsSelected", true)
 		else
-			lockButton.Text = "🔓 LOCK BRUSH [L]"
-			lockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			lockButton.Text = "LOCK BRUSH [L]"
+			lockButton.BackgroundColor3 = Theme.Colors.ButtonDefault
 			lockButton:SetAttribute("IsSelected", false)
 		end
 	end

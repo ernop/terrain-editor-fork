@@ -58,6 +58,17 @@ Theme.Colors = {
 	BridgeStart = Color3.fromRGB(0, 255, 0),
 	BridgeEnd = Color3.fromRGB(255, 100, 0),
 	BridgePath = Color3.fromRGB(100, 200, 255),
+
+	-- Shape icons
+	ShapeIconLight = Color3.fromRGB(180, 200, 220),
+	ShapeIconDim = Color3.fromRGB(100, 115, 130),
+	ShapeIconLightSelected = Color3.fromRGB(220, 235, 255),
+	ShapeIconDimSelected = Color3.fromRGB(140, 160, 180),
+	ShapeIconHole = Color3.fromRGB(50, 50, 50),
+
+	-- Mini card UI
+	MiniCardBorder = Color3.fromRGB(70, 70, 75),
+	MiniCardTitle = Color3.fromRGB(140, 140, 145),
 }
 
 -- ============================================================================
