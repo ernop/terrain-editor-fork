@@ -249,27 +249,32 @@ BrushData.ToolConfigs = {
 	},
 }
 
--- Bridge variant definitions
-BrushData.BridgeVariants = {
-	"Arc",
-	"Sinusoidal",
-	"Blippy",
-	"SquareWave",
-	"Rollercoaster",
-	"TwistySwingly",
-	"MegaMeander",
-	-- Creative/geometric variants
-	"Fibonacci",
-	"Fractal",
-	"Exponential",
-	"Logarithmic",
-	"Corkscrew",
-	"Drunkard",
-	"Heartbeat",
-	"Staircase",
-	"Catenary",
-	"TrollBridge",
+-- Bridge variant definitions (categorized)
+BrushData.BridgeVariantCategories = {
+	{
+		name = "Classic",
+		variants = { "Arc", "Sinusoidal", "Blippy", "SquareWave", "Rollercoaster", "TwistySwingly", "MegaMeander" },
+	},
+	{
+		name = "Mathematical",
+		variants = { "Fibonacci", "Fractal", "Exponential", "Logarithmic", "Corkscrew", "Catenary" },
+	},
+	{
+		name = "Fun",
+		variants = { "Drunkard", "Heartbeat", "Staircase", "TrollBridge" },
+	},
 }
+
+-- Flat list for compatibility (used by offset functions)
+BrushData.BridgeVariants = (function()
+	local all = {}
+	for _, category in ipairs(BrushData.BridgeVariantCategories) do
+		for _, variant in ipairs(category.variants) do
+			table.insert(all, variant)
+		end
+	end
+	return all
+end)()
 
 -- Brush shape options for UI
 BrushData.Shapes = {

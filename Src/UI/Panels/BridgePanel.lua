@@ -148,41 +148,58 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	local variantLabel = UIHelpers.createHeader(bridgeInfoPanel, "Style", UDim2.new(0, 0, 0, 0))
 	variantLabel.LayoutOrder = 8
 
-	-- Variant buttons
-	local variantGroup = UIComponents.createButtonGroup({
-		parent = bridgeInfoPanel,
-		options = (function()
-			local opts = {}
-			for _, v in ipairs(BrushData.BridgeVariants) do
-				table.insert(opts, { id = v, name = v })
-			end
-			return opts
-		end)(),
-		initialValue = S.bridgeVariant,
-		onChange = function(variant)
-			S.bridgeVariant = variant
-			S.bridgeLastPreviewParams = nil
+	-- Variant selection callback (shared by all category groups)
+	local variantGroups = {} -- Store references for cross-group deselection
+	local function onVariantChanged(variant)
+		S.bridgeVariant = variant
+		S.bridgeLastPreviewParams = nil
 
-			-- Initialize curves when switching to MegaMeander
-			if variant == "MegaMeander" and S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
-				if #S.bridgeCurves == 0 then
-					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-				end
-			else
-				S.bridgeCurves = {}
+		-- Initialize curves when switching to MegaMeander
+		if variant == "MegaMeander" and S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
+			if #S.bridgeCurves == 0 then
+				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
 			end
+		else
+			S.bridgeCurves = {}
+		end
 
-			if updateBridgeStatus then
-				updateBridgeStatus()
-			end
-			if updateBridgePreview then
-				updateBridgePreview(S.bridgeHoverPoint)
-			end
-		end,
-		layout = "grid",
-		buttonSize = UDim2.new(0, 80, 0, 26),
-	})
-	variantGroup.container.LayoutOrder = 9
+		-- Update selection state across all category groups
+		for _, group in ipairs(variantGroups) do
+			group.update(variant)
+		end
+
+		if updateBridgeStatus then
+			updateBridgeStatus()
+		end
+		if updateBridgePreview then
+			updateBridgePreview(S.bridgeHoverPoint)
+		end
+	end
+
+	-- Create categorized variant button groups
+	local layoutOrder = 8.1
+	for _, category in ipairs(BrushData.BridgeVariantCategories) do
+		local categoryLabel = UIHelpers.createDescription(bridgeInfoPanel, category.name)
+		categoryLabel.LayoutOrder = layoutOrder
+		layoutOrder = layoutOrder + 0.1
+
+		local opts = {}
+		for _, v in ipairs(category.variants) do
+			table.insert(opts, { id = v, name = v })
+		end
+
+		local group = UIComponents.createButtonGroup({
+			parent = bridgeInfoPanel,
+			options = opts,
+			initialValue = S.bridgeVariant,
+			onChange = onVariantChanged,
+			layout = "grid",
+			buttonSize = UDim2.new(0, 80, 0, 26),
+		})
+		group.container.LayoutOrder = layoutOrder
+		layoutOrder = layoutOrder + 0.1
+		table.insert(variantGroups, group)
+	end
 
 	-- Clear button
 	local clearBridgeBtn = UIHelpers.createButton(bridgeInfoPanel, "Clear Points", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
@@ -257,7 +274,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 	updateBridgeStatus = function()
 		if S.bridgeStartPoint and S.bridgeEndPoint then
-			bridgeStatusLabel.Text = "Status: READY - Click to build!"
+			bridgeStatusLabel.Text = "Status: READY - Click to build (or adjust settings)"
 			bridgeStatusLabel.TextColor3 = Theme.Colors.Success
 			meanderControlsContainer.Visible = (S.bridgeVariant == "MegaMeander")
 		elseif S.bridgeStartPoint then
@@ -401,15 +418,9 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 		ChangeHistoryService:SetWaypoint("TerrainBridge_End")
 
-		-- Reset state
-		S.bridgeStartPoint = nil
-		S.bridgeEndPoint = nil
-		S.bridgeCurves = {}
-		S.bridgeHoverPoint = nil
+		-- Keep points for rebuild - user can tweak settings and build again
 		S.bridgeLastPreviewParams = nil
-
 		updateBridgeStatus()
-		updateBridgePreview(nil)
 	end
 
 	return {
