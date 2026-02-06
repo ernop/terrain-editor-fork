@@ -137,7 +137,7 @@ Analysis/   → VoxelInspect, ComponentAnalyzer, OccupancyOverlay
 | Type definitions | ✅ SculptSettings, OperationSet, ToolTraits |
 | Proper types in tools | ✅ All 25 execute functions typed |
 | Redundant `.category` field | ⚠️ Still present (harmless, cleanup optional) |
-| Analysis tool UI panels | 🔶 Created but not implemented |
+| Analysis tool UI panels | ✅ Extracted to AnalysisPanels.lua |
 | Deprecated Luau patterns | ✅ Fixed (`table.getn` → `#`) |
 
 ### Tools by Category
