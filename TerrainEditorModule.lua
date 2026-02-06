@@ -1942,6 +1942,22 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 	end
 	updateConfigPosition()
 
+	-- Forward declare for toggleBrushLock
+	local updateLockButton: (() -> ())?
+
+	-- Shared brush lock toggle (used by both keyboard shortcut and UI button)
+	local function toggleBrushLock()
+		S.brushLocked = not S.brushLocked
+		-- Update handles visibility immediately (only shown when locked)
+		updateHandlesAdornee()
+		if S.lockedBrushPosition then
+			updateBrushVisualization(S.lockedBrushPosition)
+		end
+		if updateLockButton then
+			updateLockButton()
+		end
+	end
+
 	-- Create all panels using ConfigPanels module
 	local configResult = ConfigPanels.create({
 		configContainer = configContainer,
@@ -1953,23 +1969,11 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			return getTerrainHit(true)
 		end,
 		ChangeHistoryService = ChangeHistoryService,
-		toggleBrushLock = function()
-			S.brushLocked = not S.brushLocked
-			if S.brushLocked then
-				print("[TerrainEditor] Brush LOCKED - drag handles to rotate/resize, press L to unlock")
-			else
-				print("[TerrainEditor] Brush UNLOCKED - brush follows mouse")
-			end
-			-- Update handles visibility immediately (only shown when locked)
-			updateHandlesAdornee()
-			if S.lockedBrushPosition then
-				updateBrushVisualization(S.lockedBrushPosition)
-			end
-		end,
+		toggleBrushLock = toggleBrushLock,
 	})
 
 	local setStrengthValue = configResult.setStrengthValue
-	local updateLockButton = configResult.updateLockButton
+	updateLockButton = configResult.updateLockButton
 	updateConfigPanelVisibility = configResult.updateVisibility
 	local updateBridgeStatus = configResult.updateBridgeStatus
 	local updateBridgePreview = configResult.updateBridgePreview
@@ -2183,8 +2187,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		if S.updateGradientStatus then
 			S.updateGradientStatus()
 		end
-
-		print("[TerrainEditor] All settings reset to defaults")
 	end
 
 	resetBtn.MouseButton1Click:Connect(resetAllSettings)
@@ -2441,18 +2443,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			if S.currentTool == ToolId.None then
 				return
 			end
-			S.brushLocked = not S.brushLocked
-			if S.brushLocked then
-				print("[TerrainEditor] Brush LOCKED - drag handles to rotate/resize, press L to unlock")
-			else
-				print("[TerrainEditor] Brush UNLOCKED - brush follows mouse")
-			end
-			-- Update handles visibility immediately (only shown when locked)
-			updateHandlesAdornee()
-			if S.lockedBrushPosition then
-				updateBrushVisualization(S.lockedBrushPosition)
-			end
-			updateLockButton()
+			toggleBrushLock()
 		end
 	end))
 
