@@ -217,6 +217,126 @@ function BridgePathGenerator.generateRandomCurves(count: number): { Curve }
 	return curves
 end
 
+-- ============================================================================
+-- Unified path generation for all variants
+-- Returns array of world-space positions (Vector3) for both preview and build
+-- ============================================================================
+
+export type BridgeSettings = {
+	startPoint: Vector3,
+	endPoint: Vector3,
+	variant: string,
+	intensity: number,
+	segments: number, -- 0 = auto
+	anchorEndpoints: boolean,
+	planeConstraint: number, -- 0-1
+	axisRotation: number, -- degrees
+	terrainAware: boolean,
+	terrain: Terrain?,
+	curves: { Curve }, -- for MegaMeander
+	meanderComplexity: number, -- for auto-generating curves
+}
+
+local BrushData -- lazy require to avoid circular dependency
+
+function BridgePathGenerator.generatePath(settings: BridgeSettings): { Vector3 }
+	-- Lazy require BrushData (only needed for offset functions)
+	if not BrushData then
+		local Src = script:FindFirstAncestor("Src")
+		BrushData = require(Src.Util.BrushData)
+	end
+
+	local Constants = require(script.Parent.Constants)
+
+	local startPoint = settings.startPoint
+	local endPoint = settings.endPoint
+	local distance = (endPoint - startPoint).Magnitude
+
+	-- Guard against zero-distance
+	if distance < Constants.VOXEL_RESOLUTION then
+		return {}
+	end
+
+	-- Calculate step count
+	local steps
+	if settings.segments > 0 then
+		steps = settings.segments
+	else
+		steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
+	end
+
+	local positions: { Vector3 } = {}
+
+	if settings.variant == "MegaMeander" then
+		-- Initialize curves if empty
+		local curves = settings.curves
+		if #curves == 0 then
+			curves = BridgePathGenerator.generateRandomCurves(settings.meanderComplexity)
+		end
+
+		local path = BridgePathGenerator.generateMeanderingPath(
+			startPoint,
+			endPoint,
+			curves,
+			settings.terrain,
+			steps,
+			settings.terrainAware,
+			settings.intensity
+		)
+
+		for _, pathPoint in ipairs(path) do
+			table.insert(positions, pathPoint.position)
+		end
+	else
+		local pathDir = (endPoint - startPoint).Unit
+
+		-- Build rotated coordinate frame along the path axis
+		local axisRotation = math.rad(settings.axisRotation)
+		local baseCFrame = CFrame.lookAt(Vector3.zero, pathDir)
+		local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
+
+		local perpDirX = rotatedCFrame.RightVector
+		local perpDirY = rotatedCFrame.UpVector
+		local perpDirZ = -rotatedCFrame.LookVector
+
+		-- Select offset function based on settings
+		local useAnchored = settings.anchorEndpoints
+		local planeConstraint = settings.planeConstraint
+
+		for i = 0, steps do
+			local t = i / steps
+			local pos = startPoint:Lerp(endPoint, t)
+
+			-- Get offset
+			local offset
+			if useAnchored and planeConstraint > 0 then
+				offset = BrushData.getBridgeOffsetPlaneAware(t, distance, settings.variant, settings.intensity, planeConstraint)
+			elseif useAnchored then
+				offset = BrushData.getBridgeOffsetAnchored(t, distance, settings.variant, settings.intensity)
+			else
+				offset = BrushData.getBridgeOffset(t, distance, settings.variant, settings.intensity)
+			end
+
+			-- Apply offset in rotated coordinate frame
+			local finalOffset = perpDirX * offset.X + perpDirY * offset.Y + perpDirZ * offset.Z
+
+			-- Terrain awareness: push path above terrain
+			if settings.terrainAware and settings.terrain then
+				local testPos = pos + finalOffset
+				local terrainHeight = BridgePathGenerator.getTerrainHeight(settings.terrain, testPos)
+				if terrainHeight and testPos.Y < terrainHeight + 4 then
+					local adjustment = (terrainHeight + 4) - testPos.Y
+					finalOffset = finalOffset + Vector3.new(0, adjustment, 0)
+				end
+			end
+
+			table.insert(positions, pos + finalOffset)
+		end
+	end
+
+	return positions
+end
+
 return BridgePathGenerator
 
 

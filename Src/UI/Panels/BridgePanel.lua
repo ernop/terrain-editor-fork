@@ -274,8 +274,25 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		end
 	end
 
+	-- Build settings table from current state
+	local function getBridgeSettings(endPoint: Vector3): BridgePathGenerator.BridgeSettings
+		return {
+			startPoint = S.bridgeStartPoint,
+			endPoint = endPoint,
+			variant = S.bridgeVariant,
+			intensity = S.bridgeIntensity,
+			segments = S.bridgeSegments,
+			anchorEndpoints = S.bridgeAnchorEndpoints ~= false,
+			planeConstraint = S.bridgePlaneConstraint or 0,
+			axisRotation = S.bridgeAxisRotation or 0,
+			terrainAware = S.bridgeTerrainAware or false,
+			terrain = S.terrain,
+			curves = S.bridgeCurves,
+			meanderComplexity = S.bridgeMeanderComplexity,
+		}
+	end
+
 	updateBridgePreview = function(hoverPoint: Vector3?)
-		-- Update hover point if provided
 		if hoverPoint then
 			S.bridgeHoverPoint = hoverPoint
 		end
@@ -292,7 +309,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 		-- Create start marker
 		local startMarker = Instance.new("Part")
-		startMarker.Archivable = false  -- Exclude from undo history
+		startMarker.Archivable = false
 		startMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
 		startMarker.CFrame = CFrame.new(S.bridgeStartPoint)
 		startMarker.Anchored = true
@@ -305,15 +322,9 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 		local endPoint = S.bridgeEndPoint or hoverPoint
 		if endPoint then
-			local distance = (endPoint - S.bridgeStartPoint).Magnitude
-			-- Guard against zero-distance (identical start/end would crash on .Unit)
-			if distance < Constants.VOXEL_RESOLUTION then
-				return
-			end
-
 			-- Create end marker
 			local endMarker = Instance.new("Part")
-			endMarker.Archivable = false  -- Exclude from undo history
+			endMarker.Archivable = false
 			endMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
 			endMarker.CFrame = CFrame.new(endPoint)
 			endMarker.Anchored = true
@@ -323,113 +334,23 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			endMarker.Transparency = Theme.Transparency.PreviewMarker
 			endMarker.Parent = workspace
 			table.insert(S.bridgePreviewParts, endMarker)
-			-- Use custom segments if set, otherwise auto-calculate
-			local steps
-			if S.bridgeSegments > 0 then
-				steps = S.bridgeSegments
-			else
-				steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
-			end
 
-			-- Generate path preview
-			if S.bridgeVariant == "MegaMeander" then
-				-- Initialize curves if empty
-				if #S.bridgeCurves == 0 then
-					S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-				end
+			-- Generate path using unified generator
+			local positions = BridgePathGenerator.generatePath(getBridgeSettings(endPoint))
 
-				local path = BridgePathGenerator.generateMeanderingPath(
-					S.bridgeStartPoint,
-					endPoint,
-					S.bridgeCurves,
-					S.terrain,
-					steps,
-					true,
-					S.bridgeIntensity
-				)
-
-				for i, pathPoint in ipairs(path) do
-					if i > 1 and i < #path then
-						local pathMarker = Instance.new("Part")
-						pathMarker.Archivable = false  -- Exclude from undo history
-						pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
-						pathMarker.CFrame = CFrame.new(pathPoint.position)
-						pathMarker.Anchored = true
-						pathMarker.CanCollide = false
-						pathMarker.Material = Enum.Material.Neon
-						pathMarker.Color = Theme.Colors.BridgePath
-						pathMarker.Transparency = Theme.Transparency.PathMarker
-						pathMarker.Shape = Enum.PartType.Ball
-						pathMarker.Parent = workspace
-						table.insert(S.bridgePreviewParts, pathMarker)
-					end
-				end
-			else
-				-- Use original path generation for other variants
-				local pathDir = (endPoint - S.bridgeStartPoint).Unit
-				
-				-- Build a coordinate frame aligned with the path direction
-				-- Then rotate it around the path axis by bridgeAxisRotation
-				local axisRotation = math.rad(S.bridgeAxisRotation or 0)
-				
-				-- Create a CFrame looking along the path direction
-				-- CFrame.lookAt creates a frame where -Z points at target, Y is up
-				-- We want the path direction as our axis of rotation
-				local baseCFrame = CFrame.lookAt(Vector3.zero, pathDir)
-				
-				-- Rotate around the path axis (LookVector = -Z in CFrame, so we rotate around -Z)
-				local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
-				
-				-- Extract perpendicular directions from the rotated frame
-				-- RightVector = lateral, UpVector = vertical, -LookVector = along path (Z depth)
-				local perpDirX = rotatedCFrame.RightVector
-				local perpDirY = rotatedCFrame.UpVector
-				local perpDirZ = -rotatedCFrame.LookVector
-
-				-- Determine which offset function to use
-				local useAnchored = S.bridgeAnchorEndpoints ~= false -- Default true
-				local planeConstraint = S.bridgePlaneConstraint or 0
-
-				for i = 0, steps do
-					local t = i / steps
-					local pos = S.bridgeStartPoint:Lerp(endPoint, t)
-					
-					-- Get offset using appropriate function
-					local offset
-					if useAnchored and planeConstraint > 0 then
-						offset = BrushData.getBridgeOffsetPlaneAware(t, distance, S.bridgeVariant, S.bridgeIntensity, planeConstraint)
-					elseif useAnchored then
-						offset = BrushData.getBridgeOffsetAnchored(t, distance, S.bridgeVariant, S.bridgeIntensity)
-					else
-						offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
-					end
-					
-					-- Apply offset using rotated perpendicular directions
-					local finalOffset = perpDirX * offset.X + perpDirY * offset.Y + perpDirZ * offset.Z
-
-					-- Terrain awareness: adjust if path would intersect terrain
-					if S.bridgeTerrainAware and S.terrain then
-						local testPos = pos + finalOffset
-						local terrainHeight = BridgePathGenerator.getTerrainHeight(S.terrain, testPos)
-						if terrainHeight and testPos.Y < terrainHeight + 4 then
-							local adjustment = (terrainHeight + 4) - testPos.Y
-							finalOffset = finalOffset + Vector3.new(0, adjustment, 0)
-						end
-					end
-
-					local pathMarker = Instance.new("Part")
-					pathMarker.Archivable = false
-					pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
-					pathMarker.CFrame = CFrame.new(pos + finalOffset)
-					pathMarker.Anchored = true
-					pathMarker.CanCollide = false
-					pathMarker.Material = Enum.Material.Neon
-					pathMarker.Color = Theme.Colors.BridgePath
-					pathMarker.Transparency = Theme.Transparency.PathMarker
-					pathMarker.Shape = Enum.PartType.Ball
-					pathMarker.Parent = workspace
-					table.insert(S.bridgePreviewParts, pathMarker)
-				end
+			for _, position in ipairs(positions) do
+				local pathMarker = Instance.new("Part")
+				pathMarker.Archivable = false
+				pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
+				pathMarker.CFrame = CFrame.new(position)
+				pathMarker.Anchored = true
+				pathMarker.CanCollide = false
+				pathMarker.Material = Enum.Material.Neon
+				pathMarker.Color = Theme.Colors.BridgePath
+				pathMarker.Transparency = Theme.Transparency.PathMarker
+				pathMarker.Shape = Enum.PartType.Ball
+				pathMarker.Parent = workspace
+				table.insert(S.bridgePreviewParts, pathMarker)
 			end
 		end
 	end
@@ -439,103 +360,21 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			return
 		end
 
-		local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
-		-- Guard against zero-distance (identical points would crash on .Unit)
-		if distance < Constants.VOXEL_RESOLUTION then
+		-- Generate path using same function as preview
+		local positions = BridgePathGenerator.generatePath(getBridgeSettings(S.bridgeEndPoint))
+		if #positions == 0 then
 			return
 		end
 
 		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
-		-- Use custom segments if set, otherwise auto-calculate
-		local steps
-		if S.bridgeSegments > 0 then
-			steps = S.bridgeSegments
-		else
-			steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
-		end
+
 		local radius = S.bridgeWidth * Constants.VOXEL_RESOLUTION / 2
 
-		-- Helper to fill at a position (uses brush shape if enabled)
-		local function fillAtPosition(position: Vector3)
+		for _, position in ipairs(positions) do
 			if S.bridgeUseBrushShape and S.performBridgeBrush then
-				-- Use the brush shape via callback
 				S.performBridgeBrush(position)
 			else
-				-- Default: fill with sphere
 				S.terrain:FillBall(position, radius, S.brushMaterial)
-			end
-		end
-
-		if S.bridgeVariant == "MegaMeander" then
-			if #S.bridgeCurves == 0 then
-				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-			end
-
-			local path = BridgePathGenerator.generateMeanderingPath(
-				S.bridgeStartPoint,
-				S.bridgeEndPoint,
-				S.bridgeCurves,
-				S.terrain,
-				steps,
-				true,
-				S.bridgeIntensity
-			)
-
-			for _, pathPoint in ipairs(path) do
-				fillAtPosition(pathPoint.position)
-			end
-		else
-			local pathDir = (S.bridgeEndPoint - S.bridgeStartPoint).Unit
-			
-			-- Build a coordinate frame aligned with the path direction
-			-- Then rotate it around the path axis by bridgeAxisRotation
-			local axisRotation = math.rad(S.bridgeAxisRotation or 0)
-			
-			-- Create a CFrame looking along the path direction
-			local baseCFrame = CFrame.lookAt(Vector3.zero, pathDir)
-			
-			-- Rotate around the path axis
-			local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
-			
-			-- Extract perpendicular directions from the rotated frame
-			local perpDirX = rotatedCFrame.RightVector
-			local perpDirY = rotatedCFrame.UpVector
-			local perpDirZ = -rotatedCFrame.LookVector
-
-			-- Determine which offset function to use
-			local useAnchored = S.bridgeAnchorEndpoints ~= false -- Default true
-			local planeConstraint = S.bridgePlaneConstraint or 0
-
-			for i = 0, steps do
-				local t = i / steps
-				local pos = S.bridgeStartPoint:Lerp(S.bridgeEndPoint, t)
-				
-				-- Get offset using appropriate function
-				local offset
-				if useAnchored and planeConstraint > 0 then
-					offset = BrushData.getBridgeOffsetPlaneAware(t, distance, S.bridgeVariant, S.bridgeIntensity, planeConstraint)
-				elseif useAnchored then
-					offset = BrushData.getBridgeOffsetAnchored(t, distance, S.bridgeVariant, S.bridgeIntensity)
-				else
-					offset = BrushData.getBridgeOffset(t, distance, S.bridgeVariant, S.bridgeIntensity)
-				end
-				
-				-- Apply offset using rotated perpendicular directions
-				local finalOffset = perpDirX * offset.X + perpDirY * offset.Y + perpDirZ * offset.Z
-
-				-- Terrain awareness: adjust if path would intersect terrain
-				if S.bridgeTerrainAware and S.terrain then
-					local testPos = pos + finalOffset
-					local terrainHeight = BridgePathGenerator.getTerrainHeight(S.terrain, testPos)
-					if terrainHeight and testPos.Y < terrainHeight + 4 then
-						-- Push up to clear terrain (always push in world Y direction)
-						local adjustment = (terrainHeight + 4) - testPos.Y
-						finalOffset = finalOffset + Vector3.new(0, adjustment, 0)
-					end
-				end
-
-				local bridgePos = pos + finalOffset
-				fillAtPosition(bridgePos)
 			end
 		end
 

@@ -1219,7 +1219,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		return nil
 	end
 
-	local function getTerrainHit(): Vector3?
+	-- Raycast to find terrain under cursor
+	-- skipPlaneLock: when true, ignores plane lock (used for auto-plane initialization)
+	local function getTerrainHit(skipPlaneLock: boolean?): Vector3?
 		local ray = workspace.CurrentCamera:ScreenPointToRay(mouse.X, mouse.Y)
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -1230,21 +1232,22 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		if S.planePart then
 			table.insert(filterInstances, S.planePart)
 		end
-		-- Filter bridge preview parts so they don't interfere with terrain hits
 		for _, part in ipairs(S.bridgePreviewParts) do
 			table.insert(filterInstances, part)
 		end
-		-- Filter occupancy overlay parts
 		for _, part in ipairs(S.occupancyOverlayParts) do
 			table.insert(filterInstances, part)
 		end
 		raycastParams.FilterDescendantsInstances = filterInstances
 
-		local usePlaneLock = (S.planeLockMode == PlaneLockType.Manual) or (S.planeLockMode == PlaneLockType.Auto and S.autoPlaneActive)
-		if usePlaneLock then
-			local planeHit = intersectPlane(ray)
-			if planeHit then
-				return planeHit
+		-- Check plane lock (unless skipped)
+		if not skipPlaneLock then
+			local usePlaneLock = (S.planeLockMode == PlaneLockType.Manual) or (S.planeLockMode == PlaneLockType.Auto and S.autoPlaneActive)
+			if usePlaneLock then
+				local planeHit = intersectPlane(ray)
+				if planeHit then
+					return planeHit
+				end
 			end
 		end
 
@@ -1252,48 +1255,19 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		if result then
 			return result.Position
 		end
+		-- Fallback: intersect Y=0 ground plane
 		if ray.Direction.Y ~= 0 then
 			local t = -ray.Origin.Y / ray.Direction.Y
 			if t > 0 and t < 10000 then
 				return ray.Origin + ray.Direction * t
 			end
 		end
-		if mouse.Hit then
-			return mouse.Hit.Position
-		end
-		return ray.Origin + ray.Direction * 50
-	end
-
-	local function getTerrainHitRaw(): Vector3?
-		local ray = workspace.CurrentCamera:ScreenPointToRay(mouse.X, mouse.Y)
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-		local filterInstances: { Instance } = {}
-		if S.brushPart then
-			table.insert(filterInstances, S.brushPart)
-		end
-		if S.planePart then
-			table.insert(filterInstances, S.planePart)
-		end
-		-- Filter bridge preview parts so they don't interfere with terrain hits
-		for _, part in ipairs(S.bridgePreviewParts) do
-			table.insert(filterInstances, part)
-		end
-		-- Filter occupancy overlay parts
-		for _, part in ipairs(S.occupancyOverlayParts) do
-			table.insert(filterInstances, part)
-		end
-		raycastParams.FilterDescendantsInstances = filterInstances
-
-		local result = workspace:Raycast(ray.Origin, ray.Direction * 10000, raycastParams)
-		if result then
-			return result.Position
-		end
-		if ray.Direction.Y ~= 0 then
-			local t = -ray.Origin.Y / ray.Direction.Y
-			if t > 0 and t < 10000 then
-				return ray.Origin + ray.Direction * t
+		-- Final fallbacks (only for standard mode, not raw)
+		if not skipPlaneLock then
+			if mouse.Hit then
+				return mouse.Hit.Position
 			end
+			return ray.Origin + ray.Direction * 50
 		end
 		return nil
 	end
@@ -1979,7 +1953,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		ToolId = ToolId,
 		createBrushVisualization = createBrushVisualization,
 		hidePlaneVisualization = hidePlaneVisualization,
-		getTerrainHitRaw = getTerrainHitRaw,
+		getTerrainHitRaw = function() return getTerrainHit(true) end,
 		ChangeHistoryService = ChangeHistoryService,
 		toggleBrushLock = function()
 			S.brushLocked = not S.brushLocked
@@ -2346,7 +2320,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			end
 
 			if S.planeLockMode == PlaneLockType.Auto then
-				local hitPosition = getTerrainHitRaw()
+				local hitPosition = getTerrainHit(true)
 				if hitPosition then
 					S.planePositionY = math.floor(hitPosition.Y + 0.5)
 					S.autoPlaneActive = true
