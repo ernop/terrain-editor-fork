@@ -69,6 +69,11 @@ local function performOperation(terrain, opSet)
 	local radiusY = sizeY * 0.5
 	local radiusZ = sizeZ * 0.5
 
+	-- Guard against zero-size brushes
+	if radiusX <= 0 or radiusY <= 0 or radiusZ <= 0 then
+		return
+	end
+
 	local centerPoint = opSet.centerPoint
 	centerPoint = applyPivot(opSet.pivot, centerPoint, sizeY)
 
@@ -293,6 +298,7 @@ local function performOperation(terrain, opSet)
 			-- Update per-Y values (constant for Z loop)
 			sculptSettings.worldY = worldVectorY
 			sculptSettings.cellVectorY = cellVectorY
+			local yAirFiller = waterHeight >= voxelY and airFillerMaterial or materialAir
 
 			for voxelZ, occupancy in ipairs(occupanciesY) do
 				local worldVectorZ = minBoundsZ + (voxelZ - 0.5) * Constants.VOXEL_RESOLUTION
@@ -326,8 +332,6 @@ local function performOperation(terrain, opSet)
 					cellOccupancy = 0
 				end
 
-				airFillerMaterial = waterHeight >= voxelY and airFillerMaterial or materialAir
-
 				-- Update per-voxel settings (only values that change every iteration)
 				sculptSettings.x = voxelX
 				sculptSettings.y = voxelY
@@ -336,7 +340,7 @@ local function performOperation(terrain, opSet)
 				sculptSettings.magnitudePercent = magnitudePercent
 				sculptSettings.cellOccupancy = cellOccupancy
 				sculptSettings.cellMaterial = cellMaterial
-				sculptSettings.airFillerMaterial = airFillerMaterial
+				sculptSettings.airFillerMaterial = yAirFiller
 				sculptSettings.worldZ = worldVectorZ
 				sculptSettings.cellVectorZ = cellVectorZ
 

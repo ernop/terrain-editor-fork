@@ -36,7 +36,7 @@ local FalloffFunctions = {}
 
 -- Cosine falloff (original): cos(d * π/2) - smooth S-curve
 function FalloffFunctions.Cosine(d)
-	return math.cos(math.min(1, d) * math.pi * 0.5)
+	return math.cos(math.max(0, math.min(1, d)) * math.pi * 0.5)
 end
 
 -- Linear falloff: 1 - d, predictable even gradient
@@ -211,6 +211,11 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 )
 	local brushOccupancy = 1
 	local magnitudePercent = 1
+
+	-- Guard against zero-size brushes (would cause division by zero)
+	if radiusX <= 0 or radiusY <= 0 or radiusZ <= 0 then
+		return 0, 0
+	end
 
 	-- Default hollow parameters if not provided
 	hollowEnabled = hollowEnabled or false
