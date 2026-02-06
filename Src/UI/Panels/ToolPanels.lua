@@ -6,7 +6,6 @@
 local Theme = require(script.Parent.Parent.Parent.Util.Theme)
 local UIHelpers = require(script.Parent.Parent.Parent.Util.UIHelpers)
 local UIComponents = require(script.Parent.Parent.Parent.Util.UIComponents)
-local BrushData = require(script.Parent.Parent.Parent.Util.BrushData)
 
 local ToolPanels = {}
 
