@@ -1109,24 +1109,22 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		local center = camera.CFrame.Position
 		local range = S.occupancyOverlayRange or 30
 
-		-- Constants
-		local VOXEL_SIZE = 4
-
 		-- Calculate region bounds (aligned to voxel grid)
-		local halfRange = range * VOXEL_SIZE / 2
+		local voxelSize = Constants.VOXEL_RESOLUTION
+		local halfRange = range * voxelSize / 2
 		local minBound = Vector3.new(
-			math.floor((center.X - halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
-			math.floor((center.Y - halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
-			math.floor((center.Z - halfRange) / VOXEL_SIZE) * VOXEL_SIZE
+			math.floor((center.X - halfRange) / voxelSize) * voxelSize,
+			math.floor((center.Y - halfRange) / voxelSize) * voxelSize,
+			math.floor((center.Z - halfRange) / voxelSize) * voxelSize
 		)
 		local maxBound = Vector3.new(
-			math.ceil((center.X + halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
-			math.ceil((center.Y + halfRange) / VOXEL_SIZE) * VOXEL_SIZE,
-			math.ceil((center.Z + halfRange) / VOXEL_SIZE) * VOXEL_SIZE
+			math.ceil((center.X + halfRange) / voxelSize) * voxelSize,
+			math.ceil((center.Y + halfRange) / voxelSize) * voxelSize,
+			math.ceil((center.Z + halfRange) / voxelSize) * voxelSize
 		)
 
 		local region = Region3.new(minBound, maxBound)
-		local materials, occupancies = S.terrain:ReadVoxels(region, VOXEL_SIZE)
+		local materials, occupancies = S.terrain:ReadVoxels(region, voxelSize)
 
 		if not materials or not occupancies then
 			return
@@ -1173,7 +1171,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 						end
 
 						if isSurface then
-							local worldPos = minBound + Vector3.new((x - 0.5) * VOXEL_SIZE, (y - 0.5) * VOXEL_SIZE, (z - 0.5) * VOXEL_SIZE)
+							local worldPos = minBound + Vector3.new((x - 0.5) * voxelSize, (y - 0.5) * voxelSize, (z - 0.5) * voxelSize)
 
 							local part = Instance.new("Part")
 							part.Name = "OccupancyOverlay"
@@ -1181,7 +1179,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 							part.Anchored = true
 							part.CanCollide = false
 							part.CastShadow = false
-							part.Size = Vector3.new(VOXEL_SIZE * 0.9, VOXEL_SIZE * 0.9, VOXEL_SIZE * 0.9)
+							part.Size = Vector3.new(voxelSize * 0.9, voxelSize * 0.9, voxelSize * 0.9)
 							part.Position = worldPos
 							part.Color = getOccupancyColor(occ)
 							part.Material = Enum.Material.Neon
@@ -2509,17 +2507,17 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 			-- Voxel Inspector: update live display on hover
 			if S.currentTool == ToolId.VoxelInspect and not S.voxelInspectLocked and hitPosition then
 				-- Convert world position to voxel grid coordinates
-				local VOXEL_SIZE = 4
-				local gridX = math.floor(hitPosition.X / VOXEL_SIZE)
-				local gridY = math.floor(hitPosition.Y / VOXEL_SIZE)
-				local gridZ = math.floor(hitPosition.Z / VOXEL_SIZE)
+				local voxelSize = Constants.VOXEL_RESOLUTION
+				local gridX = math.floor(hitPosition.X / voxelSize)
+				local gridY = math.floor(hitPosition.Y / voxelSize)
+				local gridZ = math.floor(hitPosition.Z / voxelSize)
 
 				-- Read the voxel at this position
-				local voxelMin = Vector3.new(gridX * VOXEL_SIZE, gridY * VOXEL_SIZE, gridZ * VOXEL_SIZE)
-				local voxelMax = voxelMin + Vector3.new(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE)
+				local voxelMin = Vector3.new(gridX * voxelSize, gridY * voxelSize, gridZ * voxelSize)
+				local voxelMax = voxelMin + Vector3.new(voxelSize, voxelSize, voxelSize)
 
 				local region = Region3.new(voxelMin, voxelMax)
-				local materials, occupancies = S.terrain:ReadVoxels(region, VOXEL_SIZE)
+				local materials, occupancies = S.terrain:ReadVoxels(region, voxelSize)
 
 				if materials and occupancies then
 					local mat = materials[1] and materials[1][1] and materials[1][1][1] or Enum.Material.Air
@@ -2540,12 +2538,12 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 						highlight.Transparency = 0.7
 						highlight.Color = Theme.Colors.InspectHighlight
 						highlight.Material = Enum.Material.Neon
-						highlight.Size = Vector3.new(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE)
+						highlight.Size = Vector3.new(voxelSize, voxelSize, voxelSize)
 						highlight.Parent = workspace
 						S.voxelInspectHighlight = highlight
 					end
 
-					S.voxelInspectHighlight.Position = voxelMin + Vector3.new(VOXEL_SIZE / 2, VOXEL_SIZE / 2, VOXEL_SIZE / 2)
+					S.voxelInspectHighlight.Position = voxelMin + Vector3.new(voxelSize / 2, voxelSize / 2, voxelSize / 2)
 					S.voxelInspectHighlight.Transparency = 0.7
 
 					if S.updateVoxelInspectDisplay then

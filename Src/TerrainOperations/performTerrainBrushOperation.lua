@@ -211,7 +211,13 @@ local function performOperation(terrain, opSet)
 	end
 
 	local voxelCountX = #readOccupancies
+	if voxelCountX == 0 then
+		return
+	end
 	local voxelCountY = #readOccupancies[1]
+	if voxelCountY == 0 then
+		return
+	end
 	local voxelCountZ = #readOccupancies[1][1]
 
 	-- Region dimensions for tool settings
