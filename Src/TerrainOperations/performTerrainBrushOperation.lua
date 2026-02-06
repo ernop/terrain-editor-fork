@@ -227,8 +227,10 @@ local function performOperation(terrain, opSet)
 	-- Get the tool's execute function from registry
 	local toolExecute = toolDef and toolDef.execute or nil
 
-	-- Base settings that are the same for each voxel
-	local sculptSettings = {
+	-- Base settings that are the same for each voxel.
+	-- Uses metatable __index to pass all opSet fields through automatically.
+	-- New tool parameters are available without changes to this file.
+	local sculptSettings = setmetatable({
 		-- Read/Write buffers
 		readMaterials = readMaterials,
 		readOccupancies = readOccupancies,
@@ -253,76 +255,22 @@ local function performOperation(terrain, opSet)
 		filterSize = 1,
 		maxOccupancy = 1,
 
-		-- Tool-specific parameters (pass everything from opSet)
-		noiseScale = opSet.noiseScale,
-		noiseIntensity = opSet.noiseIntensity,
-		noiseSeed = opSet.noiseSeed,
-		stepHeight = opSet.stepHeight,
-		stepSharpness = opSet.stepSharpness,
-		cliffAngle = opSet.cliffAngle,
-		cliffDirectionX = opSet.cliffDirectionX,
-		cliffDirectionZ = opSet.cliffDirectionZ,
-		pathDepth = opSet.pathDepth,
-		pathProfile = opSet.pathProfile,
-		pathDirectionX = opSet.pathDirectionX,
-		pathDirectionZ = opSet.pathDirectionZ,
-		blobIntensity = opSet.blobIntensity,
-		blobSmoothness = opSet.blobSmoothness,
-		slopeFlatMaterial = opSet.slopeFlatMaterial,
-		slopeSteepMaterial = opSet.slopeSteepMaterial,
-		slopeCliffMaterial = opSet.slopeCliffMaterial,
-		slopeThreshold1 = opSet.slopeThreshold1,
-		slopeThreshold2 = opSet.slopeThreshold2,
-		clusterSize = opSet.clusterSize,
-		materialPalette = opSet.materialPalette,
-		megarandomizeSeed = opSet.megarandomizeSeed,
-		cavitySensitivity = opSet.cavitySensitivity,
-		meltViscosity = opSet.meltViscosity,
-		gradientMaterial1 = opSet.gradientMaterial1,
-		gradientMaterial2 = opSet.gradientMaterial2,
-		gradientStartX = opSet.gradientStartX,
-		gradientStartZ = opSet.gradientStartZ,
-		gradientEndX = opSet.gradientEndX,
-		gradientEndZ = opSet.gradientEndZ,
-		gradientNoiseAmount = opSet.gradientNoiseAmount,
+		-- Values derived from opSet (transformations, fallbacks, decompositions)
 		gradientSeed = opSet.gradientSeed or opSet.noiseSeed,
-		floodTargetMaterial = opSet.floodTargetMaterial,
-		floodSourceMaterial = opSet.floodSourceMaterial,
-		stalactiteDirection = opSet.stalactiteDirection,
-		stalactiteDensity = opSet.stalactiteDensity,
-		stalactiteLength = opSet.stalactiteLength,
-		stalactiteTaper = opSet.stalactiteTaper,
 		stalactiteSeed = opSet.stalactiteSeed or opSet.noiseSeed,
-		tendrilRadius = opSet.tendrilRadius,
-		tendrilBranches = opSet.tendrilBranches,
-		tendrilLength = opSet.tendrilLength,
-		tendrilCurl = opSet.tendrilCurl,
 		tendrilSeed = opSet.tendrilSeed or opSet.noiseSeed,
-		symmetryType = opSet.symmetryType,
-		symmetrySegments = opSet.symmetrySegments,
-		gridCellSize = opSet.gridCellSize,
-		gridVariation = opSet.gridVariation,
-		gridSeed = opSet.gridSeed,
-		growthRate = opSet.growthRate,
-		growthBias = opSet.growthBias,
-		growthPattern = opSet.growthPattern,
-		growthSeed = opSet.growthSeed,
-		cloneSourceBuffer = opSet.cloneSourceBuffer,
-		cloneSourceCenter = opSet.cloneSourceCenter,
 		sourceBuffer = opSet.cloneSourceBuffer, -- Legacy alias
 		sourceCenterX = opSet.cloneSourceCenter and opSet.cloneSourceCenter.X or nil,
 		sourceCenterY = opSet.cloneSourceCenter and opSet.cloneSourceCenter.Y or nil,
 		sourceCenterZ = opSet.cloneSourceCenter and opSet.cloneSourceCenter.Z or nil,
 		pathWidth = radiusX,
-		-- Grow tool: emphasize brush center (depth falloff along view direction)
-		emphasizeBrushCenter = opSet.emphasizeBrushCenter,
-		cameraPosition = opSet.cameraPosition,
+
 		-- Constant values (never change during iteration)
 		centerX = centerX,
 		centerY = centerY,
 		centerZ = centerZ,
 		centerPoint = centerPoint,
-	}
+	}, { __index = opSet })
 
 	-- Pre-compute whether this is a Flatten operation (avoid check in inner loop)
 	local isFlatten = (tool == ToolId.Flatten)

@@ -15,6 +15,14 @@ OperationHelper.xOffset = { 1, -1, 0, 0, 0, 0 }
 OperationHelper.yOffset = { 0, 0, 1, -1, 0, 0 }
 OperationHelper.zOffset = { 0, 0, 0, 0, 1, -1 }
 
+-- Get effective occupancy, treating water as air when ignoreWater is set
+function OperationHelper.effectiveOccupancy(occupancy: number, material: Enum.Material, ignoreWater: boolean): number
+	if ignoreWater and material == materialWater then
+		return 0
+	end
+	return occupancy
+end
+
 -- This should later be replaced with 0 once smooth terrain doesn't approximate 1/256 to 0.
 -- This is causing small occupancies to become air
 OperationHelper.one256th = 1 / 256

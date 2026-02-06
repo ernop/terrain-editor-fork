@@ -17,13 +17,7 @@ local fbm3D = Noise.fbm3D
 -- Shared voxel helpers (eliminate duplication across tool functions)
 -- ============================================================================
 
--- Get effective occupancy, treating water as air when ignoreWater is set
-local function effectiveOccupancy(occupancy: number, material: Enum.Material, ignoreWater: boolean): number
-	if ignoreWater and material == materialWater then
-		return 0
-	end
-	return occupancy
-end
+local effectiveOccupancy = OperationHelper.effectiveOccupancy
 
 -- Check if a voxel is on a terrain surface (partially filled or has an empty neighbor)
 -- Returns true if the voxel should be affected by surface-only tools (Noise, Terrace, Cliff)
