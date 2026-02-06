@@ -2,6 +2,18 @@
 
 Full-scope improvement plan for the terrain editor plugin. Covers every layer: architecture, code quality, performance, reliability, product, and UI.
 
+## Progress
+
+| Phase | Status | Commits |
+|-------|--------|---------|
+| Phase A: Consistency sweep | DONE | `a9088e7` |
+| Phase B: Duplication elimination | DONE | `1fcd851` |
+| Phase C: Shape SDF fixes | DONE | `45f7a7e` |
+| Phase D: Performance | DONE | `06d659f` |
+| Phase E: Bridge overhaul | DONE | `be99ea1` |
+| Phase F: UI/UX polish | DONE | `dd64e26` |
+| Phase G: Architecture | NOT STARTED | Needs discussion |
+
 ---
 
 ## System Audit Summary
@@ -28,23 +40,23 @@ Full-scope improvement plan for the terrain editor plugin. Covers every layer: a
 | B3 | Bridge preview skips endpoints that build includes | BridgePanel.lua | **FIXED** (staged) |
 | B4 | Bridge `perpDirZ` computes duplicate of RightVector | BridgePanel.lua | **FIXED** (staged) |
 | B5 | `CFrame.new()` identity comparison may be fragile | performTerrainBrushOperation.lua:83 | Low; works in practice |
-| B6 | Smooth: `occupancy * 1.5 - 0.25` lies to the algorithm | SculptOperations.lua:299 | Intentional hack; needs comment or fix |
-| B7 | Ring innerRadius hardcoded to `outerRadius * 0.6` | OperationHelper.lua:400 | Rings always 40% thick |
-| B8 | ZigZag hardcoded `brushOccupancy = 0.8` | OperationHelper.lua:422 | No falloff, no strength control |
-| B9 | Sheet hardcoded arc angle `0.6 * pi` | OperationHelper.lua:466 | Always ~108 degrees |
-| B10 | Hollow mode uses ellipsoid distance for box shapes | OperationHelper.lua:621 | Rounded hollow interior in cubes |
+| B6 | Smooth: `occupancy * 1.5 - 0.25` lies to the algorithm | SculptOperations.lua:299 | **DOCUMENTED** - intentional range expansion |
+| B7 | Ring innerRadius hardcoded to `outerRadius * 0.6` | OperationHelper.lua:400 | **TODO added** - needs UI slider |
+| B8 | ZigZag hardcoded `brushOccupancy = 0.8` | OperationHelper.lua:422 | **FIXED** - proper edge falloff |
+| B9 | Sheet hardcoded arc angle `0.6 * pi` | OperationHelper.lua:466 | **TODO added** - needs UI slider |
+| B10 | Hollow mode uses ellipsoid distance for box shapes | OperationHelper.lua:621 | Already handled (uses max() for box shapes) |
 
 ### Code Duplication
 
 | # | What's duplicated | Where | Lines saved |
 |---|-------------------|-------|-------------|
-| D1 | Bridge preview and build path generation | BridgePanel.lua 335-433 vs 469-540 | ~80 |
-| D2 | Surface detection (6-neighbor empty check) | SculptOperations.lua in noise, terrace, cliff | ~60 |
-| D3 | Water handling (`if ignoreWater and material == Water`) | SculptOperations.lua across 8+ functions | ~40 |
-| D4 | Material transition logic (air check, autoMaterial) | SculptOperations.lua across 10+ functions | ~30 |
-| D5 | Slider creation | CorePanels `createInlineSlider` vs UIHelpers `createSlider` | ~100 |
-| D6 | `getTerrainHit` and `getTerrainHitRaw` nearly identical | TerrainEditorModule.lua 1224-1301 | ~40 |
-| D7 | Noise functions in SculptOperations vs Noise.lua | SculptOperations.lua top section | ~50 |
+| D1 | Bridge preview and build path generation | BridgePanel.lua | **FIXED** - unified `BridgePathGenerator.generatePath()` |
+| D2 | Surface detection (6-neighbor empty check) | SculptOperations.lua in noise, terrace, cliff | ~60 (future) |
+| D3 | Water handling (`if ignoreWater and material == Water`) | SculptOperations.lua across 8+ functions | ~40 (future) |
+| D4 | Material transition logic (air check, autoMaterial) | SculptOperations.lua across 10+ functions | ~30 (future) |
+| D5 | Slider creation | CorePanels `createInlineSlider` vs UIHelpers `createSlider` | ~100 (future) |
+| D6 | `getTerrainHit` and `getTerrainHitRaw` nearly identical | TerrainEditorModule.lua | **FIXED** - merged with `skipPlaneLock` param |
+| D7 | Noise functions in SculptOperations vs Noise.lua | SculptOperations.lua top section | ~50 (future) |
 
 ### Inconsistencies
 
