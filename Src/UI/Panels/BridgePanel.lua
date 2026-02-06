@@ -193,10 +193,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		S.bridgeLastPreviewParams = nil
 		bridgeStatusLabel.Text = "Status: Click to set START"
 
-		for _, part in ipairs(S.bridgePreviewParts) do
-			part:Destroy()
-		end
-		S.bridgePreviewParts = {}
+		destroyAllPreviewParts()
 
 		if updateBridgeStatus then
 			updateBridgeStatus()
@@ -292,67 +289,86 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		}
 	end
 
+	-- Part pool: reuse Parts instead of destroy/create each frame
+	local function getOrCreatePart(index: number): BasePart
+		local part = S.bridgePreviewParts[index]
+		if part then
+			part.Parent = workspace
+			return part
+		end
+		local newPart = Instance.new("Part")
+		newPart.Archivable = false
+		newPart.Anchored = true
+		newPart.CanCollide = false
+		newPart.Material = Enum.Material.Neon
+		newPart.Parent = workspace
+		S.bridgePreviewParts[index] = newPart
+		return newPart
+	end
+
+	-- Hide unused parts (pool slots beyond activeCount)
+	local function hideExcessParts(activeCount: number)
+		for i = activeCount + 1, #S.bridgePreviewParts do
+			S.bridgePreviewParts[i].Parent = nil
+		end
+	end
+
+	-- Destroy all pooled parts (for full cleanup)
+	local function destroyAllPreviewParts()
+		for _, part in ipairs(S.bridgePreviewParts) do
+			part:Destroy()
+		end
+		S.bridgePreviewParts = {}
+	end
+
 	updateBridgePreview = function(hoverPoint: Vector3?)
 		if hoverPoint then
 			S.bridgeHoverPoint = hoverPoint
 		end
 
-		-- Clear existing preview parts
-		for _, part in ipairs(S.bridgePreviewParts) do
-			part:Destroy()
-		end
-		S.bridgePreviewParts = {}
-
 		if not S.bridgeStartPoint then
+			hideExcessParts(0)
 			return
 		end
 
-		-- Create start marker
-		local startMarker = Instance.new("Part")
-		startMarker.Archivable = false
+		local partIndex = 0
+
+		-- Start marker
+		partIndex = partIndex + 1
+		local startMarker = getOrCreatePart(partIndex)
+		startMarker.Shape = Enum.PartType.Block
 		startMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
 		startMarker.CFrame = CFrame.new(S.bridgeStartPoint)
-		startMarker.Anchored = true
-		startMarker.CanCollide = false
-		startMarker.Material = Enum.Material.Neon
 		startMarker.Color = Theme.Colors.BridgeStart
 		startMarker.Transparency = Theme.Transparency.PreviewMarker
-		startMarker.Parent = workspace
-		table.insert(S.bridgePreviewParts, startMarker)
 
 		local endPoint = S.bridgeEndPoint or hoverPoint
 		if endPoint then
-			-- Create end marker
-			local endMarker = Instance.new("Part")
-			endMarker.Archivable = false
+			-- End marker
+			partIndex = partIndex + 1
+			local endMarker = getOrCreatePart(partIndex)
+			endMarker.Shape = Enum.PartType.Block
 			endMarker.Size = Vector3.new(S.bridgeWidth, S.bridgeWidth, S.bridgeWidth) * Constants.VOXEL_RESOLUTION
 			endMarker.CFrame = CFrame.new(endPoint)
-			endMarker.Anchored = true
-			endMarker.CanCollide = false
-			endMarker.Material = Enum.Material.Neon
 			endMarker.Color = Theme.Colors.BridgeEnd
 			endMarker.Transparency = Theme.Transparency.PreviewMarker
-			endMarker.Parent = workspace
-			table.insert(S.bridgePreviewParts, endMarker)
 
 			-- Generate path using unified generator
 			local positions = BridgePathGenerator.generatePath(getBridgeSettings(endPoint))
+			local pathSize = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
 
 			for _, position in ipairs(positions) do
-				local pathMarker = Instance.new("Part")
-				pathMarker.Archivable = false
-				pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
+				partIndex = partIndex + 1
+				local pathMarker = getOrCreatePart(partIndex)
+				pathMarker.Shape = Enum.PartType.Ball
+				pathMarker.Size = pathSize
 				pathMarker.CFrame = CFrame.new(position)
-				pathMarker.Anchored = true
-				pathMarker.CanCollide = false
-				pathMarker.Material = Enum.Material.Neon
 				pathMarker.Color = Theme.Colors.BridgePath
 				pathMarker.Transparency = Theme.Transparency.PathMarker
-				pathMarker.Shape = Enum.PartType.Ball
-				pathMarker.Parent = workspace
-				table.insert(S.bridgePreviewParts, pathMarker)
 			end
 		end
+
+		hideExcessParts(partIndex)
 	end
 
 	local function buildBridge()
@@ -369,12 +385,17 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
 
 		local radius = S.bridgeWidth * Constants.VOXEL_RESOLUTION / 2
+		local YIELD_INTERVAL = 50 -- Yield every N segments to prevent viewport freeze
 
-		for _, position in ipairs(positions) do
+		for i, position in ipairs(positions) do
 			if S.bridgeUseBrushShape and S.performBridgeBrush then
 				S.performBridgeBrush(position)
 			else
 				S.terrain:FillBall(position, radius, S.brushMaterial)
+			end
+			-- Yield periodically for large bridges to prevent freezing
+			if i % YIELD_INTERVAL == 0 and i < #positions then
+				task.wait()
 			end
 		end
 
