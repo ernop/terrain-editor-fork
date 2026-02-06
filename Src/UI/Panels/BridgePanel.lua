@@ -338,10 +338,18 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 		}
 	end
 
+	-- Check if a Roblox instance is still valid (not destroyed)
+	local function isValidInstance(instance: any): boolean
+		local ok, _ = pcall(function()
+			return instance.Parent
+		end)
+		return ok
+	end
+
 	-- Part pool: reuse Parts instead of destroy/create each frame
 	local function getOrCreatePart(index: number): BasePart
 		local part = S.bridgePreviewParts[index]
-		if part then
+		if part and isValidInstance(part) then
 			part.Parent = workspace
 			return part
 		end
@@ -358,14 +366,19 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	-- Hide unused parts (pool slots beyond activeCount)
 	local function hideExcessParts(activeCount: number)
 		for i = activeCount + 1, #S.bridgePreviewParts do
-			S.bridgePreviewParts[i].Parent = nil
+			local part = S.bridgePreviewParts[i]
+			if part and isValidInstance(part) then
+				part.Parent = nil
+			end
 		end
 	end
 
 	-- Destroy all pooled parts (for full cleanup)
 	destroyAllPreviewParts = function()
 		for _, part in ipairs(S.bridgePreviewParts) do
-			part:Destroy()
+			if isValidInstance(part) then
+				part:Destroy()
+			end
 		end
 		S.bridgePreviewParts = {}
 	end
@@ -404,6 +417,9 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 			-- Generate path using unified generator
 			local positions = BridgePathGenerator.generatePath(getBridgeSettings(endPoint))
+			if not positions then
+				positions = {}
+			end
 			local pathSize = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
 
 			for _, position in ipairs(positions) do

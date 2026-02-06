@@ -76,6 +76,15 @@ Constants.BIOME_SNAP_INCREMENT = 4
 
 Constants.FLATTEN_PLANE_TOLERANCE = 0.05
 
+-- Brush rate cooldowns (seconds between activations)
+Constants.BRUSH_RATE_COOLDOWNS = {
+	very_slow = 1,
+	slow = 0.5,
+	normal = 0.2,
+	fast = 0.1,
+}
+Constants.MIN_BRUSH_COOLDOWN = 0.05
+
 Constants.ToolActivatesPlugin = {
 	[ToolId.Select] = true,
 	[ToolId.Move] = true,

@@ -355,6 +355,11 @@ BrushData.Materials = {
 -- Compute bridge path offset for a given t (0 to 1), distance, variant, and intensity
 -- intensity: multiplier for how extreme the variations are (0.1 to 3.0, default 1.0)
 function BrushData.getBridgeOffset(t: number, distance: number, variant: string, intensity: number?): Vector3
+	-- Guard against zero-length bridges
+	if distance < 0.001 then
+		return Vector3.new(0, 0, 0)
+	end
+
 	local i = intensity or 1.0
 	local baseArc = math.sin(t * math.pi) * distance * 0.1 * i
 	local waveAmplitude = distance * 0.15 * i

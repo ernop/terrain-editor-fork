@@ -1475,11 +1475,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 
 			local shouldActivate = false
 			local mouseMoved = false
-			local MOVEMENT_THRESHOLD = 4
-
 			if S.lastBrushPosition then
 				local moveDistance = (hitPosition - S.lastBrushPosition).Magnitude
-				if moveDistance > MOVEMENT_THRESHOLD then
+				if moveDistance > Constants.VOXEL_RESOLUTION then
 					mouseMoved = true
 				end
 			end
@@ -1501,11 +1499,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 					S.lastBrushTime = now
 				end
 			else
-				local rateMap = { very_slow = 1, slow = 0.5, normal = 0.2, fast = 0.1 }
-				local brushCooldown = rateMap[S.brushRate] or 0.1
-				local minCooldown = 0.05
+				local brushCooldown = Constants.BRUSH_RATE_COOLDOWNS[S.brushRate] or 0.1
 
-				if mouseMoved and timeSinceLastActivation >= minCooldown then
+				if mouseMoved and timeSinceLastActivation >= Constants.MIN_BRUSH_COOLDOWN then
 					shouldActivate = true
 					S.lastBrushTime = now
 				elseif timeSinceLastActivation >= brushCooldown then
