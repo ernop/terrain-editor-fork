@@ -76,10 +76,10 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local voxelCountY = #readOccupancies[1]
 	local voxelCountZ = #readOccupancies[1][1]
 	
-	-- For sculptSettings compatibility
-	local sizeX = voxelCountX
-	local sizeY = voxelCountY
-	local sizeZ = voxelCountZ
+	-- For sculptSettings compatibility (region dimensions in voxel indices)
+	local regionSizeX = voxelCountX
+	local regionSizeY = voxelCountY
+	local regionSizeZ = voxelCountZ
 
 	local planeNormal = opSet.planeNormal
 	local planePoint = opSet.planePoint
@@ -89,9 +89,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 		readOccupancies = readOccupancies,
 		writeMaterials = writeMaterials,
 		writeOccupancies = writeOccupancies,
-		sizeX = sizeX,
-		sizeY = sizeY,
-		sizeZ = sizeZ,
+		sizeX = regionSizeX,
+		sizeY = regionSizeY,
+		sizeZ = regionSizeZ,
 		strength  = strength,
 		ignoreWater = ignoreWater,
 		desiredMaterial = desiredMaterial,
@@ -106,11 +106,11 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 		different columns which are each processed individually. This tool is mainly meant
 		for use with the flatten tool.
 	]]
-	for voxelX = 1, sizeX do
+	for voxelX = 1, regionSizeX do
 		local worldVectorX = minBoundsX + ((voxelX - 0.5) * Constants.VOXEL_RESOLUTION)
 		local cellVectorX = worldVectorX - centerX
 
-		for voxelZ = 1, sizeZ do
+		for voxelZ = 1, regionSizeZ do
 			local worldVectorZ = minBoundsZ + ((voxelZ - 0.5) * Constants.VOXEL_RESOLUTION)
 			local cellVectorZ = worldVectorZ - centerZ
 
@@ -129,14 +129,14 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 					intersectsPlane = false
 				end
 
-				if initialVoxelY > sizeY then
-					initialVoxelY = sizeY
+				if initialVoxelY > regionSizeY then
+					initialVoxelY = regionSizeY
 					intersectsPlane = false
 				end
 
 				-- If allowed to erode, then do so
 				if flattenMode == FlattenMode.Erode or flattenMode == FlattenMode.Both then
-					for voxelY = initialVoxelY + 1, sizeY do
+					for voxelY = initialVoxelY + 1, regionSizeY do
 						local cellOccupancy = 0
 						local cellMaterial = materialAir
 						local stopCondition = false
@@ -155,7 +155,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 						end
 
 						-- Decide which voxel to stop at and erode depending on the selected mode
-						if voxelY ~= sizeY then
+						if voxelY ~= regionSizeY then
 							cellOccupancy = readOccupancies[voxelX][voxelY + 1][voxelZ]
 							cellMaterial = readMaterials[voxelX][voxelY + 1][voxelZ]
 							stopCondition = (cellOccupancy == 0 or (ignoreWater and cellMaterial == materialWater))
@@ -218,12 +218,12 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 
 						-- If the stop condition has been reached, or extending is enabled, grow
 						if stopCondition then
-							local cellOccupancy = readOccupancies[voxelX][voxelY][voxelZ]
-							local cellMaterial = readMaterials[voxelX][voxelY][voxelZ]
+							local actualOccupancy = readOccupancies[voxelX][voxelY][voxelZ]
+							local actualMaterial = readMaterials[voxelX][voxelY][voxelZ]
 
-							if ignoreWater and cellMaterial == materialWater then
-								cellMaterial = materialAir
-								cellOccupancy = 0
+							if ignoreWater and actualMaterial == materialWater then
+								actualMaterial = materialAir
+								actualOccupancy = 0
 							end
 
 							airFillerMaterial = waterHeight >= voxelY and airFillerMaterial or materialAir
@@ -231,8 +231,8 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 							sculptSettings.y = voxelY
 							sculptSettings.brushOccupancy = brushOccupancy
 							sculptSettings.magnitudePercent = magnitudePercent
-							sculptSettings.cellOccupancy = cellOccupancy
-							sculptSettings.cellMaterial = cellMaterial
+							sculptSettings.cellOccupancy = actualOccupancy
+							sculptSettings.cellMaterial = actualMaterial
 							sculptSettings.airFillerMaterial = airFillerMaterial
 
 							SculptOperations.grow(sculptSettings)
@@ -268,7 +268,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 					
 					-- Check whether, or not the cell is ready to be manipulated
 					local completeErode = (flattenMode == FlattenMode.Grow) or cellOccupancy < 1 
-					if voxelY + 1 <= sizeY and not completeErode then
+					if voxelY + 1 <= regionSizeY and not completeErode then
 						local cellUpOccupancy = readOccupancies[voxelX][voxelY + 1][voxelZ]
 						local cellUpMaterial = readMaterials[voxelX][voxelY + 1][voxelZ]
 						completeErode = cellUpOccupancy == 0 or (ignoreWater and cellUpMaterial == materialWater)

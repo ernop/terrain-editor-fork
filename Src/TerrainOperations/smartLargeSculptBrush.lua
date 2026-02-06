@@ -79,12 +79,12 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local voxelCountY = #readOccupancies[1]
 	local voxelCountZ = #readOccupancies[1][1]
 	
-	-- For sculptSettings compatibility
-	local sizeX = voxelCountX
-	local sizeY = voxelCountY
-	local sizeZ = voxelCountZ
+	-- For sculptSettings compatibility (region dimensions in voxel indices)
+	local regionSizeX = voxelCountX
+	local regionSizeY = voxelCountY
+	local regionSizeZ = voxelCountZ
 
-	local REGION_SIZE = sizeX
+	local REGION_SIZE = regionSizeX
 	-- 1D array of booleans for voxels we've seen
 	-- Use with voxel coordinates x, y z as seenVoxels[x + REGION_SIZE*(y + REGION_SIZE*z)]
 	local seenVoxels = {}
@@ -103,9 +103,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				local x = centerVoxelX + xo
 				local y = centerVoxelY + yo
 				local z = centerVoxelZ + zo
-				if x > 0 and x <= sizeX
-					and y > 0 and y <= sizeY
-					and z > 0 and z <= sizeZ then
+				if x > 0 and x <= regionSizeX
+					and y > 0 and y <= regionSizeY
+					and z > 0 and z <= regionSizeZ then
 					seenVoxels[x + REGION_SIZE*(y + REGION_SIZE*z)] = true
 					table.insert(voxelsToConsider, {x, y, z})
 				end
@@ -134,9 +134,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 		readOccupancies = readOccupancies,
 		writeMaterials = writeMaterials,
 		writeOccupancies = writeOccupancies,
-		sizeX = sizeX,
-		sizeY = sizeY,
-		sizeZ = sizeZ,
+		sizeX = regionSizeX,
+		sizeY = regionSizeY,
+		sizeZ = regionSizeZ,
 		strength  = strength,
 		ignoreWater = ignoreWater,
 		desiredMaterial = desiredMaterial,
@@ -305,9 +305,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 						local checkY = voxelY + yo
 						local checkZ = voxelZ + zo
 
-						if checkX > 0 and checkX <= sizeX
-							and checkY > 0 and checkY <= sizeY
-							and checkZ > 0 and checkZ <= sizeZ
+						if checkX > 0 and checkX <= regionSizeX
+							and checkY > 0 and checkY <= regionSizeY
+							and checkZ > 0 and checkZ <= regionSizeZ
 							-- Ignore the center voxel as we only care about neighbours
 							and (xo ~= 0 or yo ~= 0 or zo ~= 0) then
 							local cellOccupancy = readOccupancies[checkX][checkY][checkZ]
@@ -388,9 +388,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 							local nx = voxelX + xo
 							local ny = voxelY + yo
 							local nz = voxelZ + zo
-							if nx > 0 and nx <= sizeX
-								and ny > 0 and ny <= sizeY
-								and nz > 0 and nz <= sizeZ
+							if nx > 0 and nx <= regionSizeX
+								and ny > 0 and ny <= regionSizeY
+								and nz > 0 and nz <= regionSizeZ
 								-- Ignore the center voxel as we only care about neighbours
 								and (xo ~= 0 or yo ~= 0 or zo ~= 0) then
 								local cellOccupancy = readOccupancies[nx][ny][nz]

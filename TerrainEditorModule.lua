@@ -1423,10 +1423,7 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 				local rotatedPosition = center + Vector3.new(rotatedX, offset.Y, rotatedZ)
 
 				-- Update the operation's center point
-				local symmetricOpSet = {}
-				for k, v in pairs(opSet) do
-					symmetricOpSet[k] = v
-				end
+				local symmetricOpSet = table.clone(opSet)
 				symmetricOpSet.centerPoint = rotatedPosition
 
 				-- Also rotate the brush if it supports rotation

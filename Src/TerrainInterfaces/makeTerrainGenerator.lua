@@ -96,8 +96,8 @@ local function findBiomeTransitionValue(biome, weight, value, averageValue)
 	elseif biome == Biome.Canyons then
 		return (weight > 0.7 and 1 or 0) * value
 	elseif biome == Biome.Mountains then
-		local weight = weight^3 -- Improves the ease of mountains transitioning to other biomes
-		return (averageValue * (1 - weight)) + (value * weight)
+		local cubedWeight = weight^3 -- Improves the ease of mountains transitioning to other biomes
+		return (averageValue * (1 - cubedWeight)) + (value * cubedWeight)
 	else
 		return (averageValue * (1 - weight)) + (value * weight)
 	end

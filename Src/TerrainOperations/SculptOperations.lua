@@ -383,6 +383,7 @@ local function terrace(options)
 	local cellMaterial = options.cellMaterial
 	local strength = options.strength
 	local airFillerMaterial = options.airFillerMaterial
+	local ignoreWater = options.ignoreWater
 
 	-- Terrace-specific parameters
 	local worldY = options.worldY or 0
@@ -456,6 +457,7 @@ local function cliff(options)
 	local cellMaterial = options.cellMaterial
 	local strength = options.strength
 	local airFillerMaterial = options.airFillerMaterial
+	local ignoreWater = options.ignoreWater
 
 	-- Cliff-specific parameters
 	local cellVectorX = options.cellVectorX or 0 -- Offset from brush center
@@ -1651,8 +1653,8 @@ local function growthSim(options)
 	elseif growthPattern == "cellular" then
 		-- Round, blob-like growth
 		local threshold = 0.3 + (neighborCount / 6) * 0.4
-		local noise = hash3D(voxelX, voxelY, voxelZ, noiseSeed)
-		if noise < threshold then
+		local cellNoise = hash3D(voxelX, voxelY, voxelZ, noiseSeed)
+		if cellNoise < threshold then
 			growthAmount = neighborSum / 6 * growthRate
 		end
 	end

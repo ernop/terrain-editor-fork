@@ -39,7 +39,6 @@ export type ConfigPanelsResult = {
 }
 
 function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
-	local allPanels: { [string]: Frame } = {}
 	local S = deps.S
 	local ToolId = deps.ToolId
 
@@ -60,9 +59,7 @@ function ConfigPanels.create(deps: ConfigPanelsDeps): ConfigPanelsResult
 			end
 		end,
 	})
-	for k, v in pairs(coreResult.panels) do
-		allPanels[k] = v
-	end
+	local allPanels = table.clone(coreResult.panels)
 
 	-- Create Material Panel
 	local materialResult = MaterialPanel.create({

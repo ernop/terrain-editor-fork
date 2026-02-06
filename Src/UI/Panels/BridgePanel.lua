@@ -32,6 +32,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	-- Forward declare for callbacks
 	local updateBridgePreview: ((hoverPoint: Vector3?) -> ())?
 	local updateBridgeStatus: (() -> ())?
+	local destroyAllPreviewParts: (() -> ())?
 
 	-- Bridge Info Panel
 	local bridgeInfoPanel = UIHelpers.createConfigPanel(deps.configContainer, "bridgeInfo")
@@ -331,7 +332,7 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	end
 
 	-- Destroy all pooled parts (for full cleanup)
-	local function destroyAllPreviewParts()
+	destroyAllPreviewParts = function()
 		for _, part in ipairs(S.bridgePreviewParts) do
 			part:Destroy()
 		end
