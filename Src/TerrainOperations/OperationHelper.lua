@@ -397,7 +397,8 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			-- radiusX = outer radius, radiusY = ring thickness (half-height)
 			local outerRadius = radiusX
 			local thickness = radiusY -- Actual half-thickness from user setting
-			local innerRadius = outerRadius * 0.6 -- Hollow center
+			-- TODO: innerRadius ratio should be configurable via brush state (needs UI slider)
+			local innerRadius = outerRadius * 0.6
 
 			-- Distance from Y axis in XZ plane
 			local distFromAxis = math.sqrt(cellVectorX * cellVectorX + cellVectorZ * cellVectorZ)
@@ -443,8 +444,15 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			end
 
 			if inShape then
-				magnitudePercent = 0.8
-				brushOccupancy = 0.8
+				-- Calculate edge distance for proper falloff
+				-- Use distance from nearest edge of the Z-shape for smooth boundaries
+				local edgeDistX = 1 - normX
+				local edgeDistY = math.min(normY, 1 - normY)
+				local edgeDistZ = math.min(normZ, 1 - normZ)
+				local edgeDist = math.min(edgeDistX, edgeDistY, edgeDistZ)
+				local normalizedEdge = math.min(1, edgeDist / barThickness)
+				magnitudePercent = applyInteriorFalloff(1 - normalizedEdge)
+				brushOccupancy = math.max(0.01, math.min(1, normalizedEdge * avgRadius / Constants.VOXEL_RESOLUTION))
 			else
 				brushOccupancy = 0
 				magnitudePercent = 0
@@ -464,6 +472,7 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 			local withinHeight = math.abs(cellVectorY) <= sheetHeight
 			-- Only front half of the cylinder (positive Z or use angle)
 			local angle = math.atan2(cellVectorX, cellVectorZ)
+			-- TODO: arc angle should be configurable via brush state (needs UI slider)
 			local withinArc = math.abs(angle) <= math.pi * 0.6 -- ~108 degree arc
 
 			if onSurface and withinHeight and withinArc then

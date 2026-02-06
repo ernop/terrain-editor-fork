@@ -295,7 +295,8 @@ local function smooth(options)
 						hasEmptyNeighbour = true
 					end
 
-					-- This is very important. It allows cells to fully diminish or fully fill by lying to the algorithm
+					-- Expand [0,1] to [-0.25, 1.25] so the average can reach 0 or 1.
+					-- Without this, averaging converges asymptotically and never fully empties/fills.
 					occupancy = occupancy * 1.5 - 0.25
 
 					totalNeighbours = totalNeighbours + 1 * distanceScale
