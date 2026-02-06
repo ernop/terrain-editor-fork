@@ -186,8 +186,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		bridgePlaneConstraint = 0, -- 0-1: how much to constrain lateral drift to start-end plane
 		bridgeAxisRotation = 0, -- Rotation around the start-to-end axis (degrees)
 		bridgeCurves = {} :: { { type: string, amplitude: number, frequency: number, phase: number, offset: Vector3 } },
-		bridgeEditMode = false,
-		bridgeSelectedConnection = nil :: number?,
 		bridgeMeanderComplexity = 5,
 		bridgeHoverPoint = nil :: Vector3?,
 		bridgeLastPreviewParams = nil :: any?,
@@ -2190,8 +2188,6 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		S.bridgeWidth = 4
 		S.bridgeVariant = "Arc"
 		S.bridgeCurves = {}
-		S.bridgeEditMode = false
-		S.bridgeSelectedConnection = nil
 		S.bridgeMeanderComplexity = 5
 		S.bridgeHoverPoint = nil
 		S.bridgeLastPreviewParams = nil

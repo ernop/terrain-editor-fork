@@ -43,7 +43,7 @@ function BridgePathGenerator.getTerrainHeight(terrain: Terrain, position: Vector
 	local rayOrigin = position + Vector3.new(0, 100, 0)
 	local rayDirection = Vector3.new(0, -200, 0)
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { terrain }
 	
 	local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
@@ -51,16 +51,6 @@ function BridgePathGenerator.getTerrainHeight(terrain: Terrain, position: Vector
 		return result.Position.Y
 	end
 	return nil
-end
-
--- Check if position is near terrain (for "leading up to terrain" behavior)
-function BridgePathGenerator.isNearTerrain(terrain: Terrain, position: Vector3, searchRadius: number): boolean
-	local terrainHeight = BridgePathGenerator.getTerrainHeight(terrain, position)
-	if not terrainHeight then
-		return false
-	end
-	local distance = math.abs(position.Y - terrainHeight)
-	return distance < searchRadius
 end
 
 -- Find nearby terrain peaks/features to guide path toward

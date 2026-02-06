@@ -6,7 +6,8 @@
 	useful for creating dramatic cliff edges and rock walls.
 ]]
 
-local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+local Src = script:FindFirstAncestor("Src")
+local ToolDocFormat = require(Src.Tools.ToolDocFormat)
 
 type SculptSettings = ToolDocFormat.SculptSettings
 

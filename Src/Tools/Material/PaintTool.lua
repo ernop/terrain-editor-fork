@@ -6,7 +6,8 @@
 	existing terrain without modifying its shape or occupancy.
 ]]
 
-local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+local Src = script:FindFirstAncestor("Src")
+local ToolDocFormat = require(Src.Tools.ToolDocFormat)
 
 local materialAir = Enum.Material.Air
 

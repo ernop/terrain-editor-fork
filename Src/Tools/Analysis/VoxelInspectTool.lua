@@ -36,19 +36,22 @@ VoxelInspectTool.docs = {
 	title = "Voxel Inspector",
 	description = "Examine terrain voxel data without modifying anything. Shows occupancy, material, and coordinates for the voxel under your cursor.",
 
-	purpose = "Debug tool for understanding terrain structure. Useful when learning how Roblox terrain works or troubleshooting unexpected behavior.",
+	sections = {
+		{
+			heading = "Purpose",
+			content = "Debug tool for understanding terrain structure. Useful when learning how Roblox terrain works or troubleshooting unexpected behavior.",
+		},
+		{
+			heading = "Usage",
+			bullets = {
+				"Select the Voxel Inspect tool",
+				"Hover over terrain to see real-time voxel data",
+				"View world position, voxel coordinates, occupancy, material, and neighbors",
+			},
+		},
+	},
 
-	usage = [[
-1. Select the Voxel Inspect tool
-2. Hover over terrain
-3. View real-time voxel data in the info panel:
-   - World position (studs)
-   - Voxel coordinates (integer grid)
-   - Occupancy value (0-1)
-   - Material enum
-   - Neighboring voxel info (optional)]],
-
-	tips = {
+	quickTips = {
 		"Occupancy 0 = air, 1 = fully solid",
 		"Partial occupancy creates smooth surfaces",
 		"Voxel grid is 4 studs per cell",
@@ -57,7 +60,7 @@ VoxelInspectTool.docs = {
 
 	relatedTools = { "ComponentAnalyzer", "OccupancyOverlay" },
 
-	version = "1.0",
+	docVersion = "1.0",
 }
 
 -- ============================================

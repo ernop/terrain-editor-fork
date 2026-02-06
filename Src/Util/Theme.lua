@@ -49,7 +49,6 @@ Theme.Colors = {
 	BrushEdge = Color3.fromRGB(0, 100, 160), -- Darker edge lines for depth
 	BrushEdgeLocked = Color3.fromRGB(180, 100, 0), -- Darker orange for locked edges
 	PlaneViz = Color3.fromRGB(0, 200, 100),
-	HandleRotation = Color3.fromRGB(255, 170, 0), -- Legacy, use axis colors instead
 	HandleRotationX = Color3.fromRGB(255, 80, 80), -- Red for X axis
 	HandleRotationY = Color3.fromRGB(80, 255, 80), -- Green for Y axis
 	HandleRotationZ = Color3.fromRGB(80, 140, 255), -- Blue for Z axis

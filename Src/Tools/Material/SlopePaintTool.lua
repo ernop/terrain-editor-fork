@@ -6,7 +6,8 @@
 	Flat areas get one material, steep areas get another.
 ]]
 
-local ToolDocFormat = require(script.Parent.Parent.ToolDocFormat)
+local Src = script:FindFirstAncestor("Src")
+local ToolDocFormat = require(Src.Tools.ToolDocFormat)
 
 type SculptSettings = ToolDocFormat.SculptSettings
 

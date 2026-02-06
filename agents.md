@@ -56,6 +56,7 @@ Add new docs here.
 
 | | |
 |-|-|
+| Full overhaul plan (all phases) | `docs/overhaul-plan.md` |
 | New tools implementation plan | `docs/new-tools-implementation-plan.md` |
 | Brush sizing and rotation | `docs/brush-sizing-rotation-plan.md` |
 | Brush expansion analysis | `docs/brush-expansion-analysis.md` |

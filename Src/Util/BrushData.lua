@@ -517,32 +517,24 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		return Vector3.new(0, baseArc - sagDepth, 0)
 
 	elseif variant == "TrollBridge" then
-		-- Looks like a normal arc at first... then does a LOOP-THE-LOOP in the middle
-		-- Perfectly ridiculous and impossible
-		local loopCenter = 0.5 -- Loop happens at middle
+		-- Normal arc with a 360-degree loop-the-loop in the middle
 		local loopRadius = distance * 0.25 * i
 		local loopWidth = 0.3 -- Loop takes 30% of the path
-		local loopStart = loopCenter - loopWidth / 2
-		local loopEnd = loopCenter + loopWidth / 2
+		local loopStart = 0.5 - loopWidth / 2 -- 0.35
+		local loopEnd = 0.5 + loopWidth / 2 -- 0.65
+		-- Arc formula: sin(t*pi) is symmetric around 0.5, so entry/exit heights match
+		local arcHeight = math.sin(t * math.pi) * distance * 0.15 * i
 
 		if t >= loopStart and t <= loopEnd then
-			-- WE'RE IN THE LOOP ZONE
 			local loopProgress = (t - loopStart) / loopWidth
-			local loopAngle = loopProgress * math.pi * 2 -- Full 360 degree loop
-			-- Loop goes UP and OVER (starts at bottom, goes up, over, down, continues)
+			local loopAngle = loopProgress * math.pi * 2
 			local loopX = math.sin(loopAngle) * loopRadius * 0.5
-			local loopY = (1 - math.cos(loopAngle)) * loopRadius -- 0 at start, 2r at top, 0 at end
-			-- Base height at loop entrance
-			local baseHeight = math.sin(loopStart * math.pi) * distance * 0.15 * i
-			return Vector3.new(loopX, baseHeight + loopY, 0)
+			-- 0 at entry, 2r at top, 0 at exit
+			local loopY = (1 - math.cos(loopAngle)) * loopRadius
+			local entryHeight = math.sin(loopStart * math.pi) * distance * 0.15 * i
+			return Vector3.new(loopX, entryHeight + loopY, 0)
 		else
-			-- Normal arc section (before and after loop)
-			local adjustedT = t
-			if t > loopEnd then
-				-- After loop, continue from where we left off
-				adjustedT = t
-			end
-			return Vector3.new(0, math.sin(adjustedT * math.pi) * distance * 0.15 * i, 0)
+			return Vector3.new(0, arcHeight, 0)
 		end
 	end
 
@@ -563,47 +555,6 @@ function BrushData.getBridgeOffsetAnchored(t: number, distance: number, variant:
 	
 	-- Return the offset minus the correction, so start=0 and end=0
 	return currentOffset - correction
-end
-
--- Terrain-aware bridge offset: adjusts path to respect nearby terrain
--- minClearance: minimum distance above terrain (studs)
--- maxAdjustment: maximum vertical adjustment per point (studs)
-function BrushData.getBridgeOffsetTerrainAware(
-	t: number,
-	distance: number,
-	variant: string,
-	intensity: number?,
-	terrainHeightAtPoint: number?, -- Height of terrain at this path position (nil if no terrain)
-	basePathY: number, -- Y coordinate of the base linear path at this t
-	minClearance: number?,
-	maxAdjustment: number?
-): Vector3
-	local baseOffset = BrushData.getBridgeOffsetAnchored(t, distance, variant, intensity)
-	
-	-- If no terrain data, return the base offset
-	if not terrainHeightAtPoint then
-		return baseOffset
-	end
-	
-	local clearance = minClearance or 4 -- Default 4 studs (1 voxel) clearance
-	local maxAdj = maxAdjustment or (distance * 0.3) -- Default max 30% of distance
-	
-	-- Calculate where the path would be without terrain adjustment
-	local pathY = basePathY + baseOffset.Y
-	local terrainTop = terrainHeightAtPoint + clearance
-	
-	-- If path is below terrain + clearance, push it up
-	if pathY < terrainTop then
-		local neededAdjustment = terrainTop - pathY
-		-- Clamp the adjustment to avoid crazy spikes
-		local actualAdjustment = math.min(neededAdjustment, maxAdj)
-		-- Smooth the adjustment using a bell curve to avoid sharp transitions
-		local smoothFactor = math.sin(t * math.pi) -- Strongest in middle, zero at ends
-		actualAdjustment = actualAdjustment * (0.3 + 0.7 * smoothFactor)
-		return Vector3.new(baseOffset.X, baseOffset.Y + actualAdjustment, baseOffset.Z)
-	end
-	
-	return baseOffset
 end
 
 -- Plane-aware bridge: keeps the bridge path more consistent with its own plane

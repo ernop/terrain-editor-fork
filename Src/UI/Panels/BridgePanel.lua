@@ -305,6 +305,12 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 
 		local endPoint = S.bridgeEndPoint or hoverPoint
 		if endPoint then
+			local distance = (endPoint - S.bridgeStartPoint).Magnitude
+			-- Guard against zero-distance (identical start/end would crash on .Unit)
+			if distance < Constants.VOXEL_RESOLUTION then
+				return
+			end
+
 			-- Create end marker
 			local endMarker = Instance.new("Part")
 			endMarker.Archivable = false  -- Exclude from undo history
@@ -317,14 +323,12 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			endMarker.Transparency = Theme.Transparency.PreviewMarker
 			endMarker.Parent = workspace
 			table.insert(S.bridgePreviewParts, endMarker)
-
-			local distance = (endPoint - S.bridgeStartPoint).Magnitude
 			-- Use custom segments if set, otherwise auto-calculate
 			local steps
 			if S.bridgeSegments > 0 then
 				steps = S.bridgeSegments
 			else
-				steps = math.max(2, math.floor(distance / (Constants.VOXEL_RESOLUTION * 2)))
+				steps = math.max(3, math.floor(distance / Constants.VOXEL_RESOLUTION))
 			end
 
 			-- Generate path preview
@@ -376,17 +380,17 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 				-- Rotate around the path axis (LookVector = -Z in CFrame, so we rotate around -Z)
 				local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
 				
-				-- Extract the perpendicular directions from the rotated frame
-				-- RightVector (X) and UpVector (Y) are perpendicular to path
-				local perpDirX = rotatedCFrame.RightVector -- For X offset (was horizontal)
-				local perpDirY = rotatedCFrame.UpVector    -- For Y offset (was vertical)
-				local perpDirZ = -rotatedCFrame.LookVector:Cross(rotatedCFrame.UpVector) -- For Z offset
+				-- Extract perpendicular directions from the rotated frame
+				-- RightVector = lateral, UpVector = vertical, -LookVector = along path (Z depth)
+				local perpDirX = rotatedCFrame.RightVector
+				local perpDirY = rotatedCFrame.UpVector
+				local perpDirZ = -rotatedCFrame.LookVector
 
 				-- Determine which offset function to use
 				local useAnchored = S.bridgeAnchorEndpoints ~= false -- Default true
 				local planeConstraint = S.bridgePlaneConstraint or 0
 
-				for i = 1, steps - 1 do
+				for i = 0, steps do
 					local t = i / steps
 					local pos = S.bridgeStartPoint:Lerp(endPoint, t)
 					
@@ -401,9 +405,6 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 					end
 					
 					-- Apply offset using rotated perpendicular directions
-					-- offset.X = lateral (perpendicular horizontal in unrotated)
-					-- offset.Y = vertical (perpendicular up in unrotated)
-					-- offset.Z = depth (along secondary perpendicular)
 					local finalOffset = perpDirX * offset.X + perpDirY * offset.Y + perpDirZ * offset.Z
 
 					-- Terrain awareness: adjust if path would intersect terrain
@@ -411,14 +412,13 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 						local testPos = pos + finalOffset
 						local terrainHeight = BridgePathGenerator.getTerrainHeight(S.terrain, testPos)
 						if terrainHeight and testPos.Y < terrainHeight + 4 then
-							-- Push up to clear terrain (always push in world Y direction)
 							local adjustment = (terrainHeight + 4) - testPos.Y
 							finalOffset = finalOffset + Vector3.new(0, adjustment, 0)
 						end
 					end
 
 					local pathMarker = Instance.new("Part")
-					pathMarker.Archivable = false  -- Exclude from undo history
+					pathMarker.Archivable = false
 					pathMarker.Size = Vector3.new(S.bridgeWidth * 0.5, S.bridgeWidth * 0.5, S.bridgeWidth * 0.5) * Constants.VOXEL_RESOLUTION
 					pathMarker.CFrame = CFrame.new(pos + finalOffset)
 					pathMarker.Anchored = true
@@ -439,9 +439,13 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			return
 		end
 
-		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
-
 		local distance = (S.bridgeEndPoint - S.bridgeStartPoint).Magnitude
+		-- Guard against zero-distance (identical points would crash on .Unit)
+		if distance < Constants.VOXEL_RESOLUTION then
+			return
+		end
+
+		ChangeHistoryService:SetWaypoint("TerrainBridge_Start")
 		-- Use custom segments if set, otherwise auto-calculate
 		local steps
 		if S.bridgeSegments > 0 then
@@ -493,10 +497,10 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 			-- Rotate around the path axis
 			local rotatedCFrame = baseCFrame * CFrame.Angles(0, 0, axisRotation)
 			
-			-- Extract the perpendicular directions from the rotated frame
+			-- Extract perpendicular directions from the rotated frame
 			local perpDirX = rotatedCFrame.RightVector
 			local perpDirY = rotatedCFrame.UpVector
-			local perpDirZ = -rotatedCFrame.LookVector:Cross(rotatedCFrame.UpVector)
+			local perpDirZ = -rotatedCFrame.LookVector
 
 			-- Determine which offset function to use
 			local useAnchored = S.bridgeAnchorEndpoints ~= false -- Default true

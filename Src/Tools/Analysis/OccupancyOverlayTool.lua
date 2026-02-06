@@ -37,20 +37,23 @@ OccupancyOverlayTool.docs = {
 	title = "Occupancy Overlay",
 	description = "Visualize terrain occupancy values with a color gradient. Shows where terrain is solid, partial, or air.",
 
-	purpose = "Debug tool for understanding terrain surface transitions. See exactly how smooth or sharp your terrain edges are.",
+	sections = {
+		{
+			heading = "Purpose",
+			content = "Debug tool for understanding terrain surface transitions. See exactly how smooth or sharp your terrain edges are.",
+		},
+		{
+			heading = "Color Guide",
+			bullets = {
+				"Red = high occupancy (near 1.0, fully solid)",
+				"Yellow = medium occupancy (0.5, half-filled)",
+				"Green = low occupancy (near 0.0, mostly air)",
+				"Transparent = air (0.0)",
+			},
+		},
+	},
 
-	usage = [[
-1. Select the Occupancy Overlay tool
-2. Toggle overlay on
-3. View color-coded terrain:
-   - Red = high occupancy (near 1.0)
-   - Yellow = medium occupancy (0.5)
-   - Green = low occupancy (near 0.0)
-   - Transparent = air (0.0)
-4. Adjust visualization range as needed
-5. Toggle off when done]],
-
-	tips = {
+	quickTips = {
 		"Useful after using Smooth tool",
 		"Sharp edges have sudden color changes",
 		"Smooth areas have gradual transitions",
@@ -59,7 +62,7 @@ OccupancyOverlayTool.docs = {
 
 	relatedTools = { "VoxelInspect", "Smooth" },
 
-	version = "1.0",
+	docVersion = "1.0",
 }
 
 -- ============================================
