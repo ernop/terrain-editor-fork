@@ -44,9 +44,9 @@ BridgeTool.traits = {
 BridgeTool.docs = {
 	title = "Bridge",
 	subtitle = "Connect two points with terrain",
-	
+
 	description = "Creates terrain bridges between two points. Set start and end positions, then build the connecting structure.",
-	
+
 	sections = {
 		{
 			heading = "Workflow",
@@ -108,13 +108,13 @@ BridgeTool.docs = {
 			content = "Adds lateral S-curves perpendicular to path direction. Complexity controls number of sine wave oscillations. Creates natural-looking winding paths instead of straight lines.",
 		},
 	},
-	
+
 	quickTips = {
 		"Click twice to set endpoints",
 		"Preview shows before building",
 		"Meander adds natural curves",
 	},
-	
+
 	docVersion = "3.0",
 }
 
@@ -140,21 +140,20 @@ function BridgeTool.execute(options: SculptSettings)
 	local cellOccupancy = options.cellOccupancy
 	local cellMaterial = options.cellMaterial
 	local desiredMaterial = options.desiredMaterial
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Add terrain where brush occupancy exceeds current
 	if brushOccupancy > cellOccupancy then
 		writeOccupancies[voxelX][voxelY][voxelZ] = brushOccupancy
 	end
-	
+
 	if brushOccupancy >= 0.5 and cellMaterial == Enum.Material.Air then
 		writeMaterials[voxelX][voxelY][voxelZ] = desiredMaterial
 	end
 end
 
 return BridgeTool
-

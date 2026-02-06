@@ -43,9 +43,9 @@ CliffTool.traits = {
 CliffTool.docs = {
 	title = "Cliff",
 	subtitle = "Carve vertical cliff faces",
-	
+
 	description = "Creates steep vertical walls by carving terrain at a specified angle. Drag in the direction the cliff should face.",
-	
+
 	sections = {
 		{
 			heading = "Settings",
@@ -72,13 +72,13 @@ CliffTool.docs = {
 			content = "Defines an angled plane in 3D space. Everything below the plane becomes solid; above becomes air. 90° = vertical wall. Drag direction during painting updates the cliff facing.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Drag to set cliff facing direction",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -109,12 +109,12 @@ function CliffTool.execute(options: SculptSettings)
 	local cliffAngle = options.cliffAngle or 90
 	local cliffDirX = options.cliffDirectionX or 1
 	local cliffDirZ = options.cliffDirectionZ or 0
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Normalize direction
 	local dirLen = math.sqrt(cliffDirX * cliffDirX + cliffDirZ * cliffDirZ)
 	if dirLen < 0.01 then
@@ -122,17 +122,17 @@ function CliffTool.execute(options: SculptSettings)
 	else
 		cliffDirX, cliffDirZ = cliffDirX / dirLen, cliffDirZ / dirLen
 	end
-	
+
 	-- Calculate distance along cliff direction from center
 	local relX = worldX - centerPoint.X
 	local relZ = worldZ - centerPoint.Z
 	local distAlongCliff = relX * cliffDirX + relZ * cliffDirZ
-	
+
 	-- Calculate cliff plane height at this position
 	local angleRad = math.rad(cliffAngle)
 	local cliffSlope = math.tan(angleRad)
 	local cliffHeight = centerPoint.Y + distAlongCliff * cliffSlope
-	
+
 	-- Determine if this voxel should be solid or air
 	local targetOccupancy
 	if worldY < cliffHeight - 2 then
@@ -144,13 +144,12 @@ function CliffTool.execute(options: SculptSettings)
 		targetOccupancy = 0.5 - (worldY - cliffHeight) / 4
 		targetOccupancy = math.clamp(targetOccupancy, 0, 1)
 	end
-	
+
 	-- Blend toward target
 	local blendFactor = brushOccupancy * (options.strength or 0.5)
 	local newOccupancy = cellOccupancy + (targetOccupancy - cellOccupancy) * blendFactor
-	
+
 	writeOccupancies[voxelX][voxelY][voxelZ] = math.clamp(newOccupancy, 0, 1)
 end
 
 return CliffTool
-

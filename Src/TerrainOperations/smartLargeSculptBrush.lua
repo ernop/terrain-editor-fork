@@ -32,7 +32,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local sizeY = (opSet.cursorSizeY or opSet.cursorHeight or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
 	local sizeZ = (opSet.cursorSizeZ or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
 	local selectionSize = opSet.cursorSizeX or opSet.cursorSize
-	
+
 	-- Per-axis radii
 	local radiusX = sizeX * 0.5
 	local radiusY = sizeY * 0.5
@@ -47,7 +47,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local flattenMode = opSet.flattenMode
 
 	local ignoreWater = opSet.ignoreWater
-	
+
 	-- Get brush rotation (default to identity if not provided)
 	local brushRotation = opSet.brushRotation or CFrame.new()
 
@@ -78,7 +78,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local voxelCountX = #readOccupancies
 	local voxelCountY = #readOccupancies[1]
 	local voxelCountZ = #readOccupancies[1][1]
-	
+
 	-- For sculptSettings compatibility (region dimensions in voxel indices)
 	local regionSizeX = voxelCountX
 	local regionSizeY = voxelCountY
@@ -103,11 +103,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				local x = centerVoxelX + xo
 				local y = centerVoxelY + yo
 				local z = centerVoxelZ + zo
-				if x > 0 and x <= regionSizeX
-					and y > 0 and y <= regionSizeY
-					and z > 0 and z <= regionSizeZ then
-					seenVoxels[x + REGION_SIZE*(y + REGION_SIZE*z)] = true
-					table.insert(voxelsToConsider, {x, y, z})
+				if x > 0 and x <= regionSizeX and y > 0 and y <= regionSizeY and z > 0 and z <= regionSizeZ then
+					seenVoxels[x + REGION_SIZE * (y + REGION_SIZE * z)] = true
+					table.insert(voxelsToConsider, { x, y, z })
 				end
 			end
 		end
@@ -137,7 +135,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 		sizeX = regionSizeX,
 		sizeY = regionSizeY,
 		sizeZ = regionSizeZ,
-		strength  = strength,
+		strength = strength,
 		ignoreWater = ignoreWater,
 		desiredMaterial = desiredMaterial,
 		autoMaterial = autoMaterial,
@@ -206,15 +204,23 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				-- Below code in this block is the same as the original erode tool
 
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-					cellVectorX, cellVectorY, cellVectorZ,
-					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, true, brushRotation,
-					hollowEnabled, wallThickness)
+					cellVectorX,
+					cellVectorY,
+					cellVectorZ,
+					radiusX,
+					radiusY,
+					radiusZ,
+					brushShape,
+					selectionSize,
+					true,
+					brushRotation,
+					hollowEnabled,
+					wallThickness
+				)
 
 				if ignoreWater and cellMaterial == materialWater then
 					cellOccupancy = 0
 				end
-
 
 				sculptSettings.x = voxelX
 				sculptSettings.y = voxelY
@@ -235,10 +241,19 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				-- Below code in this block is the same as the original grow tool
 
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-					cellVectorX, cellVectorY, cellVectorZ,
-					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, true, brushRotation,
-					hollowEnabled, wallThickness)
+					cellVectorX,
+					cellVectorY,
+					cellVectorZ,
+					radiusX,
+					radiusY,
+					radiusZ,
+					brushShape,
+					selectionSize,
+					true,
+					brushRotation,
+					hollowEnabled,
+					wallThickness
+				)
 
 				if ignoreWater and cellMaterial == materialWater then
 					cellMaterial = materialAir
@@ -266,10 +281,19 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 				local cellMaterial = myMaterial
 
 				local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-					cellVectorX, cellVectorY, cellVectorZ,
-					radiusX, radiusY, radiusZ,
-					brushShape, selectionSize, false, brushRotation,
-					hollowEnabled, wallThickness)
+					cellVectorX,
+					cellVectorY,
+					cellVectorZ,
+					radiusX,
+					radiusY,
+					radiusZ,
+					brushShape,
+					selectionSize,
+					false,
+					brushRotation,
+					hollowEnabled,
+					wallThickness
+				)
 
 				if brushOccupancy >= 0.5 then
 					if ignoreWater and cellMaterial == materialWater then
@@ -305,11 +329,16 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 						local checkY = voxelY + yo
 						local checkZ = voxelZ + zo
 
-						if checkX > 0 and checkX <= regionSizeX
-							and checkY > 0 and checkY <= regionSizeY
-							and checkZ > 0 and checkZ <= regionSizeZ
+						if
+							checkX > 0
+							and checkX <= regionSizeX
+							and checkY > 0
+							and checkY <= regionSizeY
+							and checkZ > 0
+							and checkZ <= regionSizeZ
 							-- Ignore the center voxel as we only care about neighbours
-							and (xo ~= 0 or yo ~= 0 or zo ~= 0) then
+							and (xo ~= 0 or yo ~= 0 or zo ~= 0)
+						then
 							local cellOccupancy = readOccupancies[checkX][checkY][checkZ]
 
 							-- If we're ignoring water and this cell is water, then treat it as a fully empty air cell
@@ -357,16 +386,14 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 			if tool == ToolId.Erode or (tool == ToolId.Flatten and planeDifference > Constants.FLATTEN_PLANE_TOLERANCE) then
 				stopCondition = allMyNeighboursEmpty
 					or ((myOccupancy == 1 and not treatCurrentVoxelAsEmptyFromWater) and allMyNeighboursFull)
-
 			elseif tool == ToolId.Grow or (tool == ToolId.Flatten and planeDifference < -Constants.FLATTEN_PLANE_TOLERANCE) then
-				stopCondition = allMyNeighboursFull
-					or ((myOccupancy == 0 or treatCurrentVoxelAsEmptyFromWater) and allMyNeighboursEmpty)
-
-			elseif tool == ToolId.Flatten
+				stopCondition = allMyNeighboursFull or ((myOccupancy == 0 or treatCurrentVoxelAsEmptyFromWater) and allMyNeighboursEmpty)
+			elseif
+				tool == ToolId.Flatten
 				and planeDifference > -Constants.FLATTEN_PLANE_TOLERANCE
-				and planeDifference < Constants.FLATTEN_PLANE_TOLERANCE then
+				and planeDifference < Constants.FLATTEN_PLANE_TOLERANCE
+			then
 				stopCondition = false
-
 			elseif tool == ToolId.Smooth then
 				-- Stop when either I and all my neighbours are empty
 				-- Or I and all my neighbours are full
@@ -388,11 +415,16 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 							local nx = voxelX + xo
 							local ny = voxelY + yo
 							local nz = voxelZ + zo
-							if nx > 0 and nx <= regionSizeX
-								and ny > 0 and ny <= regionSizeY
-								and nz > 0 and nz <= regionSizeZ
+							if
+								nx > 0
+								and nx <= regionSizeX
+								and ny > 0
+								and ny <= regionSizeY
+								and nz > 0
+								and nz <= regionSizeZ
 								-- Ignore the center voxel as we only care about neighbours
-								and (xo ~= 0 or yo ~= 0 or zo ~= 0) then
+								and (xo ~= 0 or yo ~= 0 or zo ~= 0)
+							then
 								local cellOccupancy = readOccupancies[nx][ny][nz]
 
 								-- If we're ignoring water and this cell is water, then treat it as a fully empty air cell
@@ -427,10 +459,12 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 									end
 								end
 
-								if (canErodeInto or canGrowInto or canSmoothInto)
-									and not seenVoxels[nx + REGION_SIZE*(ny + REGION_SIZE*nz)] then
-									seenVoxels[nx + REGION_SIZE*(ny + REGION_SIZE*nz)] = true
-									table.insert(voxelsToConsider, {nx, ny, nz})
+								if
+									(canErodeInto or canGrowInto or canSmoothInto)
+									and not seenVoxels[nx + REGION_SIZE * (ny + REGION_SIZE * nz)]
+								then
+									seenVoxels[nx + REGION_SIZE * (ny + REGION_SIZE * nz)] = true
+									table.insert(voxelsToConsider, { nx, ny, nz })
 								end
 							end
 						end

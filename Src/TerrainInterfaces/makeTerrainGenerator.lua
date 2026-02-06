@@ -20,8 +20,8 @@ local mat = Enum.Material
 local waterLevel = 0.48
 local surfaceThickness = 0.018
 
-local canyonBandingMaterial = {mat.Rock, mat.Mud, mat.Sand, mat.Sand,
-	mat.Sandstone, mat.Sandstone, mat.Sandstone, mat.Sandstone, mat.Sandstone, mat.Sandstone,}
+local canyonBandingMaterial =
+	{ mat.Rock, mat.Mud, mat.Sand, mat.Sand, mat.Sandstone, mat.Sandstone, mat.Sandstone, mat.Sandstone, mat.Sandstone, mat.Sandstone }
 
 -- Default values to use for a biome if it's not in BiomeInfoFuncs below
 local defaultBiomeValue = 0.5
@@ -83,7 +83,7 @@ local function fractalize(operation, x, y, z, operationCount, scale, offset, gai
 	local totalValue = 0
 	local totalScale = 0
 	for i = 1, operationCount, 1 do
-		local thisScale = scale^(i - 1)
+		local thisScale = scale ^ (i - 1)
 		totalScale = totalScale + thisScale
 		totalValue = totalValue + ((offset + (gain * operation(x, y, z, i))) * thisScale)
 	end
@@ -96,7 +96,7 @@ local function findBiomeTransitionValue(biome, weight, value, averageValue)
 	elseif biome == Biome.Canyons then
 		return (weight > 0.7 and 1 or 0) * value
 	elseif biome == Biome.Mountains then
-		local cubedWeight = weight^3 -- Improves the ease of mountains transitioning to other biomes
+		local cubedWeight = weight ^ 3 -- Improves the ease of mountains transitioning to other biomes
 		return (averageValue * (1 - cubedWeight)) + (value * cubedWeight)
 	else
 		return (averageValue * (1 - weight)) + (value * weight)
@@ -114,8 +114,7 @@ dict generateSettings =
 ]]
 return function(terrain, generateSettings, analytics)
 	assert(terrain, "makeTerrainGenerator requires a terrain instance")
-	assert(generateSettings and type(generateSettings) == "table",
-		"makeTerrainGenerator requires a generate settings table")
+	assert(generateSettings and type(generateSettings) == "table", "makeTerrainGenerator requires a generate settings table")
 
 	local mapPosition = generateSettings.position
 	local mapSize = generateSettings.size
@@ -125,7 +124,7 @@ return function(terrain, generateSettings, analytics)
 	local seed = generateSettings.seed
 
 	local masterSeed = computeMasterSeed(seed)
-	local mapHeight = .5/(mapSize.Y/Constants.VOXEL_RESOLUTION)
+	local mapHeight = 0.5 / (mapSize.Y / Constants.VOXEL_RESOLUTION)
 
 	-- Turn set of selected biomes into list
 	-- If no biomes are selected, default to just hills
@@ -164,12 +163,11 @@ return function(terrain, generateSettings, analytics)
 	local BiomeInfoFuncs
 	local processVoxel
 	do
-		getPerlin = function (x, y, z, perlinSeed, scale, raw)
+		getPerlin = function(x, y, z, perlinSeed, scale, raw)
 			perlinSeed = perlinSeed or 0
 			scale = scale or 1
-			local val = math.noise((x / scale) + (perlinSeed * 17) + masterSeed,
-					(y / scale) - masterSeed,
-					(z / scale) - (perlinSeed * perlinSeed))
+			local val =
+				math.noise((x / scale) + (perlinSeed * 17) + masterSeed, (y / scale) - masterSeed, (z / scale) - (perlinSeed * perlinSeed))
 			if not raw then
 				return (val * 0.5) + 0.5
 			else
@@ -182,7 +180,11 @@ return function(terrain, generateSettings, analytics)
 			y = y or 0
 			z = z or 0
 			noiseSeed = noiseSeed or 7
-			local targetindex = x + y + z + noiseSeed + masterSeed
+			local targetindex = x
+				+ y
+				+ z
+				+ noiseSeed
+				+ masterSeed
 				+ ((masterSeed - x) * (noiseSeed + z))
 				+ ((noiseSeed - y) * (masterSeed + z))
 			return seedArray[(math.floor(targetindex % #seedArray)) + 1]
@@ -197,9 +199,7 @@ return function(terrain, generateSettings, analytics)
 		BiomeInfoFuncs = {
 			[Biome.Water] = function(x, y, z, verticalGradientTurbulence)
 				local choiceBiomeValue = 0.36 + (getPerlin(x, y, z, 2, 50) * 0.08)
-				local choiceBiomeSurface =
-					(1 - verticalGradientTurbulence) < 0.44 and mat.Slate
-					or mat.Sand
+				local choiceBiomeSurface = (1 - verticalGradientTurbulence) < 0.44 and mat.Slate or mat.Sand
 				local choiceBiomeFill = mat.Rock
 				return choiceBiomeValue, choiceBiomeSurface, choiceBiomeFill
 			end,
@@ -210,16 +210,17 @@ return function(terrain, generateSettings, analytics)
 					0,
 					z + (getPerlin(x, 0, z, 9, 7, true) * 10) + (getPerlin(x, 0, z, 10, 30, true) * 50),
 					2,
-					70) --could use some turbulence
+					70
+				) --could use some turbulence
 				local grassyLedge = thresholdFilter(preLedge, 0.65, 0)
 				local largeGradient = getPerlin(x, y, z, 4, 100)
 				local smallGradient = getPerlin(x, y, z, 3, 20)
-				local choiceBiomeValue = waterLevel - 0.04
+				local choiceBiomeValue = waterLevel
+					- 0.04
 					+ (preLedge * grassyLedge * 0.025)
 					+ (largeGradient * 0.035)
 					+ (smallGradient * 0.025)
-				local choiceBiomeSurface =
-					(grassyLedge >= 1) and mat.Grass
+				local choiceBiomeSurface = (grassyLedge >= 1) and mat.Grass
 					or (1 - verticalGradientTurbulence < waterLevel - 0.01) and mat.Mud
 					or (1 - verticalGradientTurbulence < waterLevel + 0.01) and mat.Ground
 					or mat.Grass
@@ -228,17 +229,12 @@ return function(terrain, generateSettings, analytics)
 			end,
 
 			[Biome.Plains] = function(x, y, z, verticalGradientTurbulence)
-				local rivulet = ridgedFlippedFilter(getPerlin(
-					x + getPerlin(x, y, z, 17, 40) * 25,
-					0,
-					z + getPerlin(x, y, z, 19, 40) * 25,
-					2,
-					200))
+				local rivulet =
+					ridgedFlippedFilter(getPerlin(x + getPerlin(x, y, z, 17, 40) * 25, 0, z + getPerlin(x, y, z, 19, 40) * 25, 2, 200))
 				local rivuletThreshold = thresholdFilter(rivulet, 0.01, 0)
 
-				local rockMap =
-					thresholdFilter(ridgedFlippedFilter(getPerlin(x, 0, z, 101, 7)), 0.3, 0.7) -- Rocks
-					* thresholdFilter(getPerlin(x, 0, z, 102, 50), 0.6, 0.05)                  -- Zoning
+				local rockMap = thresholdFilter(ridgedFlippedFilter(getPerlin(x, 0, z, 101, 7)), 0.3, 0.7) -- Rocks
+					* thresholdFilter(getPerlin(x, 0, z, 102, 50), 0.6, 0.05) -- Zoning
 
 				local choiceBiomeValue = 0.5
 					+ (getPerlin(x, y, z, 2, 100) * 0.02)
@@ -248,28 +244,21 @@ return function(terrain, generateSettings, analytics)
 
 				local verticalGradient = 1 - ((y - 1) / (mapHeight - 1))
 				local surfaceGradient = (verticalGradient * 0.5) + (choiceBiomeValue * 0.5)
-				local thinSurface = (surfaceGradient > 0.5 - surfaceThickness * 0.4)
-					and (surfaceGradient < 0.5 + surfaceThickness * 0.4)
-				local choiceBiomeSurface =
-					(rockMap > 0) and mat.Rock
+				local thinSurface = (surfaceGradient > 0.5 - surfaceThickness * 0.4) and (surfaceGradient < 0.5 + surfaceThickness * 0.4)
+				local choiceBiomeSurface = (rockMap > 0) and mat.Rock
 					or (not thinSurface) and mat.Mud
 					or (thinSurface and rivuletThreshold <= 0) and mat.Water
 					or (1 - verticalGradientTurbulence < waterLevel - 0.01) and mat.Sand
 					or mat.Grass
-				local choiceBiomeFill =
-					(rockMap > 0) and mat.Rock
-					or mat.Sandstone
+				local choiceBiomeFill = (rockMap > 0) and mat.Rock or mat.Sandstone
 				return choiceBiomeValue, choiceBiomeSurface, choiceBiomeFill
 			end,
 
 			[Biome.Canyons] = function(x, y, z, verticalGradientTurbulence)
 				local canyonNoise = ridgedFlippedFilter(getPerlin(x, 0, z, 2, 200))
-				local canyonNoiseTurbed = ridgedFlippedFilter(getPerlin(
-					x + getPerlin(x, 0, z, 5, 20, true) * 20,
-					0,
-					z + getPerlin(x, 0, z, 9, 20, true) * 20,
-					2,
-					200))
+				local canyonNoiseTurbed = ridgedFlippedFilter(
+					getPerlin(x + getPerlin(x, 0, z, 5, 20, true) * 20, 0, z + getPerlin(x, 0, z, 9, 20, true) * 20, 2, 200)
+				)
 				local sandbank = thresholdFilter(canyonNoiseTurbed, 0, 0.05)
 				local canyonTop = thresholdFilter(canyonNoiseTurbed, 0.125, 0)
 				local mesaSlope = thresholdFilter(canyonNoise, 0.33, 0.12)
@@ -277,18 +266,17 @@ return function(terrain, generateSettings, analytics)
 				local choiceBiomeValue = 0.42
 					+ (getPerlin(x, y, z, 2, 70) * 0.05)
 					+ (canyonNoise * 0.05)
-					+ (sandbank * 0.04)                                           -- Canyon bottom slope
-					+ (thresholdFilter(canyonNoiseTurbed, 0.05, 0) * 0.08)        -- Canyon cliff
-					+ (thresholdFilter(canyonNoiseTurbed, 0.05, .075) * 0.04)     -- Canyon cliff top slope
-					+ (canyonTop * 0.01)                                          -- Canyon cliff top ledge
+					+ (sandbank * 0.04) -- Canyon bottom slope
+					+ (thresholdFilter(canyonNoiseTurbed, 0.05, 0) * 0.08) -- Canyon cliff
+					+ (thresholdFilter(canyonNoiseTurbed, 0.05, 0.075) * 0.04) -- Canyon cliff top slope
+					+ (canyonTop * 0.01) -- Canyon cliff top ledge
 					+ (thresholdFilter(canyonNoiseTurbed, 0.0575, 0.2725) * 0.01) -- Plane slope
-					+ (mesaSlope * 0.06)                                          -- Mesa slope
-					+ (thresholdFilter(canyonNoiseTurbed, 0.45,0) * 0.14)         -- Mesa cliff
-					+ (thresholdFilter(canyonNoiseTurbed, 0.45, 0.04) * 0.025)    -- Mesa cap
-					+ (mesaTop * 0.02)                                            -- Mesa top ledge
-				local choiceBiomeSurface =
-					(1 - verticalGradientTurbulence < waterLevel + 0.015) and mat.Sand     -- Biome blending in to lakes
-					or (sandbank > 0 and sandbank < 1) and mat.Sand	                       -- Canyonbase sandbanks
+					+ (mesaSlope * 0.06) -- Mesa slope
+					+ (thresholdFilter(canyonNoiseTurbed, 0.45, 0) * 0.14) -- Mesa cliff
+					+ (thresholdFilter(canyonNoiseTurbed, 0.45, 0.04) * 0.025) -- Mesa cap
+					+ (mesaTop * 0.02) -- Mesa top ledge
+				local choiceBiomeSurface = (1 - verticalGradientTurbulence < waterLevel + 0.015) and mat.Sand -- Biome blending in to lakes
+					or (sandbank > 0 and sandbank < 1) and mat.Sand -- Canyonbase sandbanks
 					-- or (canyonTop > 0 and canyonTop <= 1 and mesaSlope <= 0) and mat.Grass -- Grassy canyon tops
 					-- or (mesaTop > 0 and mesaTop <= 1) and mat.Grass                        -- Grassy mesa tops
 					or mat.Sandstone
@@ -297,24 +285,15 @@ return function(terrain, generateSettings, analytics)
 			end,
 
 			[Biome.Hills] = function(x, y, z, verticalGradientTurbulence)
-				local rivulet = ridgedFlippedFilter(getPerlin(
-					x + getPerlin(x, y, z, 17, 20) * 20,
-					0,
-					z + getPerlin(x, y, z, 19, 20) * 20,
-					2,
-					200
-					))^(1/2)
+				local rivulet = ridgedFlippedFilter(
+					getPerlin(x + getPerlin(x, y, z, 17, 20) * 20, 0, z + getPerlin(x, y, z, 19, 20) * 20, 2, 200)
+				) ^ (1 / 2)
 				local largeHills = getPerlin(x, y, z, 3, 60)
 				local choiceBiomeValue = 0.48
 					+ (largeHills * 0.05)
-					+ (
-						(0.05
-							+ (largeHills * 0.1)
-							+ (getPerlin(x, y, z, 4, 25) * 0.125))
-						* rivulet)
+					+ ((0.05 + (largeHills * 0.1) + (getPerlin(x, y, z, 4, 25) * 0.125)) * rivulet)
 				local surfaceMaterialGradient = ((1 - verticalGradientTurbulence) * 0.9) + (rivulet * 0.1)
-				local choiceBiomeSurface =
-					(surfaceMaterialGradient < waterLevel - 0.015) and mat.Mud
+				local choiceBiomeSurface = (surfaceMaterialGradient < waterLevel - 0.015) and mat.Mud
 					or (surfaceMaterialGradient < waterLevel) and mat.Ground
 					or mat.Grass
 				local choiceBiomeFill = mat.Slate
@@ -332,17 +311,10 @@ return function(terrain, generateSettings, analytics)
 			end,
 
 			[Biome.Mountains] = function(x, y, z, verticalGradientTurbulence)
-				local rivulet = ridgedFlippedFilter(getPerlin(
-					x + getPerlin(x, y, z, 17, 20) * 20,
-					0,
-					z + getPerlin(x, y, z, 19, 20) * 20,
-					2,
-					200))
-				local choiceBiomeValue = -0.4
-					+ (fractalize(mountainsOperation, x, y / 20, z, 8, 0.65) * 1.2)
-					+ (rivulet * 0.2)
-				local choiceBiomeSurface =
-					(verticalGradientTurbulence < 0.275) and mat.Snow
+				local rivulet =
+					ridgedFlippedFilter(getPerlin(x + getPerlin(x, y, z, 17, 20) * 20, 0, z + getPerlin(x, y, z, 19, 20) * 20, 2, 200))
+				local choiceBiomeValue = -0.4 + (fractalize(mountainsOperation, x, y / 20, z, 8, 0.65) * 1.2) + (rivulet * 0.2)
+				local choiceBiomeSurface = (verticalGradientTurbulence < 0.275) and mat.Snow
 					or (verticalGradientTurbulence < 0.35) and mat.Rock
 					or (verticalGradientTurbulence < 0.4) and mat.Ground
 					or (1 - verticalGradientTurbulence < waterLevel) and mat.Rock
@@ -357,49 +329,42 @@ return function(terrain, generateSettings, analytics)
 				local crackX = x + getPerlin(x, y * 0.25, z, 21, 8, true) * 5
 				local crackY = y + getPerlin(x, y * 0.25, z, 22, 8, true) * 5
 				local crackZ = z + getPerlin(x, y * 0.25, z, 23, 8, true) * 5
-				local crack1 = ridgedFilter(getPerlin(
-					crackX + getPerlin(x, y, z, 22, 30, true) * 30,
-					crackY,
-					crackZ + getPerlin(x, y, z, 24, 30, true) * 30,
-					2,
-					120))
-				local crack2 = ridgedFilter(getPerlin(crackX, crackY, crackZ, 3, 40))
-					* ((crack1 * 0.25) + 0.75)
-				local crack3 = ridgedFilter(getPerlin(crackX, crackY, crackZ, 4, 20))
-					* ((crack2 * 0.25) + 0.75)
+				local crack1 = ridgedFilter(
+					getPerlin(
+						crackX + getPerlin(x, y, z, 22, 30, true) * 30,
+						crackY,
+						crackZ + getPerlin(x, y, z, 24, 30, true) * 30,
+						2,
+						120
+					)
+				)
+				local crack2 = ridgedFilter(getPerlin(crackX, crackY, crackZ, 3, 40)) * ((crack1 * 0.25) + 0.75)
+				local crack3 = ridgedFilter(getPerlin(crackX, crackY, crackZ, 4, 20)) * ((crack2 * 0.25) + 0.75)
 
-				local generalHills = thresholdFilter(getPerlin(x, y, z, 9, 40), 0.25, 0.5)
-					* getPerlin(x, y, z, 10, 60)
+				local generalHills = thresholdFilter(getPerlin(x, y, z, 9, 40), 0.25, 0.5) * getPerlin(x, y, z, 10, 60)
 
-				local cracks = math.max(0,
-					1 - thresholdFilter(crack1, 0.975, 0) - thresholdFilter(crack2, 0.925, 0) - thresholdFilter(crack3, 0.9, 0))
+				local cracks =
+					math.max(0, 1 - thresholdFilter(crack1, 0.975, 0) - thresholdFilter(crack2, 0.925, 0) - thresholdFilter(crack3, 0.9, 0))
 
 				local spireVec = CFrame.Angles(0.7, 0.7, 0) * Vector3.new(crackX, crackY, crackZ)
 				local spires = thresholdFilter(getPerlin(spireVec.x / 40, spireVec.y / 300, spireVec.z / 30, 123, 1), 0.6, 0.4)
 
-				local choiceBiomeValue = waterLevel + 0.02
+				local choiceBiomeValue = waterLevel
+					+ 0.02
 					+ (cracks * (0.5 + generalHills * 0.5) * 0.02)
 					+ (generalHills * 0.05)
 					+ (spires * 0.3)
 					+ ((1 - verticalGradientTurbulence > waterLevel + 0.01 or spires > 0) and 0.04 or 0) -- This lets it lip over water
 
-				local choiceBiomeFill =
-					(spires > 0) and mat.Rock
-					or (cracks < 1) and mat.CrackedLava
-					or mat.Basalt
+				local choiceBiomeFill = (spires > 0) and mat.Rock or (cracks < 1) and mat.CrackedLava or mat.Basalt
 				local choiceBiomeSurface = (choiceBiomeFill == mat.CrackedLava and 1 - verticalGradientTurbulence < waterLevel)
-					and mat.Basalt
+						and mat.Basalt
 					or choiceBiomeFill
 				return choiceBiomeValue, choiceBiomeSurface, choiceBiomeFill
 			end,
 
 			[Biome.Arctic] = function(x, y, z, verticalGradientTurbulence)
-				local preBoundary = getPerlin(
-					x + getPerlin(x, 0, z, 5, 8, true) * 5,
-					y / 8,
-					z + getPerlin(x, 0, z, 9, 8, true) * 5,
-					2,
-					20)
+				local preBoundary = getPerlin(x + getPerlin(x, 0, z, 5, 8, true) * 5, y / 8, z + getPerlin(x, 0, z, 9, 8, true) * 5, 2, 20)
 				local boundary = ridgedFilter(preBoundary)
 				local roughChunks = getPerlin(x, y / 4, z, 436, 2)
 				local boundaryMask = thresholdFilter(boundary, 0.8, 0.1)
@@ -413,12 +378,11 @@ return function(terrain, generateSettings, analytics)
 					boundaryComp = boundaryMask * 0.1 * roughChunks * boundaryTypeMask
 				end
 				local choiceBiomeValue = 0.55
-					+ (boundary * 0.05 * boundaryTypeMask)  -- Soft slope up or down to boundary
-					+ boundaryComp                          -- Convergent/divergent effects
+					+ (boundary * 0.05 * boundaryTypeMask) -- Soft slope up or down to boundary
+					+ boundaryComp -- Convergent/divergent effects
 					+ (getPerlin(x, 0, z, 123, 25) * 0.025) -- Gentle rolling slopes
 
-				local choiceBiomeSurface =
-					(1 - verticalGradientTurbulence < waterLevel - 0.1) and mat.Glacier
+				local choiceBiomeSurface = (1 - verticalGradientTurbulence < waterLevel - 0.1) and mat.Glacier
 					or (boundaryMask > 0.6 and boundaryTypeMask > 0.1 and roughChunks > 0.5) and mat.Glacier
 					or mat.Snow
 				local choiceBiomeFill = mat.Glacier
@@ -427,9 +391,7 @@ return function(terrain, generateSettings, analytics)
 		}
 
 		--  Returns (Material material, number occupancy, bool hasHitAirAboveSurface)
-		processVoxel = function (x, y, z,
-			sliceY, worldVoxelX, worldVoxelZ,
-			weightPoints, biomeNoCave)
+		processVoxel = function(x, y, z, sliceY, worldVoxelX, worldVoxelZ, weightPoints, biomeNoCave)
 			local verticalGradient = 1 - ((y - 1) / (sliceY - 1))
 			local verticalGradientTurbulence = (verticalGradient * 0.9) + (0.1 * getPerlin(worldVoxelX, y, worldVoxelZ, 107, 15))
 
@@ -440,7 +402,6 @@ return function(terrain, generateSettings, analytics)
 			if verticalGradient > 0.65 or verticalGradient < 0.1 then
 				-- Under surface of every biome, don't get biome data
 				choiceValue = 0.5
-
 			elseif #biomes == 1 then
 				-- No need to do averaging if there's only 1 biome
 				local biomeFunc = BiomeInfoFuncs[biomes[1]]
@@ -482,11 +443,12 @@ return function(terrain, generateSettings, analytics)
 			local surface = preCaveComp > 0.5 - surfaceThickness and preCaveComp < 0.5 + surfaceThickness
 			local caves = 0
 
-			if haveCaves                                                                  -- User wants caves
-				and (not biomeNoCave or verticalGradient > 0.65)                      -- Biome allows caves or we're deep enough
-				and not (surface and (1 - verticalGradient) < waterLevel + 0.005)     -- Caves only breach surface above sea level
-				and not (surface and (1 - verticalGradient) > waterLevel + 0.58) then -- Caves don't go too high through mountains
-
+			if
+				haveCaves -- User wants caves
+				and (not biomeNoCave or verticalGradient > 0.65) -- Biome allows caves or we're deep enough
+				and not (surface and (1 - verticalGradient) < waterLevel + 0.005) -- Caves only breach surface above sea level
+				and not (surface and (1 - verticalGradient) > waterLevel + 0.58)
+			then -- Caves don't go too high through mountains
 				local ridged2 = ridgedFilter(getPerlin(worldVoxelX, y, worldVoxelZ, 4, 30))
 				local caves2 = thresholdFilter(ridged2, 0.84, 0.01)
 
@@ -496,8 +458,7 @@ return function(terrain, generateSettings, analytics)
 				local ridged4 = ridgedFilter(getPerlin(worldVoxelX, y, worldVoxelZ, 6, 30))
 				local caves4 = thresholdFilter(ridged4, 0.84, 0.01)
 
-				local caveOpenings = surface and thresholdFilter(getPerlin(worldVoxelX, 0, worldVoxelZ, 143, 62), 0.35, 0)
-					or 0
+				local caveOpenings = surface and thresholdFilter(getPerlin(worldVoxelX, 0, worldVoxelZ, 143, 62), 0.35, 0) or 0
 
 				caves = caves2 * caves3 * caves4 - caveOpenings
 				caves = caves < 0 and 0 or caves > 1 and 1 or caves
@@ -506,22 +467,20 @@ return function(terrain, generateSettings, analytics)
 			local comp = preCaveComp - caves
 			local smoothedResult = thresholdFilter(comp, 0.5, mapHeight)
 
-			if 1 - verticalGradient < waterLevel -- Below water level
-				and preCaveComp <= 0.5       -- Above surface
-				and smoothedResult <= 0 then -- No terrain
+			if
+				1 - verticalGradient < waterLevel -- Below water level
+				and preCaveComp <= 0.5 -- Above surface
+				and smoothedResult <= 0
+			then -- No terrain
 				smoothedResult = 1
 				choiceSurface = mat.Water
 				choiceFill = mat.Water
 				surface = true
 			end
 
-			local finalOccupancy = y == 1 and 1
-				or smoothedResult
+			local finalOccupancy = y == 1 and 1 or smoothedResult
 
-			local finalMaterial = y == 1 and mat.CrackedLava
-				or smoothedResult <= 0 and mat.Air
-				or surface and choiceSurface
-				or choiceFill
+			local finalMaterial = y == 1 and mat.CrackedLava or smoothedResult <= 0 and mat.Air or surface and choiceSurface or choiceFill
 
 			local hasHitAirAboveSurface = surface and (finalOccupancy <= 0 or finalMaterial == mat.Air)
 
@@ -614,7 +573,7 @@ return function(terrain, generateSettings, analytics)
 
 		local biomePoints = table.create(9)
 		-- 3*3 because vx = {-1, 0, 1}; vz = {-1, 0, 1}
-		for i = 1, 3*3, 1 do
+		for i = 1, 3 * 3, 1 do
 			biomePoints[i] = {
 				x = 0,
 				z = 0,
@@ -623,10 +582,8 @@ return function(terrain, generateSettings, analytics)
 			}
 		end
 
-		local regionStart = (Vector3.new(-voxelExtents.X - 1, -voxelExtents.Y, -voxelExtents.Z) * Constants.VOXEL_RESOLUTION)
-			+ mapPosition
-		local regionEnd = (Vector3.new(-voxelExtents.X, voxelExtents.Y, voxelExtents.Z) * Constants.VOXEL_RESOLUTION)
-			+ mapPosition
+		local regionStart = (Vector3.new(-voxelExtents.X - 1, -voxelExtents.Y, -voxelExtents.Z) * Constants.VOXEL_RESOLUTION) + mapPosition
+		local regionEnd = (Vector3.new(-voxelExtents.X, voxelExtents.Y, voxelExtents.Z) * Constants.VOXEL_RESOLUTION) + mapPosition
 		local sliceRegion = Region3.new(regionStart, regionEnd):ExpandToGrid(Constants.VOXEL_RESOLUTION)
 		local sliceY = sliceRegion.Size.Y / Constants.VOXEL_RESOLUTION
 		local sliceZ = sliceRegion.Size.Z / Constants.VOXEL_RESOLUTION
@@ -654,10 +611,8 @@ return function(terrain, generateSettings, analytics)
 		for x = 1, voxelSize.X, 1 do
 			local regionOffsetX = x - voxelExtents.X
 			-- Translate our voxel coordinates into world coordinates, offsetted by target position
-			regionStart = (Vector3.new(regionOffsetX - 1, -voxelExtents.Y, -voxelExtents.Z) * Constants.VOXEL_RESOLUTION)
-				+ mapPosition
-			regionEnd = (Vector3.new(regionOffsetX, voxelExtents.Y, voxelExtents.Z) * Constants.VOXEL_RESOLUTION)
-				+ mapPosition
+			regionStart = (Vector3.new(regionOffsetX - 1, -voxelExtents.Y, -voxelExtents.Z) * Constants.VOXEL_RESOLUTION) + mapPosition
+			regionEnd = (Vector3.new(regionOffsetX, voxelExtents.Y, voxelExtents.Z) * Constants.VOXEL_RESOLUTION) + mapPosition
 			sliceRegion = Region3.new(regionStart, regionEnd):ExpandToGrid(Constants.VOXEL_RESOLUTION)
 
 			local worldVoxelX = cornerWorldVoxelX + x - 1
@@ -686,7 +641,7 @@ return function(terrain, generateSettings, analytics)
 						local pointX = gridPointX + ((getNoise(gridPointX, gridPointZ, 53) - 0.5) * 0.75)
 						local pointZ = gridPointZ + ((getNoise(gridPointX, gridPointZ, 73) - 0.5) * 0.75)
 
-						local distSquared = (pointX - cellToBiomeX)^2 + (pointZ - cellToBiomeZ)^2
+						local distSquared = (pointX - cellToBiomeX) ^ 2 + (pointZ - cellToBiomeZ) ^ 2
 						if distSquared < closestDistanceSquared then
 							closestDistanceSquared = distSquared
 						end
@@ -703,17 +658,19 @@ return function(terrain, generateSettings, analytics)
 				local weightPoints = table.create(biomesCount)
 				for _, point in ipairs(biomePoints) do
 					local weight = point.distSquared == closestDistanceSquared and 1
-						or (((math.sqrt(closestDistanceSquared) / math.sqrt(point.distSquared)) - biomeBlendPercentInverse)
-							/ biomeBlendPercent)
+						or (
+							((math.sqrt(closestDistanceSquared) / math.sqrt(point.distSquared)) - biomeBlendPercentInverse)
+							/ biomeBlendPercent
+						)
 					if weight > 0 then
 						-- Smooth the biome transition from linear to cubic InOut
-						weight = weight^2.1
+						weight = weight ^ 2.1
 						weightTotal = weightTotal + weight
 
 						-- Inverting the noise so that it is limited as (0, 1]
 						local biome = biomes[math.ceil(biomesCount * (1 - point.biomeNoise))]
 
-						local info = weightPoints[biome] or {weight = 0}
+						local info = weightPoints[biome] or { weight = 0 }
 						info.weight = info.weight + weight
 						weightPoints[biome] = info
 					end
@@ -734,8 +691,8 @@ return function(terrain, generateSettings, analytics)
 				for y = 1, sliceY, 1 do
 					-- Keep calculating voxels until we hit the surface
 					if not hasHitAir then
-						local material, occupancy, hasHitAirAboveSurface = processVoxel(x, y, z,
-							sliceY, worldVoxelX, worldVoxelZ, weightPoints, biomeNoCave)
+						local material, occupancy, hasHitAirAboveSurface =
+							processVoxel(x, y, z, sliceY, worldVoxelX, worldVoxelZ, weightPoints, biomeNoCave)
 
 						materialMap[1][y][z] = material
 						occupancyMap[1][y][z] = occupancy

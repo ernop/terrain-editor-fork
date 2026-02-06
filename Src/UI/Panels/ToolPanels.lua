@@ -106,9 +106,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	local blobIntDesc = UIHelpers.createDescription(blobIntensityPanel, "How much the blob protrudes", 16)
 	blobIntDesc.LayoutOrder = 2
 
-	local _, blobIntContainer, _ = UIHelpers.createSlider(blobIntensityPanel, "Intensity", 10, 100, math.floor(S.blobIntensity * 100), function(value)
-		S.blobIntensity = value / 100
-	end)
+	local _, blobIntContainer, _ = UIHelpers.createSlider(
+		blobIntensityPanel,
+		"Intensity",
+		10,
+		100,
+		math.floor(S.blobIntensity * 100),
+		function(value)
+			S.blobIntensity = value / 100
+		end
+	)
 	blobIntContainer.LayoutOrder = 3
 
 	panels["blobIntensity"] = blobIntensityPanel
@@ -122,9 +129,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	local blobSmoothDesc = UIHelpers.createDescription(blobSmoothnessPanel, "How smooth/organic the blob shape is", 16)
 	blobSmoothDesc.LayoutOrder = 2
 
-	local _, blobSmoothContainer, _ = UIHelpers.createSlider(blobSmoothnessPanel, "Smoothness", 10, 100, math.floor(S.blobSmoothness * 100), function(value)
-		S.blobSmoothness = value / 100
-	end)
+	local _, blobSmoothContainer, _ = UIHelpers.createSlider(
+		blobSmoothnessPanel,
+		"Smoothness",
+		10,
+		100,
+		math.floor(S.blobSmoothness * 100),
+		function(value)
+			S.blobSmoothness = value / 100
+		end
+	)
 	blobSmoothContainer.LayoutOrder = 3
 
 	panels["blobSmoothness"] = blobSmoothnessPanel
@@ -225,9 +239,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	})
 	megarand3Btn.button.LayoutOrder = 5
 
-	local _, megarandClusterContainer, _ = UIHelpers.createSlider(megarandomizePanel, "Cluster", 1, 20, S.megarandomizeClusterSize, function(v)
-		S.megarandomizeClusterSize = v
-	end)
+	local _, megarandClusterContainer, _ = UIHelpers.createSlider(
+		megarandomizePanel,
+		"Cluster",
+		1,
+		20,
+		S.megarandomizeClusterSize,
+		function(v)
+			S.megarandomizeClusterSize = v
+		end
+	)
 	megarandClusterContainer.LayoutOrder = 6
 
 	panels["megarandomizeSettings"] = megarandomizePanel
@@ -243,9 +264,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	local cavityDesc = UIHelpers.createDescription(cavitySensitivityPanel, "Fills holes and depressions. Lower = more sensitive.")
 	cavityDesc.LayoutOrder = 2
 
-	local _, cavitySensContainer, _ = UIHelpers.createSlider(cavitySensitivityPanel, "Sensitivity", 5, 80, math.floor(S.cavitySensitivity * 100), function(v)
-		S.cavitySensitivity = v / 100
-	end)
+	local _, cavitySensContainer, _ = UIHelpers.createSlider(
+		cavitySensitivityPanel,
+		"Sensitivity",
+		5,
+		80,
+		math.floor(S.cavitySensitivity * 100),
+		function(v)
+			S.cavitySensitivity = v / 100
+		end
+	)
 	cavitySensContainer.LayoutOrder = 3
 
 	panels["cavitySensitivity"] = cavitySensitivityPanel
@@ -261,9 +289,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	local meltDesc = UIHelpers.createDescription(meltViscosityPanel, "Terrain flows down. Lower viscosity = runnier.")
 	meltDesc.LayoutOrder = 2
 
-	local _, meltViscContainer, _ = UIHelpers.createSlider(meltViscosityPanel, "Viscosity", 0, 100, math.floor(S.meltViscosity * 100), function(v)
-		S.meltViscosity = v / 100
-	end)
+	local _, meltViscContainer, _ = UIHelpers.createSlider(
+		meltViscosityPanel,
+		"Viscosity",
+		0,
+		100,
+		math.floor(S.meltViscosity * 100),
+		function(v)
+			S.meltViscosity = v / 100
+		end
+	)
 	meltViscContainer.LayoutOrder = 3
 
 	panels["meltViscosity"] = meltViscosityPanel
@@ -286,9 +321,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	end)
 	noiseScaleContainer.LayoutOrder = 3
 
-	local _, noiseIntensityContainer, _ = UIHelpers.createSlider(noiseScalePanel, "Intensity", 10, 100, math.floor((S.noiseIntensity or 0.5) * 100), function(value)
-		S.noiseIntensity = value / 100
-	end)
+	local _, noiseIntensityContainer, _ = UIHelpers.createSlider(
+		noiseScalePanel,
+		"Intensity",
+		10,
+		100,
+		math.floor((S.noiseIntensity or 0.5) * 100),
+		function(value)
+			S.noiseIntensity = value / 100
+		end
+	)
 	noiseIntensityContainer.LayoutOrder = 4
 
 	local noiseRandomBtn = UIComponents.createRandomizeSeedButton(noiseScalePanel, function(seed)
@@ -314,9 +356,16 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 	end)
 	stepHeightContainer.LayoutOrder = 3
 
-	local _, stepSharpnessContainer, _ = UIHelpers.createSlider(terraceSettingsPanel, "Sharpness", 0, 100, math.floor((S.stepSharpness or 0.8) * 100), function(value)
-		S.stepSharpness = value / 100
-	end)
+	local _, stepSharpnessContainer, _ = UIHelpers.createSlider(
+		terraceSettingsPanel,
+		"Sharpness",
+		0,
+		100,
+		math.floor((S.stepSharpness or 0.8) * 100),
+		function(value)
+			S.stepSharpness = value / 100
+		end
+	)
 	stepSharpnessContainer.LayoutOrder = 4
 
 	panels["terraceSettings"] = terraceSettingsPanel
@@ -348,4 +397,3 @@ function ToolPanels.create(deps: ToolPanelsDeps): ToolPanelsResult
 end
 
 return ToolPanels
-

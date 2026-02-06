@@ -47,7 +47,6 @@ The built-in terrain editor is fine for basics. This one goes further:
 | **Flood** | Fill brush area with material. Replace all or specific materials only. |
 | **Cavity Fill** | Paint into dips and crevices. Good for dirt in cracks. |
 | **Randomize** | Scatter weighted random materials in clustered patches. |
-| **Melt** | Simulate terrain flowing downward. Dripping, sagging effects. |
 
 ---
 
@@ -61,6 +60,17 @@ The built-in terrain editor is fine for basics. This one goes further:
 | **Tendril** | Branching vine-like structures. Roots, vines, tentacles. |
 | **Symmetry** | Mirror strokes around a center axis. 2 = mirror, 4+ = mandala. |
 | **Grid** | Divide terrain into cells with random height variation. Blocky landscapes. |
+| **Melt** | Simulate terrain flowing downward. Dripping, sagging effects. |
+
+---
+
+## Analysis Tools
+
+| Tool | What it does |
+|------|--------------|
+| **Voxel Inspect** | Examine occupancy and material of individual voxels under cursor. |
+| **Component Analyzer** | Find and highlight disconnected terrain islands. |
+| **Occupancy Overlay** | Visualize voxel fill levels as a color gradient. |
 
 ---
 
@@ -128,6 +138,7 @@ Where the brush anchors to your cursor:
 - **Bottom** — brush sits on top of terrain
 - **Center** — brush centered on cursor
 - **Top** — brush hangs below cursor
+- **Surface** — finds highest terrain under cursor and rests brush on top
 
 ---
 

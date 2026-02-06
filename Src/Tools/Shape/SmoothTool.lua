@@ -48,7 +48,7 @@ SmoothTool.docs = {
 	title = "Smooth",
 	subtitle = "Average voxel occupancy with neighbors",
 	description = "Blends each voxel toward the average of its neighbors. Can both fill gaps and erode peaks.",
-	
+
 	sections = {
 		{
 			heading = "Algorithm",
@@ -68,13 +68,13 @@ SmoothTool.docs = {
 			content = "Acts as low-pass filter on voxel data. The occupancy scaling (×1.5 - 0.25) allows cells to reach full 1.0 or empty 0.0. Requires existing terrain edge for changes—won't fill isolated air or erode solid interiors. Material inherited from neighbors when filling.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.2",
 }
 
@@ -177,14 +177,12 @@ function SmoothTool.execute(options: SculptSettings)
 	end
 
 	local targetOccupancy = math.max(0, math.min(1, cellOccupancy + difference))
-	
+
 	if targetOccupancy ~= cellOccupancy then
 		if cellStartsEmpty and targetOccupancy > 0 then
 			-- Cell becoming non-empty - give it a material from neighbors
-			writeMaterials[voxelX][voxelY][voxelZ] = OperationHelper.getMaterialForAutoMaterial(
-				readMaterials, voxelX, voxelY, voxelZ, 
-				sizeX, sizeY, sizeZ, cellMaterial
-			)
+			writeMaterials[voxelX][voxelY][voxelZ] =
+				OperationHelper.getMaterialForAutoMaterial(readMaterials, voxelX, voxelY, voxelZ, sizeX, sizeY, sizeZ, cellMaterial)
 		elseif targetOccupancy <= 0 then
 			writeMaterials[voxelX][voxelY][voxelZ] = airFillerMaterial
 		end
@@ -194,4 +192,3 @@ function SmoothTool.execute(options: SculptSettings)
 end
 
 return SmoothTool
-

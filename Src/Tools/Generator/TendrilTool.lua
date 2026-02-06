@@ -121,51 +121,51 @@ end
 function TendrilTool.fastPath(terrain: Terrain, opSet: OperationSet): boolean
 	local material = opSet.material
 	local centerPoint = opSet.centerPoint
-	
+
 	-- Tendril parameters
 	local radius = opSet.tendrilRadius or 1.5
 	local branches = opSet.tendrilBranches or 5
 	local length = opSet.tendrilLength or 15
 	local curl = opSet.tendrilCurl or 0.5
 	local seed = opSet.tendrilSeed or opSet.noiseSeed or 0
-	
+
 	-- Convert radius from UI units to studs
 	local radiusStuds = radius * 4
-	
+
 	-- Step size along tendril (smaller = smoother but more FillBall calls)
 	-- We want overlapping spheres for smooth tendrils
 	local stepSize = 0.03 -- 3% per step = ~33 steps per branch
-	
+
 	-- Generate and rasterize each branch
 	for branch = 0, branches - 1 do
 		-- Each branch spirals outward from center
 		local baseAngle = (branch / branches) * math.pi * 2 + seed
-		
+
 		-- Walk along the tendril
 		for t = 0, 1, stepSize do
 			local dist = t * length
 			local spiralAngle = baseAngle + t * curl * math.pi * 4
-			
+
 			-- Add some noise-based displacement for organic feel
 			local noiseOffset = Noise.fbmFast(branch, t * 5, 0, seed, 2) * 2
-			
+
 			-- Tendril position relative to center
 			local tendrilX = math.cos(spiralAngle) * dist
 			local tendrilY = -dist * 0.3 + noiseOffset -- Droop down slightly
 			local tendrilZ = math.sin(spiralAngle) * dist
-			
+
 			-- Absolute world position
 			local worldPos = centerPoint + Vector3.new(tendrilX, tendrilY, tendrilZ)
-			
+
 			-- Taper: radius decreases along length (thicker at root, thinner at tip)
 			local taperFactor = 1 - t * 0.7
 			local segmentRadius = math.max(radiusStuds * taperFactor, 2) -- Minimum 2 studs
-			
+
 			-- Rasterize this segment
 			terrain:FillBall(worldPos, segmentRadius, material)
 		end
 	end
-	
+
 	return true
 end
 
@@ -237,12 +237,8 @@ function TendrilTool.execute(options: SculptSettings)
 			if tendrilOccupancy > 0.5 then
 				local targetMaterial = desiredMaterial
 				if autoMaterial then
-					targetMaterial = OperationHelper.getMaterialForAutoMaterial(
-						readMaterials,
-						voxelX, voxelY, voxelZ,
-						sizeX, sizeY, sizeZ,
-						cellMaterial
-					)
+					targetMaterial =
+						OperationHelper.getMaterialForAutoMaterial(readMaterials, voxelX, voxelY, voxelZ, sizeX, sizeY, sizeZ, cellMaterial)
 				end
 				writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 			end

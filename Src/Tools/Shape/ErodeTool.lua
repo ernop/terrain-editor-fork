@@ -48,7 +48,7 @@ ErodeTool.docs = {
 	title = "Erode",
 	subtitle = "Shrink terrain inward from surfaces",
 	description = "Reduces voxel occupancy at exposed terrain edges. Opposite of Grow.",
-	
+
 	sections = {
 		{
 			heading = "Algorithm",
@@ -68,13 +68,13 @@ ErodeTool.docs = {
 			content = "Erodes exposed surfaces based on surrounding empty space. More exposed = faster erosion. Fully surrounded solid voxels (no empty neighbors) unchanged. Creates natural weathering patterns.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.2",
 }
 
@@ -119,13 +119,13 @@ function ErodeTool.execute(options: SculptSettings)
 	local desiredOccupancy = cellOccupancy
 	local emptyNeighbor = false
 	local neighborOccupancies = 6
-	
+
 	-- Check all 6 cardinal neighbors
 	for i = 1, 6, 1 do
 		local nx = voxelX + OperationHelper.xOffset[i]
 		local ny = voxelY + OperationHelper.yOffset[i]
 		local nz = voxelZ + OperationHelper.zOffset[i]
-		
+
 		if nx > 0 and nx <= sizeX and ny > 0 and ny <= sizeY and nz > 0 and nz <= sizeZ then
 			local neighbor = readOccupancies[nx][ny][nz]
 			local neighborMaterial = readMaterials[nx][ny][nz]
@@ -159,4 +159,3 @@ function ErodeTool.execute(options: SculptSettings)
 end
 
 return ErodeTool
-

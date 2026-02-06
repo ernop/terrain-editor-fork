@@ -22,9 +22,9 @@
 local DomeMeshGenerator = {}
 
 -- Configuration
-local THETA_SEGMENTS = 16     -- Segments around the dome (horizontal circles)
-local PHI_SEGMENTS = 8        -- Segments from pole to equator (vertical arcs)
-local WIRE_THICKNESS = 0.08   -- Thickness of wireframe lines (studs)
+local THETA_SEGMENTS = 16 -- Segments around the dome (horizontal circles)
+local PHI_SEGMENTS = 8 -- Segments from pole to equator (vertical arcs)
+local WIRE_THICKNESS = 0.08 -- Thickness of wireframe lines (studs)
 
 export type DomeWireframe = {
 	parts: { BasePart },
@@ -38,7 +38,7 @@ export type DomeWireframe = {
 local function createWirePart(startPos: Vector3, endPos: Vector3, color: Color3, transparency: number): Part
 	local part = Instance.new("Part")
 	part.Name = "DomeWire"
-	part.Archivable = false  -- Exclude from undo history
+	part.Archivable = false -- Exclude from undo history
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanQuery = false
@@ -48,15 +48,15 @@ local function createWirePart(startPos: Vector3, endPos: Vector3, color: Color3,
 	part.Color = color
 	part.Transparency = transparency
 	part.Shape = Enum.PartType.Cylinder
-	
+
 	-- Calculate position, size, and orientation
 	local midPoint = (startPos + endPos) / 2
 	local direction = endPos - startPos
 	local length = direction.Magnitude
-	
+
 	-- Cylinder's length is along local X axis
 	part.Size = Vector3.new(length, WIRE_THICKNESS, WIRE_THICKNESS)
-	
+
 	-- Orient the cylinder to point from start to end
 	if length > 0.001 then
 		local lookAt = CFrame.lookAt(midPoint, endPos)
@@ -65,43 +65,28 @@ local function createWirePart(startPos: Vector3, endPos: Vector3, color: Color3,
 	else
 		part.CFrame = CFrame.new(midPoint)
 	end
-	
+
 	return part
 end
 
 -- Calculate a point on the hemisphere surface (top half, Y >= 0)
 -- phi: 0 = top pole, π/2 = equator
 -- theta: angle around vertical axis
-local function hemispherePoint(
-	radiusX: number,
-	radiusY: number,
-	radiusZ: number,
-	phi: number,
-	theta: number,
-	isRotated: boolean
-): Vector3
+local function hemispherePoint(radiusX: number, radiusY: number, radiusZ: number, phi: number, theta: number, isRotated: boolean): Vector3
 	local sinPhi = math.sin(phi)
 	local cosPhi = math.cos(phi)
 	local sinTheta = math.sin(theta)
 	local cosTheta = math.cos(theta)
-	
+
 	if isRotated then
 		-- Forward-facing dome (Z >= 0): rotate the standard hemisphere 90° around X
 		-- Standard: (sinPhi*cosTheta, cosPhi, sinPhi*sinTheta)
 		-- After 90° X rotation: (x, -z, y) -> (sinPhi*cosTheta, -sinPhi*sinTheta, cosPhi)
 		-- This makes the dome open toward +Z
-		return Vector3.new(
-			radiusX * sinPhi * cosTheta,
-			radiusY * sinPhi * sinTheta,
-			radiusZ * cosPhi
-		)
+		return Vector3.new(radiusX * sinPhi * cosTheta, radiusY * sinPhi * sinTheta, radiusZ * cosPhi)
 	else
 		-- Standard upward-facing dome (Y >= 0)
-		return Vector3.new(
-			radiusX * sinPhi * cosTheta,
-			radiusY * cosPhi,
-			radiusZ * sinPhi * sinTheta
-		)
+		return Vector3.new(radiusX * sinPhi * cosTheta, radiusY * cosPhi, radiusZ * sinPhi * sinTheta)
 	end
 end
 
@@ -125,54 +110,54 @@ function DomeMeshGenerator.createWireframe(
 	transparency: number
 ): { Part }
 	local parts: { Part } = {}
-	
+
 	-- Draw horizontal circles (latitude lines) at different heights
 	for i = 0, PHI_SEGMENTS do
-		local phi = (i / PHI_SEGMENTS) * (math.pi / 2)  -- 0 to π/2
-		
+		local phi = (i / PHI_SEGMENTS) * (math.pi / 2) -- 0 to π/2
+
 		-- Draw circle at this latitude
 		for j = 0, THETA_SEGMENTS - 1 do
 			local theta1 = (j / THETA_SEGMENTS) * math.pi * 2
 			local theta2 = ((j + 1) / THETA_SEGMENTS) * math.pi * 2
-			
+
 			local p1 = hemispherePoint(radiusX, radiusY, radiusZ, phi, theta1, isRotated)
 			local p2 = hemispherePoint(radiusX, radiusY, radiusZ, phi, theta2, isRotated)
-			
+
 			local wire = createWirePart(p1, p2, color, transparency)
 			table.insert(parts, wire)
 		end
 	end
-	
+
 	-- Draw vertical arcs (longitude lines) from pole to equator
-	local numMeridians = 8  -- Number of vertical lines
+	local numMeridians = 8 -- Number of vertical lines
 	for j = 0, numMeridians - 1 do
 		local theta = (j / numMeridians) * math.pi * 2
-		
+
 		-- Draw arc from pole to equator
 		for i = 0, PHI_SEGMENTS - 1 do
 			local phi1 = (i / PHI_SEGMENTS) * (math.pi / 2)
 			local phi2 = ((i + 1) / PHI_SEGMENTS) * (math.pi / 2)
-			
+
 			local p1 = hemispherePoint(radiusX, radiusY, radiusZ, phi1, theta, isRotated)
 			local p2 = hemispherePoint(radiusX, radiusY, radiusZ, phi2, theta, isRotated)
-			
+
 			local wire = createWirePart(p1, p2, color, transparency)
 			table.insert(parts, wire)
 		end
 	end
-	
+
 	-- Draw the flat base circle (equator) with a thicker line for emphasis
 	-- This helps visualize where the dome is "cut"
 	for j = 0, THETA_SEGMENTS - 1 do
 		local theta1 = (j / THETA_SEGMENTS) * math.pi * 2
 		local theta2 = ((j + 1) / THETA_SEGMENTS) * math.pi * 2
-		
+
 		local p1 = hemispherePoint(radiusX, radiusY, radiusZ, math.pi / 2, theta1, isRotated)
 		local p2 = hemispherePoint(radiusX, radiusY, radiusZ, math.pi / 2, theta2, isRotated)
-		
+
 		-- Base circle already drawn in latitude lines, skip duplicate
 	end
-	
+
 	return parts
 end
 
@@ -199,39 +184,39 @@ function DomeMeshGenerator.createLightWireframe(
 	local parts: { Part } = {}
 	local thetaSegs = 12
 	local phiSegs = 4
-	
+
 	-- Draw just 3 horizontal circles: near top, middle, and equator
-	local keyPhis = { 0.2, 0.5, 1.0 }  -- Fractions of π/2
+	local keyPhis = { 0.2, 0.5, 1.0 } -- Fractions of π/2
 	for _, phiFrac in ipairs(keyPhis) do
 		local phi = phiFrac * (math.pi / 2)
-		
+
 		for j = 0, thetaSegs - 1 do
 			local theta1 = (j / thetaSegs) * math.pi * 2
 			local theta2 = ((j + 1) / thetaSegs) * math.pi * 2
-			
+
 			local p1 = hemispherePoint(radiusX, radiusY, radiusZ, phi, theta1, isRotated)
 			local p2 = hemispherePoint(radiusX, radiusY, radiusZ, phi, theta2, isRotated)
-			
+
 			local wire = createWirePart(p1, p2, color, transparency)
 			table.insert(parts, wire)
 		end
 	end
-	
+
 	-- Draw 4 vertical arcs (cardinal directions)
 	local keyThetas = { 0, math.pi * 0.5, math.pi, math.pi * 1.5 }
 	for _, theta in ipairs(keyThetas) do
 		for i = 0, phiSegs - 1 do
 			local phi1 = (i / phiSegs) * (math.pi / 2)
 			local phi2 = ((i + 1) / phiSegs) * (math.pi / 2)
-			
+
 			local p1 = hemispherePoint(radiusX, radiusY, radiusZ, phi1, theta, isRotated)
 			local p2 = hemispherePoint(radiusX, radiusY, radiusZ, phi2, theta, isRotated)
-			
+
 			local wire = createWirePart(p1, p2, color, transparency)
 			table.insert(parts, wire)
 		end
 	end
-	
+
 	return parts
 end
 
@@ -256,27 +241,27 @@ function DomeMeshGenerator.updateWireframeCFrame(
 	local thetaSegs = 12
 	local phiSegs = 4
 	local partIndex = 1
-	
+
 	-- Update horizontal circles
 	local keyPhis = { 0.2, 0.5, 1.0 }
 	for _, phiFrac in ipairs(keyPhis) do
 		local phi = phiFrac * (math.pi / 2)
-		
+
 		for j = 0, thetaSegs - 1 do
 			local theta1 = (j / thetaSegs) * math.pi * 2
 			local theta2 = ((j + 1) / thetaSegs) * math.pi * 2
-			
+
 			local localP1 = hemispherePoint(radiusX, radiusY, radiusZ, phi, theta1, isRotated)
 			local localP2 = hemispherePoint(radiusX, radiusY, radiusZ, phi, theta2, isRotated)
-			
+
 			local worldP1 = cframe:PointToWorldSpace(localP1)
 			local worldP2 = cframe:PointToWorldSpace(localP2)
-			
+
 			local part = parts[partIndex]
 			if part then
 				local midPoint = (worldP1 + worldP2) / 2
 				local length = (worldP2 - worldP1).Magnitude
-				
+
 				part.Size = Vector3.new(length, WIRE_THICKNESS, WIRE_THICKNESS)
 				if length > 0.001 then
 					local lookAt = CFrame.lookAt(midPoint, worldP2)
@@ -286,25 +271,25 @@ function DomeMeshGenerator.updateWireframeCFrame(
 			partIndex = partIndex + 1
 		end
 	end
-	
+
 	-- Update vertical arcs
 	local keyThetas = { 0, math.pi * 0.5, math.pi, math.pi * 1.5 }
 	for _, theta in ipairs(keyThetas) do
 		for i = 0, phiSegs - 1 do
 			local phi1 = (i / phiSegs) * (math.pi / 2)
 			local phi2 = ((i + 1) / phiSegs) * (math.pi / 2)
-			
+
 			local localP1 = hemispherePoint(radiusX, radiusY, radiusZ, phi1, theta, isRotated)
 			local localP2 = hemispherePoint(radiusX, radiusY, radiusZ, phi2, theta, isRotated)
-			
+
 			local worldP1 = cframe:PointToWorldSpace(localP1)
 			local worldP2 = cframe:PointToWorldSpace(localP2)
-			
+
 			local part = parts[partIndex]
 			if part then
 				local midPoint = (worldP1 + worldP2) / 2
 				local length = (worldP2 - worldP1).Magnitude
-				
+
 				part.Size = Vector3.new(length, WIRE_THICKNESS, WIRE_THICKNESS)
 				if length > 0.001 then
 					local lookAt = CFrame.lookAt(midPoint, worldP2)
@@ -352,4 +337,3 @@ function DomeMeshGenerator.destroyWireframe(parts: { Part })
 end
 
 return DomeMeshGenerator
-

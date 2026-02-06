@@ -44,9 +44,9 @@ CloneTool.traits = {
 CloneTool.docs = {
 	title = "Clone",
 	subtitle = "Copy and stamp terrain",
-	
+
 	description = "Samples terrain from a source location and replicates it. Ctrl+Click to capture source, then paint to stamp.",
-	
+
 	sections = {
 		{
 			heading = "Workflow",
@@ -75,13 +75,13 @@ CloneTool.docs = {
 			content = "Source buffer persists until next Ctrl+Click. Offset tracking allows stamping at different locations while preserving relative voxel positions. Strength controls blend between existing and source terrain.",
 		},
 	},
-	
+
 	quickTips = {
 		"Ctrl+Click — Set clone source",
 		"Shift+Scroll — Resize brush",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -111,39 +111,37 @@ function CloneTool.execute(options: SculptSettings)
 	local cloneBuffer = options.cloneSourceBuffer
 	local cloneCenter = options.cloneSourceCenter
 	local centerPoint = options.centerPoint
-	
+
 	-- Need source data to clone
 	if not cloneBuffer or not cloneCenter then
 		return
 	end
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Calculate offset from current center to source center
 	local offsetX = math.floor((centerPoint.X - cloneCenter.X) / 4 + 0.5)
 	local offsetY = math.floor((centerPoint.Y - cloneCenter.Y) / 4 + 0.5)
 	local offsetZ = math.floor((centerPoint.Z - cloneCenter.Z) / 4 + 0.5)
-	
+
 	-- Look up source voxel
 	local sourceX = voxelX - offsetX
 	local sourceY = voxelY - offsetY
 	local sourceZ = voxelZ - offsetZ
-	
-	local sourceData = cloneBuffer[sourceX] 
-		and cloneBuffer[sourceX][sourceY] 
-		and cloneBuffer[sourceX][sourceY][sourceZ]
-	
+
+	local sourceData = cloneBuffer[sourceX] and cloneBuffer[sourceX][sourceY] and cloneBuffer[sourceX][sourceY][sourceZ]
+
 	if sourceData then
 		-- Blend source occupancy with brush strength
 		local blendFactor = brushOccupancy * (options.strength or 0.5)
 		local targetOcc = sourceData.occupancy
 		local currentOcc = options.cellOccupancy
-		
+
 		writeOccupancies[voxelX][voxelY][voxelZ] = currentOcc + (targetOcc - currentOcc) * blendFactor
-		
+
 		if sourceData.occupancy > 0.5 then
 			writeMaterials[voxelX][voxelY][voxelZ] = sourceData.material
 		end
@@ -151,4 +149,3 @@ function CloneTool.execute(options: SculptSettings)
 end
 
 return CloneTool
-

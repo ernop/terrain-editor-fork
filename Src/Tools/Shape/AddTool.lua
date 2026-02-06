@@ -49,7 +49,7 @@ AddTool.docs = {
 	title = "Add",
 	subtitle = "Add blocks of terrain",
 	description = "Creates terrain inside the brush shape using the selected material.",
-	
+
 	sections = {
 		{
 			heading = "Algorithm",
@@ -65,14 +65,14 @@ AddTool.docs = {
 			content = "For uniform spheres, cubes, cylinders, wedges without AutoMaterial or Hollow mode, uses native Terrain:FillBall/FillBlock/FillCylinder/FillWedge APIs for ~10x speed.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"L — Lock brush position",
 		"Alt+Click — Sample material",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -123,7 +123,7 @@ function AddTool.fastPath(terrain: Terrain, opSet: OperationSet): boolean
 	local centerPoint = applyPivot(opSet.pivot, opSet.centerPoint, sizeY)
 	local rotation = opSet.brushRotation or CFrame.new()
 	local fillCFrame = CFrame.new(centerPoint) * rotation
-	
+
 	if shape == "Sphere" then
 		local isUniform = (sizeX == sizeY) and (sizeY == sizeZ)
 		local hasRotation = rotation ~= CFrame.new()
@@ -142,7 +142,7 @@ function AddTool.fastPath(terrain: Terrain, opSet: OperationSet): boolean
 	else
 		return false -- Unknown shape, use slow path
 	end
-	
+
 	return true
 end
 
@@ -172,8 +172,12 @@ function AddTool.execute(options: SculptSettings)
 		if options.autoMaterial then
 			targetMaterial = OperationHelper.getMaterialForAutoMaterial(
 				options.readMaterials,
-				voxelX, voxelY, voxelZ,
-				options.sizeX, options.sizeY, options.sizeZ,
+				voxelX,
+				voxelY,
+				voxelZ,
+				options.sizeX,
+				options.sizeY,
+				options.sizeZ,
 				cellMaterial
 			)
 		end
@@ -182,4 +186,3 @@ function AddTool.execute(options: SculptSettings)
 end
 
 return AddTool
-

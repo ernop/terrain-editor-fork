@@ -157,4 +157,3 @@ function ToolRegistry.getToolConfigPanels(toolId: string): { string }
 end
 
 return ToolRegistry
-

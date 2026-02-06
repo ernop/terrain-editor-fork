@@ -44,9 +44,9 @@ BlobifyTool.traits = {
 BlobifyTool.docs = {
 	title = "Blobify",
 	subtitle = "Add organic blob distortion",
-	
+
 	description = "Applies smooth, bulging deformation using layered noise. Creates organic, melted-looking surfaces.",
-	
+
 	sections = {
 		{
 			heading = "Settings",
@@ -70,13 +70,13 @@ BlobifyTool.docs = {
 			content = "Lower smoothness = higher frequency noise = more lumpy detail. Higher smoothness = low frequency = broad, gentle bulges. Intensity controls magnitude of displacement. FBM with 2 octaves keeps blobs smooth.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -106,12 +106,12 @@ function BlobifyTool.execute(options: SculptSettings)
 	local worldX, worldY, worldZ = options.worldX, options.worldY, options.worldZ
 	local blobIntensity = options.blobIntensity or 0.5
 	local blobSmoothness = options.blobSmoothness or 0.7
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Generate blob noise using fast native Perlin noise
 	local scale = 0.1 * (1.1 - blobSmoothness)
 	local blobNoise = Noise.fbmFast(
@@ -121,13 +121,12 @@ function BlobifyTool.execute(options: SculptSettings)
 		0, -- seed
 		2 -- octaves for smooth blobs
 	)
-	
+
 	-- Apply blob deformation
 	local displacement = blobNoise * blobIntensity * brushOccupancy
 	local newOccupancy = math.clamp(cellOccupancy + displacement, 0, 1)
-	
+
 	writeOccupancies[voxelX][voxelY][voxelZ] = newOccupancy
 end
 
 return BlobifyTool
-

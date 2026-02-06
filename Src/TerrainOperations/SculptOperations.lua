@@ -24,8 +24,12 @@ local effectiveOccupancy = OperationHelper.effectiveOccupancy
 local function isSurfaceVoxel(
 	readOccupancies: any,
 	readMaterials: any,
-	voxelX: number, voxelY: number, voxelZ: number,
-	sizeX: number, sizeY: number, sizeZ: number,
+	voxelX: number,
+	voxelY: number,
+	voxelZ: number,
+	sizeX: number,
+	sizeY: number,
+	sizeZ: number,
 	cellOccupancy: number,
 	ignoreWater: boolean
 ): boolean
@@ -249,7 +253,8 @@ local function smooth(options)
 				local checkZ = voxelZ + zo
 
 				if checkX > 0 and checkX <= sizeX and checkY > 0 and checkY <= sizeY and checkZ > 0 and checkZ <= sizeZ then
-					local occupancy = effectiveOccupancy(readOccupancies[checkX][checkY][checkZ], readMaterials[checkX][checkY][checkZ], ignoreWater)
+					local occupancy =
+						effectiveOccupancy(readOccupancies[checkX][checkY][checkZ], readMaterials[checkX][checkY][checkZ], ignoreWater)
 					local distanceScale = 1 - (math.sqrt(xo * xo + yo * yo + zo * zo) / (filterSize * 2))
 
 					if occupancy >= 1 then

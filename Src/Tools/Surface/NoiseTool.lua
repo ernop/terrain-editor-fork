@@ -44,9 +44,9 @@ NoiseTool.traits = {
 NoiseTool.docs = {
 	title = "Noise",
 	subtitle = "Add procedural variation to terrain",
-	
+
 	description = "Displaces voxel occupancy using 3D Perlin noise. Creates organic surface detail.",
-	
+
 	sections = {
 		{
 			heading = "Settings",
@@ -72,13 +72,13 @@ NoiseTool.docs = {
 			content = "FBM (Fractal Brownian Motion) produces natural-looking variation with both large and small features. Noise range is roughly -1 to +1 before intensity scaling. Same seed + position = same noise value (deterministic).",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -108,12 +108,12 @@ function NoiseTool.execute(options: SculptSettings)
 	local noiseScale = options.noiseScale or 4
 	local noiseIntensity = options.noiseIntensity or 0.5
 	local noiseSeed = options.noiseSeed or 0
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Sample noise at world position (using fast native Perlin noise)
 	local scale = 1 / noiseScale
 	local noiseValue = Noise.fbmFast(
@@ -123,13 +123,12 @@ function NoiseTool.execute(options: SculptSettings)
 		noiseSeed,
 		3 -- octaves
 	)
-	
+
 	-- Apply noise as displacement
 	local displacement = noiseValue * noiseIntensity * brushOccupancy
 	local newOccupancy = math.clamp(cellOccupancy + displacement, 0, 1)
-	
+
 	writeOccupancies[voxelX][voxelY][voxelZ] = newOccupancy
 end
 
 return NoiseTool
-

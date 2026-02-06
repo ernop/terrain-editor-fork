@@ -18,13 +18,16 @@ local SHAPE_ICON_COLOR = Theme.Colors.ShapeIconLight
 local SHAPE_ICON_COLOR_DIM = Theme.Colors.ShapeIconDim
 
 -- Helper: Create a simple colored frame element
-local function createIconElement(parent: Frame, props: {
-	position: UDim2?,
-	size: UDim2,
-	color: Color3?,
-	cornerRadius: number?,
-	rotation: number?,
-}): Frame
+local function createIconElement(
+	parent: Frame,
+	props: {
+		position: UDim2?,
+		size: UDim2,
+		color: Color3?,
+		cornerRadius: number?,
+		rotation: number?,
+	}
+): Frame
 	local element = Instance.new("Frame")
 	element.BackgroundColor3 = props.color or SHAPE_ICON_COLOR
 	element.BorderSizePixel = 0
@@ -62,21 +65,18 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
 			cornerRadius = s,
 		})
-
 	elseif shapeId == BrushShape.Cube then
 		createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.5, 0),
 			size = UDim2.new(0, s * 0.75, 0, s * 0.75),
 			cornerRadius = 2,
 		})
-
 	elseif shapeId == BrushShape.Cylinder then
 		createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.5, 0),
 			size = UDim2.new(0, s * 0.55, 0, s * 0.85),
 			cornerRadius = s * 0.27,
 		})
-
 	elseif shapeId == BrushShape.Wedge then
 		local triangleContainer = Instance.new("Frame")
 		triangleContainer.BackgroundTransparency = 1
@@ -90,7 +90,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 			rotation = 45,
 			cornerRadius = 2,
 		})
-
 	elseif shapeId == BrushShape.CornerWedge then
 		local triangleContainer = Instance.new("Frame")
 		triangleContainer.BackgroundTransparency = 1
@@ -104,7 +103,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 			rotation = 45,
 			cornerRadius = 2,
 		})
-
 	elseif shapeId == BrushShape.Dome then
 		local domeClip = Instance.new("Frame")
 		domeClip.BackgroundTransparency = 1
@@ -118,7 +116,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 			size = UDim2.new(0, s * 0.85, 0, s * 0.85),
 			cornerRadius = s,
 		})
-
 	elseif shapeId == BrushShape.RotatedDome then
 		local archOuter = createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.42, 0),
@@ -146,7 +143,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 			position = UDim2.new(0.78, 0, 0.75, 0),
 			size = UDim2.new(0, s * 0.17, 0, s * 0.4),
 		})
-
 	elseif shapeId == BrushShape.Torus then
 		local outerRing = createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.5, 0),
@@ -165,7 +161,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 		local holeCorner = Instance.new("UICorner")
 		holeCorner.CornerRadius = UDim.new(1, 0)
 		holeCorner.Parent = innerHole
-
 	elseif shapeId == BrushShape.Ring then
 		local outerRing = createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.5, 0),
@@ -184,7 +179,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 		local holeCorner = Instance.new("UICorner")
 		holeCorner.CornerRadius = UDim.new(1, 0)
 		holeCorner.Parent = innerHole
-
 	elseif shapeId == BrushShape.ZigZag then
 		local barW = s * 0.65
 		local barH = s * 0.18
@@ -204,7 +198,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 			size = UDim2.new(0, barW, 0, barH),
 			cornerRadius = 2,
 		})
-
 	elseif shapeId == BrushShape.Sheet then
 		local arcRadius = s * 0.35
 		local dotSize = s * 0.12
@@ -218,42 +211,39 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 				cornerRadius = dotSize,
 			})
 		end
-
 	elseif shapeId == BrushShape.Grid then
 		local cellSize = s * 0.35
 		local gap = s * 0.08
 		local offset = (s - 2 * cellSize - gap) / 2
 
 		createIconElement(container, {
-			position = UDim2.new(0, offset + cellSize/2, 0, offset + cellSize/2),
+			position = UDim2.new(0, offset + cellSize / 2, 0, offset + cellSize / 2),
 			size = UDim2.new(0, cellSize, 0, cellSize),
 			cornerRadius = 2,
 		})
 		createIconElement(container, {
-			position = UDim2.new(0, offset + cellSize + gap + cellSize/2, 0, offset + cellSize/2),
+			position = UDim2.new(0, offset + cellSize + gap + cellSize / 2, 0, offset + cellSize / 2),
 			size = UDim2.new(0, cellSize, 0, cellSize),
 			color = SHAPE_ICON_COLOR_DIM,
 			cornerRadius = 2,
 		})
 		createIconElement(container, {
-			position = UDim2.new(0, offset + cellSize/2, 0, offset + cellSize + gap + cellSize/2),
+			position = UDim2.new(0, offset + cellSize / 2, 0, offset + cellSize + gap + cellSize / 2),
 			size = UDim2.new(0, cellSize, 0, cellSize),
 			color = SHAPE_ICON_COLOR_DIM,
 			cornerRadius = 2,
 		})
 		createIconElement(container, {
-			position = UDim2.new(0, offset + cellSize + gap + cellSize/2, 0, offset + cellSize + gap + cellSize/2),
+			position = UDim2.new(0, offset + cellSize + gap + cellSize / 2, 0, offset + cellSize + gap + cellSize / 2),
 			size = UDim2.new(0, cellSize, 0, cellSize),
 			cornerRadius = 2,
 		})
-
 	elseif shapeId == BrushShape.Stick then
 		createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.5, 0),
 			size = UDim2.new(0, s * 0.22, 0, s * 0.9),
 			cornerRadius = s * 0.1,
 		})
-
 	elseif shapeId == BrushShape.Spinner then
 		createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.5, 0),
@@ -272,7 +262,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 				cornerRadius = s,
 			})
 		end
-
 	elseif shapeId == BrushShape.Spikepad then
 		createIconElement(container, {
 			position = UDim2.new(0.5, 0, 0.72, 0),
@@ -286,7 +275,7 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 		spikeClip.ClipsDescendants = true
 		spikeClip.Parent = container
 
-		local spikePositions = {0.25, 0.5, 0.75}
+		local spikePositions = { 0.25, 0.5, 0.75 }
 		for _, xPos in ipairs(spikePositions) do
 			createIconElement(spikeClip, {
 				position = UDim2.new(xPos, 0, 0.85, 0),
@@ -295,7 +284,6 @@ function ShapeIcon.create(shapeId: string, size: number?): Frame
 				cornerRadius = 1,
 			})
 		end
-
 	else
 		-- Fallback: simple square
 		createIconElement(container, {

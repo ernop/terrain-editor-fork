@@ -22,17 +22,13 @@ export type PathPoint = {
 function BridgePathGenerator.generateRandomCurve(): Curve
 	local curveTypes = { "sin", "cos", "combined" }
 	local curveType = curveTypes[math.random(1, #curveTypes)]
-	
+
 	return {
 		type = curveType,
 		amplitude = math.random(50, 200) / 100, -- 0.5 to 2.0
 		frequency = math.random(20, 80) / 10, -- 2.0 to 8.0
 		phase = math.random(0, 628) / 100, -- 0 to 2π
-		offset = Vector3.new(
-			math.random(-100, 100) / 100,
-			math.random(-50, 50) / 100,
-			math.random(-100, 100) / 100
-		),
+		offset = Vector3.new(math.random(-100, 100) / 100, math.random(-50, 50) / 100, math.random(-100, 100) / 100),
 		verticalBias = math.random(30, 100) / 100,
 		horizontalBias = math.random(30, 100) / 100,
 	}
@@ -45,7 +41,7 @@ function BridgePathGenerator.getTerrainHeight(terrain: Terrain, position: Vector
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 	raycastParams.FilterDescendantsInstances = { terrain }
-	
+
 	local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 	if result and result.Instance == terrain then
 		return result.Position.Y
@@ -62,7 +58,7 @@ function BridgePathGenerator.findNearbyTerrainFeatures(
 ): { Vector3 }
 	local features: { Vector3 } = {}
 	local stepSize = searchRadius / 10
-	
+
 	for x = -searchRadius, searchRadius, stepSize do
 		for z = -searchRadius, searchRadius, stepSize do
 			local checkPos = position + Vector3.new(x, 0, z)
@@ -79,14 +75,14 @@ function BridgePathGenerator.findNearbyTerrainFeatures(
 			break
 		end
 	end
-	
+
 	return features
 end
 
 -- Evaluate a curve at parameter t (0 to 1)
 function BridgePathGenerator.evaluateCurve(curve: Curve, t: number): Vector3
 	local value = 0.0
-	
+
 	if curve.type == "sin" then
 		value = math.sin(t * math.pi * 2 * curve.frequency + curve.phase)
 	elseif curve.type == "cos" then
@@ -95,15 +91,11 @@ function BridgePathGenerator.evaluateCurve(curve: Curve, t: number): Vector3
 		value = math.sin(t * math.pi * 2 * curve.frequency + curve.phase) * 0.6
 			+ math.cos(t * math.pi * 2 * curve.frequency * 1.5 + curve.phase * 0.7) * 0.4
 	end
-	
+
 	local vertical = value * curve.amplitude * curve.verticalBias
 	local horizontal = value * curve.amplitude * curve.horizontalBias
-	
-	return Vector3.new(
-		horizontal + curve.offset.X,
-		vertical + curve.offset.Y,
-		horizontal * 0.7 + curve.offset.Z
-	)
+
+	return Vector3.new(horizontal + curve.offset.X, vertical + curve.offset.Y, horizontal * 0.7 + curve.offset.Z)
 end
 
 -- Generate a meandering path from start to end using multiple curves
@@ -123,30 +115,30 @@ function BridgePathGenerator.generateMeanderingPath(
 	local perpDir = Vector3.new(-pathDir.Z, 0, pathDir.X)
 	local upDir = Vector3.new(0, 1, 0)
 	local intensityMult = intensity or 1.0
-	
+
 	local baseArcHeight = distance * 0.2 * intensityMult -- Base arc height
-	
+
 	for i = 0, numSteps do
 		local t = i / numSteps
-		
+
 		-- Base linear interpolation
 		local basePos = startPoint:Lerp(endPoint, t)
-		
+
 		-- Apply all curves
 		local curveOffset = Vector3.new(0, 0, 0)
 		for _, curve in ipairs(curves) do
 			local curveValue = BridgePathGenerator.evaluateCurve(curve, t)
 			curveOffset = curveOffset + curveValue
 		end
-		
+
 		-- Normalize curve offset by number of curves
 		if #curves > 0 then
 			curveOffset = curveOffset / #curves
 		end
-		
+
 		-- Apply base arc
 		local arcHeight = math.sin(t * math.pi) * baseArcHeight
-		
+
 		-- Combine offsets (apply intensity to curve offsets)
 		local verticalOffset = Vector3.new(0, arcHeight + curveOffset.Y * distance * 0.3 * intensityMult, 0)
 		-- Calculate perpendicular direction for Z offset (cross product of pathDir and upDir)
@@ -157,11 +149,11 @@ function BridgePathGenerator.generateMeanderingPath(
 		else
 			perpDirZ = perpDirZ.Unit
 		end
-		local horizontalOffset = perpDir * (curveOffset.X * distance * 0.2 * intensityMult) 
+		local horizontalOffset = perpDir * (curveOffset.X * distance * 0.2 * intensityMult)
 			+ perpDirZ * (curveOffset.Z * distance * 0.2 * intensityMult)
-		
+
 		local finalPos = basePos + verticalOffset + horizontalOffset
-		
+
 		-- Terrain awareness: adjust height to follow terrain or avoid it
 		if terrainAwareness and terrain then
 			local terrainHeight = BridgePathGenerator.getTerrainHeight(terrain, finalPos)
@@ -183,7 +175,7 @@ function BridgePathGenerator.generateMeanderingPath(
 				end
 			end
 		end
-		
+
 		-- Calculate tangent (direction) for smooth path
 		local tangent = pathDir
 		if i > 0 then
@@ -191,20 +183,20 @@ function BridgePathGenerator.generateMeanderingPath(
 		elseif i < numSteps then
 			-- Will be updated next iteration
 		end
-		
+
 		table.insert(path, {
 			position = finalPos,
 			tangent = tangent,
 		})
 	end
-	
+
 	-- Smooth tangents
 	for i = 2, #path - 1 do
 		local prev = path[i - 1].position
 		local next = path[i + 1].position
 		path[i].tangent = (next - prev).Unit
 	end
-	
+
 	return path
 end
 
@@ -338,5 +330,3 @@ function BridgePathGenerator.generatePath(settings: BridgeSettings): { Vector3 }
 end
 
 return BridgePathGenerator
-
-

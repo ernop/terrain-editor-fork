@@ -179,12 +179,8 @@ function StalactiteTool.execute(options: SculptSettings)
 		if spikeOccupancy > 0.5 then
 			local targetMaterial = desiredMaterial
 			if autoMaterial then
-				targetMaterial = OperationHelper.getMaterialForAutoMaterial(
-					readMaterials,
-					voxelX, voxelY, voxelZ,
-					sizeX, sizeY, sizeZ,
-					cellMaterial
-				)
+				targetMaterial =
+					OperationHelper.getMaterialForAutoMaterial(readMaterials, voxelX, voxelY, voxelZ, sizeX, sizeY, sizeZ, cellMaterial)
 			end
 			writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 		end

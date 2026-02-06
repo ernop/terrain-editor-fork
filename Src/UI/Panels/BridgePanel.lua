@@ -40,11 +40,8 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	local bridgeHeader = UIHelpers.createHeader(bridgeInfoPanel, "Bridge Tool", UDim2.new(0, 0, 0, 0))
 	bridgeHeader.LayoutOrder = 1
 
-	local bridgeInstructions = UIHelpers.createInstructions(
-		bridgeInfoPanel,
-		"Click to set START point, then click again to set END point.",
-		50
-	)
+	local bridgeInstructions =
+		UIHelpers.createInstructions(bridgeInfoPanel, "Click to set START point, then click again to set END point.", 50)
 	bridgeInstructions.LayoutOrder = 2
 
 	local bridgeStatusLabel = UIHelpers.createStatusLabel(bridgeInfoPanel, "Status: Click to set START", Theme.Colors.Warning)
@@ -61,13 +58,20 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	bridgeWidthContainer.LayoutOrder = 4
 
 	-- Intensity slider (how extreme the variations are)
-	local _, intensityContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Intensity", 10, 300, math.floor(S.bridgeIntensity * 100), function(val)
-		S.bridgeIntensity = val / 100
-		S.bridgeLastPreviewParams = nil
-		if updateBridgePreview then
-			updateBridgePreview(S.bridgeHoverPoint)
+	local _, intensityContainer, _ = UIHelpers.createSlider(
+		bridgeInfoPanel,
+		"Intensity",
+		10,
+		300,
+		math.floor(S.bridgeIntensity * 100),
+		function(val)
+			S.bridgeIntensity = val / 100
+			S.bridgeLastPreviewParams = nil
+			if updateBridgePreview then
+				updateBridgePreview(S.bridgeHoverPoint)
+			end
 		end
-	end)
+	)
 	intensityContainer.LayoutOrder = 5
 
 	-- Segments slider (0 = auto, up to 1000 for dense paths)
@@ -126,23 +130,37 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	terrainAwarenessToggle.container.LayoutOrder = 7.2
 
 	-- Plane constraint slider
-	local _, planeConstraintContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Plane Lock", 0, 100, math.floor((S.bridgePlaneConstraint or 0) * 100), function(val)
-		S.bridgePlaneConstraint = val / 100
-		S.bridgeLastPreviewParams = nil
-		if updateBridgePreview then
-			updateBridgePreview(S.bridgeHoverPoint)
+	local _, planeConstraintContainer, _ = UIHelpers.createSlider(
+		bridgeInfoPanel,
+		"Plane Lock",
+		0,
+		100,
+		math.floor((S.bridgePlaneConstraint or 0) * 100),
+		function(val)
+			S.bridgePlaneConstraint = val / 100
+			S.bridgeLastPreviewParams = nil
+			if updateBridgePreview then
+				updateBridgePreview(S.bridgeHoverPoint)
+			end
 		end
-	end)
+	)
 	planeConstraintContainer.LayoutOrder = 7.3
 
 	-- Axis rotation slider (rotate bridge around its own axis)
-	local _, axisRotationContainer, _ = UIHelpers.createSlider(bridgeInfoPanel, "Axis Roll", 0, 360, S.bridgeAxisRotation or 0, function(val)
-		S.bridgeAxisRotation = val
-		S.bridgeLastPreviewParams = nil
-		if updateBridgePreview then
-			updateBridgePreview(S.bridgeHoverPoint)
+	local _, axisRotationContainer, _ = UIHelpers.createSlider(
+		bridgeInfoPanel,
+		"Axis Roll",
+		0,
+		360,
+		S.bridgeAxisRotation or 0,
+		function(val)
+			S.bridgeAxisRotation = val
+			S.bridgeLastPreviewParams = nil
+			if updateBridgePreview then
+				updateBridgePreview(S.bridgeHoverPoint)
+			end
 		end
-	end)
+	)
 	axisRotationContainer.LayoutOrder = 7.4
 
 	-- Style header
@@ -203,20 +221,26 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	end
 
 	-- Clear button
-	local clearBridgeBtn = UIHelpers.createButton(bridgeInfoPanel, "Clear Points", UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 28), function()
-		S.bridgeStartPoint = nil
-		S.bridgeEndPoint = nil
-		S.bridgeCurves = {}
-		S.bridgeHoverPoint = nil
-		S.bridgeLastPreviewParams = nil
-		bridgeStatusLabel.Text = "Status: Click to set START"
+	local clearBridgeBtn = UIHelpers.createButton(
+		bridgeInfoPanel,
+		"Clear Points",
+		UDim2.new(0, 0, 0, 0),
+		UDim2.new(0, 100, 0, 28),
+		function()
+			S.bridgeStartPoint = nil
+			S.bridgeEndPoint = nil
+			S.bridgeCurves = {}
+			S.bridgeHoverPoint = nil
+			S.bridgeLastPreviewParams = nil
+			bridgeStatusLabel.Text = "Status: Click to set START"
 
-		destroyAllPreviewParts()
+			destroyAllPreviewParts()
 
-		if updateBridgeStatus then
-			updateBridgeStatus()
+			if updateBridgeStatus then
+				updateBridgeStatus()
+			end
 		end
-	end)
+	)
 	clearBridgeBtn.LayoutOrder = 20
 
 	-- Meander controls (only visible for MegaMeander with both points set)
@@ -255,16 +279,23 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 	local complexityLabel = UIHelpers.createHeader(meanderControlsContainer, "Meander Complexity", UDim2.new(0, 0, 0, 0))
 	complexityLabel.LayoutOrder = 3
 
-	local _, complexityContainer, _ = UIHelpers.createSlider(meanderControlsContainer, "Curves", 1, 50, S.bridgeMeanderComplexity, function(value)
-		S.bridgeMeanderComplexity = value
-		if S.bridgeVariant == "MegaMeander" and S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
-			S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
-			S.bridgeLastPreviewParams = nil
-			if updateBridgePreview then
-				updateBridgePreview(S.bridgeHoverPoint)
+	local _, complexityContainer, _ = UIHelpers.createSlider(
+		meanderControlsContainer,
+		"Curves",
+		1,
+		50,
+		S.bridgeMeanderComplexity,
+		function(value)
+			S.bridgeMeanderComplexity = value
+			if S.bridgeVariant == "MegaMeander" and S.bridgeStartPoint and (S.bridgeEndPoint or S.bridgeHoverPoint) then
+				S.bridgeCurves = BridgePathGenerator.generateRandomCurves(S.bridgeMeanderComplexity)
+				S.bridgeLastPreviewParams = nil
+				if updateBridgePreview then
+					updateBridgePreview(S.bridgeHoverPoint)
+				end
 			end
 		end
-	end)
+	)
 	complexityContainer.LayoutOrder = 4
 
 	panels["bridgeInfo"] = bridgeInfoPanel
@@ -433,4 +464,3 @@ function BridgePanel.create(deps: BridgePanelDeps): BridgePanelResult
 end
 
 return BridgePanel
-

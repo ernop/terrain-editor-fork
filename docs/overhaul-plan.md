@@ -15,6 +15,8 @@ Full-scope improvement plan for the terrain editor plugin. Covers every layer: a
 | SculptOps cleanup: noise + helpers | DONE | `f8b3bdf` |
 | File splitting: ShapeIcon + AnalysisPanels | DONE | `1c330fc` |
 | Core ops: metatable passthrough + effectiveOccupancy | DONE | `d05ac18` |
+| Lint fixes: 3 errors + shadowing + table.clone | DONE | `703f6ce` |
+| Theme centralization + tool trait fixes | DONE | `1ba40e1` |
 | Phase G: Architecture | NOT STARTED | Needs discussion |
 
 ---
@@ -72,6 +74,10 @@ Full-scope improvement plan for the terrain editor plugin. Covers every layer: a
 | I4 | Shape icons use hardcoded colors | **FIXED** |
 | I5 | Lock button uses emoji | **FIXED** - text labels |
 | I6 | Inconsistent help descriptions | Deferred |
+| I7 | GrowthSimTool `needsMaterial=false` but uses material panel | **FIXED** - set to true |
+| I8 | SymmetryTool `usesStrength=false` but has strength panel | **FIXED** - set to true |
+| I9 | Hardcoded colors in AnalysisPanels, ToolDocsPanel, UIHelpers | **FIXED** - moved to Theme |
+| I10 | Missing `ignoreWater` in terrace/cliff functions | **FIXED** - added parameter extraction |
 
 ### Dead Code
 

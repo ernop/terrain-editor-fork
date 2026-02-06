@@ -4,7 +4,7 @@ local PivotType = require(script.Parent.TerrainEnums).PivotType
 
 -- Returns the given position adjusted by height depending on pivot mode bottom, center or top
 -- Note: Surface pivot requires terrain sampling and is handled separately in calling code
-return function (pivot, position, cursorHeight)
+return function(pivot, position, cursorHeight)
 	local halfHeight = cursorHeight / 2
 	if pivot == PivotType.Top then
 		return Vector3.new(position.X, position.Y - halfHeight, position.Z)

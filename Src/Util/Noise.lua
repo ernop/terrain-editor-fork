@@ -39,11 +39,13 @@ function Noise.fbmFast(x: number, y: number, z: number, seed: number, octaves: n
 	for i = 1, octaves do
 		-- Each octave uses different seed offset for variety
 		local octaveOffset = i * 127.1
-		value = value + amplitude * math.noise(
-			x * frequency + seedOffset + octaveOffset,
-			y * frequency + seedOffset * 0.7 + octaveOffset,
-			z * frequency + seedOffset * 1.3 + octaveOffset
-		)
+		value = value
+			+ amplitude
+				* math.noise(
+					x * frequency + seedOffset + octaveOffset,
+					y * frequency + seedOffset * 0.7 + octaveOffset,
+					z * frequency + seedOffset * 1.3 + octaveOffset
+				)
 		maxValue = maxValue + amplitude
 		amplitude = amplitude * 0.5
 		frequency = frequency * 2

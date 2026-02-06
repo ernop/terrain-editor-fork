@@ -43,9 +43,9 @@ SlopePaintTool.traits = {
 SlopePaintTool.docs = {
 	title = "Slope Paint",
 	subtitle = "Auto-paint based on terrain angle",
-	
+
 	description = "Applies materials based on surface slope. Configure thresholds to control where each material appears.",
-	
+
 	sections = {
 		{
 			heading = "Materials",
@@ -72,13 +72,13 @@ SlopePaintTool.docs = {
 			content = "Surface normal estimated from occupancy gradient. Interior voxels (zero gradient) are skipped. Works best on smooth terrain; noisy surfaces may produce inconsistent results.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Great for natural terrain texturing",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -112,17 +112,17 @@ function SlopePaintTool.execute(options: SculptSettings)
 	local slopeCliffMaterial = options.slopeCliffMaterial or Enum.Material.Slate
 	local threshold1 = options.slopeThreshold1 or 30
 	local threshold2 = options.slopeThreshold2 or 60
-	
+
 	-- Only paint solid terrain
 	if cellOccupancy < 0.5 or cellMaterial == Enum.Material.Air then
 		return
 	end
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Calculate surface normal from occupancy gradient
 	local function getOcc(x, y, z)
 		if x < 1 or x > sizeX or y < 1 or y > sizeY or z < 1 or z > sizeZ then
@@ -130,20 +130,20 @@ function SlopePaintTool.execute(options: SculptSettings)
 		end
 		return readOccupancies[x][y][z]
 	end
-	
+
 	local gradX = getOcc(voxelX + 1, voxelY, voxelZ) - getOcc(voxelX - 1, voxelY, voxelZ)
 	local gradY = getOcc(voxelX, voxelY + 1, voxelZ) - getOcc(voxelX, voxelY - 1, voxelZ)
 	local gradZ = getOcc(voxelX, voxelY, voxelZ + 1) - getOcc(voxelX, voxelY, voxelZ - 1)
-	
+
 	local gradLen = math.sqrt(gradX * gradX + gradY * gradY + gradZ * gradZ)
 	if gradLen < 0.01 then
 		return -- No gradient = interior voxel, skip
 	end
-	
+
 	-- Calculate slope angle from vertical (Y component)
 	local normalY = -gradY / gradLen
 	local slopeAngle = math.deg(math.acos(math.clamp(normalY, -1, 1)))
-	
+
 	-- Select material based on slope
 	local targetMaterial
 	if slopeAngle < threshold1 then
@@ -153,9 +153,8 @@ function SlopePaintTool.execute(options: SculptSettings)
 	else
 		targetMaterial = slopeCliffMaterial
 	end
-	
+
 	writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 end
 
 return SlopePaintTool
-

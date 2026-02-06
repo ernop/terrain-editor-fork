@@ -43,9 +43,9 @@ TerraceTool.traits = {
 TerraceTool.docs = {
 	title = "Terrace",
 	subtitle = "Create stepped terrain levels",
-	
+
 	description = "Quantizes vertical terrain into discrete steps. Voxels snap to the nearest step height.",
-	
+
 	sections = {
 		{
 			heading = "Settings",
@@ -71,13 +71,13 @@ TerraceTool.docs = {
 			content = "Creates staircase profile. Each step has a flat region (determined by 1-sharpness) followed by a transition cliff. Low sharpness = gentle slopes between steps. High sharpness = vertical risers.",
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"Ctrl+Scroll — Adjust strength",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -106,17 +106,17 @@ function TerraceTool.execute(options: SculptSettings)
 	local worldY = options.worldY
 	local stepHeight = options.stepHeight or 8
 	local stepSharpness = options.stepSharpness or 0.8
-	
+
 	-- Only affect cells within brush
 	if brushOccupancy < 0.01 then
 		return
 	end
-	
+
 	-- Calculate which step this Y position belongs to
 	local stepIndex = math.floor(worldY / stepHeight)
 	local stepBase = stepIndex * stepHeight
 	local posInStep = (worldY - stepBase) / stepHeight
-	
+
 	-- Calculate target occupancy based on position within step
 	local targetOccupancy
 	if posInStep < (1 - stepSharpness) then
@@ -127,13 +127,12 @@ function TerraceTool.execute(options: SculptSettings)
 		local edgePos = (posInStep - (1 - stepSharpness)) / stepSharpness
 		targetOccupancy = 1 - edgePos
 	end
-	
+
 	-- Blend toward target based on brush strength
 	local blendFactor = brushOccupancy * (options.strength or 0.5)
 	local newOccupancy = cellOccupancy + (targetOccupancy - cellOccupancy) * blendFactor
-	
+
 	writeOccupancies[voxelX][voxelY][voxelZ] = math.clamp(newOccupancy, 0, 1)
 end
 
 return TerraceTool
-

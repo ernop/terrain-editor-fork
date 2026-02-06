@@ -30,7 +30,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local sizeY = (opSet.cursorSizeY or opSet.cursorHeight or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
 	local sizeZ = (opSet.cursorSizeZ or opSet.cursorSize) * Constants.VOXEL_RESOLUTION
 	local selectionSize = opSet.cursorSizeX or opSet.cursorSize
-	
+
 	-- Per-axis radii
 	local radiusX = sizeX * 0.5
 	local radiusY = sizeY * 0.5
@@ -44,7 +44,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local flattenMode = opSet.flattenMode
 
 	local ignoreWater = opSet.ignoreWater
-	
+
 	-- Get brush rotation (default to identity if not provided)
 	local brushRotation = opSet.brushRotation or CFrame.new()
 
@@ -75,7 +75,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 	local voxelCountX = #readOccupancies
 	local voxelCountY = #readOccupancies[1]
 	local voxelCountZ = #readOccupancies[1][1]
-	
+
 	-- For sculptSettings compatibility (region dimensions in voxel indices)
 	local regionSizeX = voxelCountX
 	local regionSizeY = voxelCountY
@@ -92,12 +92,12 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 		sizeX = regionSizeX,
 		sizeY = regionSizeY,
 		sizeZ = regionSizeZ,
-		strength  = strength,
+		strength = strength,
 		ignoreWater = ignoreWater,
 		desiredMaterial = desiredMaterial,
 		autoMaterial = autoMaterial,
 		filterSize = 1,
-		maxOccupancy = 1
+		maxOccupancy = 1,
 	}
 
 	--[[
@@ -116,8 +116,8 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 
 			if tool == ToolId.Flatten then
 				-- In order to get a goal for the flatten operation, get a desired occupancy at a certain voxel
-				local initialVoxelY, desiredOccupancy = OperationHelper.getDesiredOccupancy(
-					planePoint, planeNormal, voxelX, voxelZ, minBoundsY)
+				local initialVoxelY, desiredOccupancy =
+					OperationHelper.getDesiredOccupancy(planePoint, planeNormal, voxelX, voxelZ, minBoundsY)
 				local intersectsPlane = true
 
 				sculptSettings.x = voxelX
@@ -144,10 +144,19 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 						local worldVectorY = minBoundsY + ((voxelY - 0.5) * Constants.VOXEL_RESOLUTION)
 						local cellVectorY = worldVectorY - centerY
 						local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-							cellVectorX, cellVectorY, cellVectorZ,
-							radiusX, radiusY, radiusZ,
-							brushShape, selectionSize, true, brushRotation,
-							hollowEnabled, wallThickness)
+							cellVectorX,
+							cellVectorY,
+							cellVectorZ,
+							radiusX,
+							radiusY,
+							radiusZ,
+							brushShape,
+							selectionSize,
+							true,
+							brushRotation,
+							hollowEnabled,
+							wallThickness
+						)
 
 						-- If outside of the brush then stop iterating
 						if brushOccupancy == 0 then
@@ -172,7 +181,7 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 							end
 
 							airFillerMaterial = waterHeight >= voxelY and airFillerMaterial or materialAir
-							
+
 							sculptSettings.y = voxelY
 							sculptSettings.brushOccupancy = brushOccupancy
 							sculptSettings.magnitudePercent = magnitudePercent
@@ -198,10 +207,19 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 						local worldVectorY = minBoundsY + ((voxelY - 0.5) * Constants.VOXEL_RESOLUTION)
 						local cellVectorY = worldVectorY - centerY
 						local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-							cellVectorX, cellVectorY, cellVectorZ,
-							radiusX, radiusY, radiusZ,
-							brushShape, selectionSize, true, brushRotation,
-							hollowEnabled, wallThickness)
+							cellVectorX,
+							cellVectorY,
+							cellVectorZ,
+							radiusX,
+							radiusY,
+							radiusZ,
+							brushShape,
+							selectionSize,
+							true,
+							brushRotation,
+							hollowEnabled,
+							wallThickness
+						)
 
 						-- If outside of the brush then stop iterating
 						if brushOccupancy == 0 then
@@ -254,10 +272,19 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 					local cellVectorY = worldVectorY - centerY
 
 					local brushOccupancy, magnitudePercent = OperationHelper.calculateBrushPowerForCellRotated(
-						cellVectorX, cellVectorY, cellVectorZ,
-						radiusX, radiusY, radiusZ,
-						brushShape, selectionSize, true, brushRotation,
-						hollowEnabled, wallThickness)
+						cellVectorX,
+						cellVectorY,
+						cellVectorZ,
+						radiusX,
+						radiusY,
+						radiusZ,
+						brushShape,
+						selectionSize,
+						true,
+						brushRotation,
+						hollowEnabled,
+						wallThickness
+					)
 
 					sculptSettings.y = voxelY
 					sculptSettings.brushOccupancy = brushOccupancy
@@ -265,9 +292,9 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 					sculptSettings.cellOccupancy = cellOccupancy
 					sculptSettings.cellMaterial = cellMaterial
 					sculptSettings.airFillerMaterial = airFillerMaterial
-					
+
 					-- Check whether, or not the cell is ready to be manipulated
-					local completeErode = (flattenMode == FlattenMode.Grow) or cellOccupancy < 1 
+					local completeErode = (flattenMode == FlattenMode.Grow) or cellOccupancy < 1
 					if voxelY + 1 <= regionSizeY and not completeErode then
 						local cellUpOccupancy = readOccupancies[voxelX][voxelY + 1][voxelZ]
 						local cellUpMaterial = readMaterials[voxelX][voxelY + 1][voxelZ]
@@ -278,8 +305,8 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 					if voxelY - 1 >= 1 and not completeGrow then
 						local cellDownOccupancy = readOccupancies[voxelX][voxelY - 1][voxelZ]
 						local cellDownMaterial = readMaterials[voxelX][voxelY - 1][voxelZ]
-						completeGrow = (cellDownOccupancy == 1 and cellDownMaterial ~= materialWater) or
-							(not ignoreWater and cellDownMaterial == materialWater)
+						completeGrow = (cellDownOccupancy == 1 and cellDownMaterial ~= materialWater)
+							or (not ignoreWater and cellDownMaterial == materialWater)
 					end
 
 					-- Observe whether the terrain is ready to be manipulated and bring the occupancy closer
@@ -290,10 +317,10 @@ return function(opSet, minBounds, maxBounds, readMaterials, readOccupancies, wri
 							local processedOccupancy = cellOccupancy - strength * dampen * brushOccupancy * magnitudePercent
 							writeOccupancies[voxelX][voxelY][voxelZ] = math.max(processedOccupancy, desiredOccupancy)
 						end
-					
+
 						if (flattenMode == FlattenMode.Grow or flattenMode == FlattenMode.Both) and cellOccupancy < desiredOccupancy then
 							local processedOccupancy = cellOccupancy + strength * dampen * brushOccupancy * magnitudePercent
-							writeOccupancies[voxelX][voxelY][voxelZ] = math.min(processedOccupancy, desiredOccupancy) 
+							writeOccupancies[voxelX][voxelY][voxelZ] = math.min(processedOccupancy, desiredOccupancy)
 						end
 					end
 				end

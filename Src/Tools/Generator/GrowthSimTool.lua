@@ -189,12 +189,8 @@ function GrowthSimTool.execute(options: SculptSettings)
 		if newOccupancy > 0.5 and cellMaterial == Enum.Material.Air then
 			local targetMaterial = desiredMaterial
 			if autoMaterial then
-				targetMaterial = OperationHelper.getMaterialForAutoMaterial(
-					readMaterials,
-					voxelX, voxelY, voxelZ,
-					sizeX, sizeY, sizeZ,
-					cellMaterial
-				)
+				targetMaterial =
+					OperationHelper.getMaterialForAutoMaterial(readMaterials, voxelX, voxelY, voxelZ, sizeX, sizeY, sizeZ, cellMaterial)
 			end
 			writeMaterials[voxelX][voxelY][voxelZ] = targetMaterial
 		end

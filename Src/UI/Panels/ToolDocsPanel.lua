@@ -13,7 +13,7 @@ local ToolDocsPanel = {}
 
 export type ToolDocsPanelDeps = {
 	parent: Frame,
-	getToolDocs: (toolId: string) -> any?,  -- Returns ToolDocs or nil
+	getToolDocs: (toolId: string) -> any?, -- Returns ToolDocs or nil
 }
 
 export type ToolDocsPanelResult = {
@@ -32,12 +32,12 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 	container.AutomaticSize = Enum.AutomaticSize.Y
 	container.Visible = false
 	container.Parent = deps.parent
-	
+
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 8)
 	layout.Parent = container
-	
+
 	-- Content container (will be cleared and rebuilt on update)
 	local contentFrame = Instance.new("Frame")
 	contentFrame.Name = "Content"
@@ -45,12 +45,12 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 	contentFrame.Size = UDim2.new(1, 0, 0, 0)
 	contentFrame.AutomaticSize = Enum.AutomaticSize.Y
 	contentFrame.Parent = container
-	
+
 	local contentLayout = Instance.new("UIListLayout")
 	contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	contentLayout.Padding = UDim.new(0, 10)
 	contentLayout.Parent = contentFrame
-	
+
 	-- Helper: Create a section heading
 	local function createHeading(text: string, order: number): TextLabel
 		local heading = Instance.new("TextLabel")
@@ -68,7 +68,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		heading.Parent = contentFrame
 		return heading
 	end
-	
+
 	-- Helper: Create paragraph text
 	local function createParagraph(text: string, order: number): TextLabel
 		local para = Instance.new("TextLabel")
@@ -87,7 +87,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		para.Parent = contentFrame
 		return para
 	end
-	
+
 	-- Helper: Create bullet list
 	local function createBulletList(bullets: { string }, order: number): Frame
 		local listFrame = Instance.new("Frame")
@@ -97,12 +97,12 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		listFrame.AutomaticSize = Enum.AutomaticSize.Y
 		listFrame.LayoutOrder = order
 		listFrame.Parent = contentFrame
-		
+
 		local listLayout = Instance.new("UIListLayout")
 		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		listLayout.Padding = UDim.new(0, 3)
 		listLayout.Parent = listFrame
-		
+
 		for i, bullet in ipairs(bullets) do
 			local bulletFrame = Instance.new("Frame")
 			bulletFrame.Name = "Bullet" .. i
@@ -111,7 +111,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			bulletFrame.AutomaticSize = Enum.AutomaticSize.Y
 			bulletFrame.LayoutOrder = i
 			bulletFrame.Parent = listFrame
-			
+
 			local dot = Instance.new("TextLabel")
 			dot.Name = "Dot"
 			dot.BackgroundTransparency = 1
@@ -123,7 +123,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			dot.TextScaled = false
 			dot.Text = "•"
 			dot.Parent = bulletFrame
-			
+
 			-- Parse **bold** markers
 			local displayText = bullet
 			local textLabel = Instance.new("TextLabel")
@@ -139,16 +139,16 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			textLabel.TextWrapped = true
 			textLabel.TextScaled = false
 			textLabel.RichText = true
-			
+
 			-- Convert **text** to <b>text</b>
 			displayText = displayText:gsub("%*%*(.-)%*%*", "<b>%1</b>")
 			textLabel.Text = displayText
 			textLabel.Parent = bulletFrame
 		end
-		
+
 		return listFrame
 	end
-	
+
 	-- Helper: Create quick tips box
 	local function createQuickTips(tips: { string }, order: number): Frame
 		local tipsFrame = Instance.new("Frame")
@@ -158,23 +158,23 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		tipsFrame.AutomaticSize = Enum.AutomaticSize.Y
 		tipsFrame.LayoutOrder = order
 		tipsFrame.Parent = contentFrame
-		
+
 		local tipCorner = Instance.new("UICorner")
 		tipCorner.CornerRadius = UDim.new(0, 4)
 		tipCorner.Parent = tipsFrame
-		
+
 		local tipPadding = Instance.new("UIPadding")
 		tipPadding.PaddingLeft = UDim.new(0, 10)
 		tipPadding.PaddingRight = UDim.new(0, 10)
 		tipPadding.PaddingTop = UDim.new(0, 8)
 		tipPadding.PaddingBottom = UDim.new(0, 8)
 		tipPadding.Parent = tipsFrame
-		
+
 		local tipLayout = Instance.new("UIListLayout")
 		tipLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		tipLayout.Padding = UDim.new(0, 4)
 		tipLayout.Parent = tipsFrame
-		
+
 		local tipHeader = Instance.new("TextLabel")
 		tipHeader.BackgroundTransparency = 1
 		tipHeader.Size = UDim2.new(1, 0, 0, 16)
@@ -187,7 +187,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		tipHeader.Text = "⚡ SHORTCUTS"
 		tipHeader.LayoutOrder = 0
 		tipHeader.Parent = tipsFrame
-		
+
 		for i, tip in ipairs(tips) do
 			local tipLabel = Instance.new("TextLabel")
 			tipLabel.BackgroundTransparency = 1
@@ -203,10 +203,10 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			tipLabel.LayoutOrder = i
 			tipLabel.Parent = tipsFrame
 		end
-		
+
 		return tipsFrame
 	end
-	
+
 	-- Helper: Create related tools
 	local function createRelatedTools(related: { string }, order: number): Frame
 		local relatedFrame = Instance.new("Frame")
@@ -215,7 +215,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		relatedFrame.Size = UDim2.new(1, 0, 0, 26)
 		relatedFrame.LayoutOrder = order
 		relatedFrame.Parent = contentFrame
-		
+
 		local relatedLabel = Instance.new("TextLabel")
 		relatedLabel.BackgroundTransparency = 1
 		relatedLabel.Size = UDim2.new(0, 60, 1, 0)
@@ -227,18 +227,18 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		relatedLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		relatedLabel.Text = "Related:"
 		relatedLabel.Parent = relatedFrame
-		
+
 		local tagsFrame = Instance.new("Frame")
 		tagsFrame.BackgroundTransparency = 1
 		tagsFrame.Position = UDim2.new(0, 55, 0, 0)
 		tagsFrame.Size = UDim2.new(1, -55, 1, 0)
 		tagsFrame.Parent = relatedFrame
-		
+
 		local tagsLayout = Instance.new("UIListLayout")
 		tagsLayout.FillDirection = Enum.FillDirection.Horizontal
 		tagsLayout.Padding = UDim.new(0, 4)
 		tagsLayout.Parent = tagsFrame
-		
+
 		for i, toolName in ipairs(related) do
 			local tag = Instance.new("TextLabel")
 			tag.BackgroundColor3 = Theme.Colors.ButtonDefault
@@ -252,15 +252,15 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			tag.Text = "  " .. toolName .. "  "
 			tag.LayoutOrder = i
 			tag.Parent = tagsFrame
-			
+
 			local tagCorner = Instance.new("UICorner")
 			tagCorner.CornerRadius = UDim.new(0, 3)
 			tagCorner.Parent = tag
 		end
-		
+
 		return relatedFrame
 	end
-	
+
 	-- Clear all content
 	local function clearContent()
 		for _, child in ipairs(contentFrame:GetChildren()) do
@@ -269,28 +269,28 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			end
 		end
 	end
-	
+
 	-- Update the panel with tool documentation
 	local function update(toolId: string)
 		clearContent()
-		
+
 		local docs = deps.getToolDocs(toolId)
 		if not docs then
 			-- No tool selected or no docs
 			container.Visible = false
 			return
 		end
-		
+
 		-- Validate docs has required fields
 		if not docs.title or type(docs.title) ~= "string" then
 			warn("[ToolDocsPanel] Tool", toolId, "has invalid docs.title:", docs.title)
 			container.Visible = false
 			return
 		end
-		
+
 		container.Visible = true
 		local order = 0
-		
+
 		-- Title
 		local title = Instance.new("TextLabel")
 		title.Name = "Title"
@@ -306,7 +306,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 		title.LayoutOrder = order
 		title.Parent = contentFrame
 		order = order + 1
-		
+
 		-- Subtitle
 		if docs.subtitle then
 			local subtitle = Instance.new("TextLabel")
@@ -324,7 +324,7 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			subtitle.Parent = contentFrame
 			order = order + 1
 		end
-		
+
 		-- Description
 		if docs.description then
 			-- Trim whitespace from multiline strings
@@ -332,42 +332,42 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 			createParagraph(desc, order)
 			order = order + 1
 		end
-		
+
 		-- Sections
 		if docs.sections then
 			for _, section in ipairs(docs.sections) do
 				createHeading(section.heading, order)
 				order = order + 1
-				
+
 				if section.content then
 					createParagraph(section.content, order)
 					order = order + 1
 				end
-				
+
 				if section.bullets then
 					createBulletList(section.bullets, order)
 					order = order + 1
 				end
 			end
 		end
-		
+
 		-- Quick tips
 		if docs.quickTips and #docs.quickTips > 0 then
 			createQuickTips(docs.quickTips, order)
 			order = order + 1
 		end
-		
+
 		-- Related tools
 		if docs.related and #docs.related > 0 then
 			createRelatedTools(docs.related, order)
 			order = order + 1
 		end
 	end
-	
+
 	local function setVisible(visible: boolean)
 		container.Visible = visible
 	end
-	
+
 	return {
 		container = container,
 		update = update,
@@ -376,4 +376,3 @@ function ToolDocsPanel.create(deps: ToolDocsPanelDeps): ToolDocsPanelResult
 end
 
 return ToolDocsPanel
-

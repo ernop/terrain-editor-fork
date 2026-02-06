@@ -345,7 +345,10 @@ function CorePanels.create(deps: CorePanelsDeps): CorePanelsResult
 			if icon then
 				for _, child in ipairs(icon:GetDescendants()) do
 					if child:IsA("Frame") and child.BackgroundColor3 ~= Theme.Colors.ShapeIconHole then
-						if child.BackgroundColor3 == Theme.Colors.ShapeIconDim or child.BackgroundColor3 == Theme.Colors.ShapeIconDimSelected then
+						if
+							child.BackgroundColor3 == Theme.Colors.ShapeIconDim
+							or child.BackgroundColor3 == Theme.Colors.ShapeIconDimSelected
+						then
 							child.BackgroundColor3 = isSelected and Theme.Colors.ShapeIconDimSelected or Theme.Colors.ShapeIconDim
 						else
 							child.BackgroundColor3 = isSelected and Theme.Colors.ShapeIconLightSelected or Theme.Colors.ShapeIconLight

@@ -224,9 +224,15 @@ function BrushData.isUniformShape(shape: string): boolean
 		local maps = dims.axes[1].maps
 		local hasX, hasY, hasZ = false, false, false
 		for _, axis in ipairs(maps) do
-			if axis == "x" then hasX = true end
-			if axis == "y" then hasY = true end
-			if axis == "z" then hasZ = true end
+			if axis == "x" then
+				hasX = true
+			end
+			if axis == "y" then
+				hasY = true
+			end
+			if axis == "z" then
+				hasZ = true
+			end
 		end
 		return hasX and hasY and hasZ
 	end
@@ -387,7 +393,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		local horizMeander = math.sin(t * math.pi * 3.5) * distance * 0.25 * i
 		local horizWiggle = math.cos(t * math.pi * 6) * distance * 0.1 * i
 		return Vector3.new(horizMeander + horizWiggle, vertOffset, 0)
-
 	elseif variant == "Fibonacci" then
 		-- Golden spiral growth: each segment rises proportional to golden ratio
 		-- Creates an ever-accelerating ascent that feels "naturally impossible"
@@ -399,7 +404,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		local horizX = math.cos(spiralAngle) * spiralRadius
 		local horizZ = math.sin(spiralAngle) * spiralRadius * 0.5
 		return Vector3.new(horizX, baseArc + fibHeight, horizZ)
-
 	elseif variant == "Fractal" then
 		-- Self-similar bumps at multiple scales (octave noise)
 		-- Each frequency is half the previous, amplitude also halves
@@ -412,7 +416,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		local horizOctave1 = math.cos(t * math.pi * 3) * waveAmplitude * 0.3
 		local horizOctave2 = math.cos(t * math.pi * 7) * waveAmplitude * 0.15
 		return Vector3.new(horizOctave1 + horizOctave2, baseArc + fractalHeight, 0)
-
 	elseif variant == "Exponential" then
 		-- Starts flat, then rockets skyward at the end
 		-- Uses smoothstep-like curve for dramatic effect
@@ -421,7 +424,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		-- Slight horizontal drift as it climbs
 		local drift = math.sin(t * math.pi) * distance * 0.1 * i
 		return Vector3.new(drift, expHeight, 0)
-
 	elseif variant == "Logarithmic" then
 		-- Quick rise at start, then nearly flat approach to end
 		-- Inverse feeling of exponential - front-loaded climb
@@ -431,7 +433,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		-- Horizontal curve that opens up
 		local spread = t * t * distance * 0.15 * i
 		return Vector3.new(math.sin(t * math.pi * 2) * spread, logHeight, 0)
-
 	elseif variant == "Corkscrew" then
 		-- Full 3D helix wrapping around the straight path
 		-- Like a spring stretched between two points
@@ -444,7 +445,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		local helixX = math.cos(helixAngle) * effectiveRadius
 		local helixY = math.sin(helixAngle) * effectiveRadius
 		return Vector3.new(helixX, baseArc + helixY, 0)
-
 	elseif variant == "Drunkard" then
 		-- Pseudo-random wobble using deterministic chaos
 		-- Simulates a wobbly, stumbling path
@@ -457,7 +457,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		-- Add stumble: occasional sharp dips
 		local stumble = math.max(0, math.sin(t * math.pi * 7)) ^ 4 * waveAmplitude * -0.5
 		return Vector3.new(wobbleX, baseArc + wobbleY + stumble, 0)
-
 	elseif variant == "Heartbeat" then
 		-- ECG/EKG-style cardiac rhythm pattern
 		-- Flat sections punctuated by sharp spikes
@@ -486,7 +485,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 			beatHeight = math.sin(tPhase * math.pi) * waveAmplitude * 0.3
 		end
 		return Vector3.new(0, baseArc + beatHeight * i, 0)
-
 	elseif variant == "Staircase" then
 		-- Distinct steps with flat landings
 		-- Like walking up a grand staircase
@@ -505,7 +503,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		-- Add slight horizontal zigzag at each step
 		local zigzag = ((stepIndex % 2) * 2 - 1) * distance * 0.05 * i
 		return Vector3.new(zigzag, stepHeight + riseAmount, 0)
-
 	elseif variant == "Catenary" then
 		-- True hanging chain curve (hyperbolic cosine)
 		-- The natural shape of a rope suspended between two points
@@ -520,7 +517,6 @@ function BrushData.getBridgeOffset(t: number, distance: number, variant: string,
 		-- Catenary sags DOWN, but we add base arc, so net effect depends on intensity
 		-- For low intensity: gentle sag. For high: dramatic suspension bridge dip
 		return Vector3.new(0, baseArc - sagDepth, 0)
-
 	elseif variant == "TrollBridge" then
 		-- Normal arc with a 360-degree loop-the-loop in the middle
 		local loopRadius = distance * 0.25 * i
@@ -554,10 +550,10 @@ function BrushData.getBridgeOffsetAnchored(t: number, distance: number, variant:
 	local startOffset = BrushData.getBridgeOffset(0, distance, variant, intensity)
 	local endOffset = BrushData.getBridgeOffset(1, distance, variant, intensity)
 	local currentOffset = BrushData.getBridgeOffset(t, distance, variant, intensity)
-	
+
 	-- Linear interpolation of endpoint offsets (what we need to subtract)
 	local correction = startOffset:Lerp(endOffset, t)
-	
+
 	-- Return the offset minus the correction, so start=0 and end=0
 	return currentOffset - correction
 end
@@ -573,12 +569,12 @@ function BrushData.getBridgeOffsetPlaneAware(
 	planeConstraint: number? -- 0 to 1: how much to constrain to the start-end plane
 ): Vector3
 	local baseOffset = BrushData.getBridgeOffsetAnchored(t, distance, variant, intensity)
-	
+
 	local constraint = planeConstraint or 0
 	if constraint <= 0 then
 		return baseOffset
 	end
-	
+
 	-- The X and Z components represent lateral drift perpendicular to the path
 	-- Reduce them based on plane constraint
 	local lateralReduction = 1 - constraint

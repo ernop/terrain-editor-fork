@@ -35,13 +35,10 @@ function ToolSelectionListener:render()
 	return nil
 end
 
-
 ToolSelectionListener = withContext({
 	Analytics = ContextServices.Analytics,
 	PluginActivationController = ContextItems.PluginActivationController,
 })(ToolSelectionListener)
-
-
 
 local function mapStateToProps(state, props)
 	return {

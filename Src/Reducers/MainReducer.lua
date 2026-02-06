@@ -44,31 +44,32 @@ local Actions = Plugin.Src.Actions
 local ApplyToolAction = Actions.ApplyToolAction
 
 local MainReducer = function(state, action)
-	local reducer = state or {
-		Tools = Tools(state, action),
+	local reducer = state
+		or {
+			Tools = Tools(state, action),
 
-		GenerateTool = GenerateTool(state, action),
-		ImportLocalTool = ImportLocalTool(state, action),
+			GenerateTool = GenerateTool(state, action),
+			ImportLocalTool = ImportLocalTool(state, action),
 
-		RegionTool = RegionTool(state, action),
-		FillTool = FillTool(state, action),
+			RegionTool = RegionTool(state, action),
+			FillTool = FillTool(state, action),
 
-		AddTool = AddTool(state, action),
-		SubtractTool = SubtractTool(state, action),
+			AddTool = AddTool(state, action),
+			SubtractTool = SubtractTool(state, action),
 
-		GrowTool = GrowTool(state, action),
-		ErodeTool = ErodeTool(state, action),
-		SmoothTool = SmoothTool(state, action),
-		FlattenTool = FlattenTool(state, action),
-		SeaLevelTool = SeaLevelTool(state, action),
-		ReplaceTool = ReplaceTool(state, action),
+			GrowTool = GrowTool(state, action),
+			ErodeTool = ErodeTool(state, action),
+			SmoothTool = SmoothTool(state, action),
+			FlattenTool = FlattenTool(state, action),
+			SeaLevelTool = SeaLevelTool(state, action),
+			ReplaceTool = ReplaceTool(state, action),
 
-		-- special cased reducer, is used by a tab since
-		-- there's no other paint tools under the paint category
-		PaintTool = PaintTool(state, action),
-		
-		BaseTool = BaseTool(state, action),
-	}
+			-- special cased reducer, is used by a tab since
+			-- there's no other paint tools under the paint category
+			PaintTool = PaintTool(state, action),
+
+			BaseTool = BaseTool(state, action),
+		}
 
 	-- ApplyToolAction is used to direct the same action across multiple reducers
 	-- This means actions that affect tool reducers must go through the
@@ -80,7 +81,6 @@ local MainReducer = function(state, action)
 		reducer = Cryo.Dictionary.join(reducer, {
 			[toolName] = toolReducerTable[toolName](reducer[toolName], action.toolAction),
 		})
-
 	else
 		reducer = Cryo.Dictionary.join(reducer, {
 			Tools = Tools(reducer.Tools, action),

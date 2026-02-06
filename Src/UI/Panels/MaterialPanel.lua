@@ -80,4 +80,3 @@ function MaterialPanel.create(deps: MaterialPanelDeps): MaterialPanelResult
 end
 
 return MaterialPanel
-

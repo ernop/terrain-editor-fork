@@ -18,12 +18,12 @@ local ToolDocFormat = {}
 -- ============================================================================
 -- Primary function of the tool
 ToolDocFormat.Category = {
-	Shape = "Shape",         -- Modify terrain volume (Add, Subtract, Grow, Erode, Smooth, Flatten)
-	Surface = "Surface",     -- Reshape surface (Noise, Terrace, Cliff, Path, Blobify)
-	Material = "Material",   -- Change material only (Paint, SlopePaint, Gradient, Flood, etc.)
+	Shape = "Shape", -- Modify terrain volume (Add, Subtract, Grow, Erode, Smooth, Flatten)
+	Surface = "Surface", -- Reshape surface (Noise, Terrace, Cliff, Path, Blobify)
+	Material = "Material", -- Change material only (Paint, SlopePaint, Gradient, Flood, etc.)
 	Generator = "Generator", -- Create procedural shapes (Stalactite, Tendril, Growth, Grid)
-	Utility = "Utility",     -- Special operations (Clone, Bridge, Symmetry, Melt)
-	Analysis = "Analysis",   -- Read-only inspection (VoxelInspect, ComponentAnalyzer, Overlay)
+	Utility = "Utility", -- Special operations (Clone, Bridge, Symmetry, Melt)
+	Analysis = "Analysis", -- Read-only inspection (VoxelInspect, ComponentAnalyzer, Overlay)
 }
 
 -- ============================================================================
@@ -31,10 +31,10 @@ ToolDocFormat.Category = {
 -- ============================================================================
 -- How the tool processes terrain
 ToolDocFormat.ExecutionType = {
-	PerVoxel = "perVoxel",       -- Iterates over each voxel in brush region
+	PerVoxel = "perVoxel", -- Iterates over each voxel in brush region
 	ColumnBased = "columnBased", -- Processes columns (Flatten)
 	PointToPoint = "pointToPoint", -- Connects two points (Bridge)
-	UIOnly = "uiOnly",           -- No terrain modification (Analysis tools)
+	UIOnly = "uiOnly", -- No terrain modification (Analysis tools)
 }
 
 -- ============================================================================
@@ -59,25 +59,25 @@ ToolDocFormat.ExecutionType = {
 ]]
 export type ToolTraits = {
 	-- Classification
-	category: string,       -- Category.Shape | Surface | Material | Generator | Utility | Analysis
-	executionType: string,  -- ExecutionType.PerVoxel | ColumnBased | PointToPoint | UIOnly
-	
+	category: string, -- Category.Shape | Surface | Material | Generator | Utility | Analysis
+	executionType: string, -- ExecutionType.PerVoxel | ColumnBased | PointToPoint | UIOnly
+
 	-- Modification flags
-	modifiesOccupancy: boolean,  -- Changes terrain volume
-	modifiesMaterial: boolean,   -- Changes terrain material
-	
+	modifiesOccupancy: boolean, -- Changes terrain volume
+	modifiesMaterial: boolean, -- Changes terrain material
+
 	-- Execution paths
-	hasFastPath: boolean?,       -- Can use native Terrain API shortcuts
+	hasFastPath: boolean?, -- Can use native Terrain API shortcuts
 	hasLargeBrushPath: boolean?, -- Has optimized path for large brushes
-	
+
 	-- State requirements
 	requiresGlobalState: boolean?, -- Needs persistent state (buffer, points)
-	globalStateKeys: { string }?,  -- Which state keys it uses
-	
+	globalStateKeys: { string }?, -- Which state keys it uses
+
 	-- UI requirements
-	usesBrush: boolean?,      -- Shows brush visualization
-	usesStrength: boolean?,   -- Strength slider affects operation
-	needsMaterial: boolean?,  -- Requires material selection
+	usesBrush: boolean?, -- Shows brush visualization
+	usesStrength: boolean?, -- Strength slider affects operation
+	needsMaterial: boolean?, -- Requires material selection
 }
 
 --[[
@@ -127,7 +127,7 @@ export type ToolDocs = {
 	-- Required
 	title: string,
 	description: string,
-	
+
 	-- Optional
 	subtitle: string?,
 	sections: { DocSection }?,
@@ -146,37 +146,37 @@ export type SculptSettings = {
 	x: number,
 	y: number,
 	z: number,
-	
+
 	-- Voxel data (read-only)
-	readMaterials: {{{Enum.Material}}},
-	readOccupancies: {{{number}}},
-	
+	readMaterials: { { { Enum.Material } } },
+	readOccupancies: { { { number } } },
+
 	-- Voxel data (write)
-	writeMaterials: {{{Enum.Material}}},
-	writeOccupancies: {{{number}}},
-	
+	writeMaterials: { { { Enum.Material } } },
+	writeOccupancies: { { { number } } },
+
 	-- Region dimensions
 	sizeX: number,
 	sizeY: number,
 	sizeZ: number,
-	
+
 	-- Brush parameters
 	brushOccupancy: number,
 	magnitudePercent: number,
 	cellOccupancy: number,
 	cellMaterial: Enum.Material,
 	strength: number,
-	
+
 	-- Material settings
 	desiredMaterial: Enum.Material?,
 	autoMaterial: boolean?,
 	airFillerMaterial: Enum.Material?,
 	ignoreWater: boolean?,
-	
+
 	-- Constraint
 	maxOccupancy: number?,
 	filterSize: number?,
-	
+
 	-- World coordinates (for noise-based tools)
 	worldX: number?,
 	worldY: number?,
@@ -184,7 +184,7 @@ export type SculptSettings = {
 	centerX: number?,
 	centerY: number?,
 	centerZ: number?,
-	
+
 	-- Tool-specific parameters (added by each tool)
 	[string]: any,
 }
@@ -225,24 +225,24 @@ export type Tool = {
 	id: string,
 	name: string,
 	category: string,
-	
+
 	-- Traits (required) - behavioral classification
 	traits: ToolTraits,
-	
+
 	-- Documentation (required)
 	docs: ToolDocs,
-	
+
 	-- Configuration (required)
 	configPanels: { string },
-	
+
 	-- Operation (required for non-UIOnly tools) - called for each voxel
 	execute: ((settings: SculptSettings) -> ())?,
-	
+
 	-- Optional hooks
 	setup: ((opSet: OperationSet) -> OperationSet)?,
 	canUseFastPath: ((opSet: OperationSet) -> boolean)?,
 	fastPath: ((terrain: Terrain, opSet: OperationSet) -> ())?,
-	
+
 	-- Optional UI customization
 	icon: string?,
 	buttonLabel: string?,
@@ -253,50 +253,50 @@ function ToolDocFormat.validate(tool: any): (boolean, string?)
 	if type(tool) ~= "table" then
 		return false, "Tool must be a table"
 	end
-	
+
 	if not tool.id or type(tool.id) ~= "string" then
 		return false, "Tool must have a string 'id'"
 	end
-	
+
 	if not tool.name or type(tool.name) ~= "string" then
 		return false, "Tool must have a string 'name'"
 	end
-	
+
 	if not tool.docs then
 		return false, "Tool must have 'docs' (documentation is mandatory)"
 	end
-	
+
 	if not tool.docs.title or type(tool.docs.title) ~= "string" then
 		return false, "Tool docs must have a 'title'"
 	end
-	
+
 	if not tool.docs.description or type(tool.docs.description) ~= "string" then
 		return false, "Tool docs must have a 'description'"
 	end
-	
+
 	if not tool.configPanels or type(tool.configPanels) ~= "table" then
 		return false, "Tool must have 'configPanels' array"
 	end
-	
+
 	-- Validate traits (required)
 	if not tool.traits then
 		return false, "Tool must have 'traits' (behavioral classification)"
 	end
-	
+
 	if not tool.traits.category or type(tool.traits.category) ~= "string" then
 		return false, "Tool traits must have a 'category'"
 	end
-	
+
 	if not tool.traits.executionType or type(tool.traits.executionType) ~= "string" then
 		return false, "Tool traits must have an 'executionType'"
 	end
-	
+
 	-- Execute function required for non-UIOnly tools
 	local isUIOnly = tool.traits.executionType == ToolDocFormat.ExecutionType.UIOnly
 	if not isUIOnly and (not tool.execute or type(tool.execute) ~= "function") then
 		return false, "Non-UIOnly tool must have an 'execute' function"
 	end
-	
+
 	return true, nil
 end
 
@@ -358,17 +358,16 @@ function ToolDocFormat.createTraits(category: string, overrides: ToolTraits?): T
 			needsMaterial = false,
 		},
 	}
-	
+
 	local base = defaults[category] or defaults.Utility
-	
+
 	if overrides then
 		for key, value in pairs(overrides) do
 			base[key] = value
 		end
 	end
-	
+
 	return base
 end
 
 return ToolDocFormat
-

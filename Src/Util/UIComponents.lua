@@ -239,7 +239,7 @@ function UIComponents.createMaterialCycleButton(config: MaterialCycleButtonConfi
 	button.TextSize = Theme.Sizes.TextButton
 	button.TextColor3 = Theme.Colors.Text
 	button.TextScaled = false
-	button.Text = ""  -- Text will be in the label
+	button.Text = "" -- Text will be in the label
 	button:SetAttribute("UnselectedColor", Theme.Colors.ButtonDefault)
 	button:SetAttribute("SelectedColor", Theme.Colors.ButtonSelected)
 	button:SetAttribute("IsSelected", false)
@@ -700,7 +700,7 @@ function UIComponents.createLabeledButtonGroup(config: LabeledButtonGroupConfig)
 end
 
 -- ============================================================================
--- LabeledToggle Component  
+-- LabeledToggle Component
 -- Compact inline layout: "Label — [Toggle]"
 -- ============================================================================
 
@@ -811,7 +811,7 @@ function UIComponents.createRandomizeSeedButton(parent: Frame, onRandomize: (see
 	local button = Instance.new("TextButton")
 	button.BackgroundColor3 = Theme.Colors.ButtonDefault
 	button.BorderSizePixel = 0
-	button.AutomaticSize = Enum.AutomaticSize.X  -- Natural width
+	button.AutomaticSize = Enum.AutomaticSize.X -- Natural width
 	button.Size = UDim2.new(0, 0, 0, Theme.Sizes.ButtonHeight)
 	button.Font = Theme.Fonts.Medium
 	button.TextSize = Theme.Sizes.TextButton
@@ -843,4 +843,3 @@ function UIComponents.createRandomizeSeedButton(parent: Frame, onRandomize: (see
 end
 
 return UIComponents
-

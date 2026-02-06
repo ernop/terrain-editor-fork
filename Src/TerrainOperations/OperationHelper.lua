@@ -224,16 +224,16 @@ function OperationHelper.calculateBrushPowerForCellAxisAligned(
 	-- falloffExtent = 0: sharp edge (full strength throughout, instant drop at edge)
 	-- falloffExtent = 1: falloff from center to edge (entire brush is gradient)
 	-- The "core" region has full strength, the "falloff" region fades to 0
-	local coreRadius = 1 - falloffExtent  -- Where full strength ends (0 to 1)
+	local coreRadius = 1 - falloffExtent -- Where full strength ends (0 to 1)
 
 	-- Helper to apply interior falloff to a normalized distance
 	local function applyInteriorFalloff(normalizedDistance)
 		if normalizedDistance > 1 then
-			return 0  -- Outside brush
+			return 0 -- Outside brush
 		elseif falloffExtent <= 0.001 then
-			return 1  -- No falloff, full strength everywhere inside
+			return 1 -- No falloff, full strength everywhere inside
 		elseif normalizedDistance <= coreRadius then
-			return 1  -- In core region, full strength
+			return 1 -- In core region, full strength
 		else
 			-- In falloff region: map [coreRadius, 1] to [0, 1] for the falloff curve
 			local falloffProgress = (normalizedDistance - coreRadius) / falloffExtent

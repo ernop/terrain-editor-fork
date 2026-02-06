@@ -12,9 +12,9 @@ local Constants = require(Plugin.Src.Util.Constants)
 local TerrainEnums = require(Plugin.Src.Util.TerrainEnums)
 local ToolId = TerrainEnums.ToolId
 
-local ChangeHistoryService = game:GetService('ChangeHistoryService')
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
-local MAX_VOXELS_PER_SLICE = 4*1024*1024-1
+local MAX_VOXELS_PER_SLICE = 4 * 1024 * 1024 - 1
 
 local TerrainSeaLevel = ContextItem:extend("TerrainSeaLevel")
 
@@ -108,23 +108,23 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 		return
 	end
 
-	assert(size.x >= 4,"")
-	assert(size.y >= 4,"")
-	assert(size.z >= 4,"")
+	assert(size.x >= 4, "")
+	assert(size.y >= 4, "")
+	assert(size.z >= 4, "")
 
 	-- convert to voxels
 	position = position / Constants.VOXEL_RESOLUTION
 	size = size / Constants.VOXEL_RESOLUTION
 
-	local offset = (size)/2
+	local offset = size / 2
 	local minExtent = position - offset
 	local maxExtent = position + offset
 
 	local surfaceVoxelY = math.floor(maxExtent.Y)
-	local surfaceVoxelOccupancy = (maxExtent.Y) % 1
+	local surfaceVoxelOccupancy = maxExtent.Y % 1
 
 	local sliceZY = math.ceil(size.y) * math.ceil(size.z)
-	local voxelsXPerSlice = math.floor(MAX_VOXELS_PER_SLICE / sliceZY )
+	local voxelsXPerSlice = math.floor(MAX_VOXELS_PER_SLICE / sliceZY)
 
 	if voxelsXPerSlice == 0 then
 		self:localizedWarn("Warning", "RegionTooLarge")
@@ -134,15 +134,14 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 
 	local slicePosIncrement = Vector3.new(voxelsXPerSlice, 0, 0) * Constants.VOXEL_RESOLUTION
 
-	local minSliceExtent = Vector3.new(
-		math.floor(minExtent.X),
-		math.floor(minExtent.Y),
-		math.floor(minExtent.Z)) * Constants.VOXEL_RESOLUTION
+	local minSliceExtent = Vector3.new(math.floor(minExtent.X), math.floor(minExtent.Y), math.floor(minExtent.Z))
+		* Constants.VOXEL_RESOLUTION
 
 	local maxSliceExtent = Vector3.new(
 		math.ceil(math.min(maxExtent.X, minExtent.X + voxelsXPerSlice)),
 		math.ceil(maxExtent.Y),
-		math.ceil(maxExtent.Z)) * Constants.VOXEL_RESOLUTION
+		math.ceil(maxExtent.Z)
+	) * Constants.VOXEL_RESOLUTION
 
 	-- There is a bug here where the level does not generate correctly for
 	-- any height%4 == 1 such as 1,5,9 etc. These heights resolve to the
@@ -156,9 +155,9 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 		terrain.LastUsedModificationMethod = Enum.TerrainAcquisitionMethod.EditReplaceTool
 	end
 
-	while minSliceExtent.x <= (maxSliceX) and self._replacing do
+	while minSliceExtent.x <= maxSliceX and self._replacing do
 		-- output progress metric
-		self._updateReplaceProgress(1 - ((maxSliceX - minSliceExtent.X) / (maxSliceX-minSliceX)))
+		self._updateReplaceProgress(1 - ((maxSliceX - minSliceExtent.X) / (maxSliceX - minSliceX)))
 
 		-- calculate slicing targetSlice
 		local regionSlice = Region3.new(minSliceExtent, maxSliceExtent)
@@ -172,7 +171,7 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 		-- fix the surface
 		if surfaceVoxelOccupancy > 0 then
 			local surfaceSlice = Region3.new(
-				Vector3.new(minSliceExtent.X, (surfaceVoxelY) * Constants.VOXEL_RESOLUTION, minSliceExtent.Z),
+				Vector3.new(minSliceExtent.X, surfaceVoxelY * Constants.VOXEL_RESOLUTION, minSliceExtent.Z),
 				Vector3.new(maxSliceExtent.X, (surfaceVoxelY + 1) * Constants.VOXEL_RESOLUTION, maxSliceExtent.Z)
 			)
 			surfaceSlice = surfaceSlice:ExpandToGrid(Constants.VOXEL_RESOLUTION)
@@ -189,7 +188,6 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 			terrain:WriteVoxels(surfaceSlice, Constants.VOXEL_RESOLUTION, surfaceMat, surfaceOcc)
 		end
 
-
 		minSliceExtent = minSliceExtent + slicePosIncrement
 
 		if maxSliceExtent.X + slicePosIncrement.X <= maxExtent.X * Constants.VOXEL_RESOLUTION then
@@ -199,7 +197,7 @@ function TerrainSeaLevel:replaceMaterial(position, size, sourceMaterial, targetM
 		end
 	end
 
-	ChangeHistoryService:SetWaypoint('TerrainReplace')
+	ChangeHistoryService:SetWaypoint("TerrainReplace")
 
 	-- resolution is currently a fixed value of 4 until terrain
 	-- provides that as an actual option

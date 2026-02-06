@@ -46,7 +46,7 @@ PaintTool.docs = {
 	title = "Paint",
 	subtitle = "Change terrain material without affecting shape",
 	description = "Applies the selected material to existing terrain. Shape is preserved.",
-	
+
 	sections = {
 		{
 			heading = "Algorithm",
@@ -59,12 +59,12 @@ PaintTool.docs = {
 			},
 		},
 	},
-	
+
 	quickTips = {
 		"Shift+Scroll — Resize brush",
 		"L — Lock brush position",
 	},
-	
+
 	docVersion = "2.1",
 }
 
@@ -90,7 +90,7 @@ function PaintTool.execute(options: SculptSettings)
 	local brushOccupancy = options.brushOccupancy
 	local cellOccupancy = options.cellOccupancy
 	local desiredMaterial = options.desiredMaterial
-	
+
 	-- Only paint solid terrain
 	if brushOccupancy > 0 and cellOccupancy > 0 then
 		writeMaterials[voxelX][voxelY][voxelZ] = desiredMaterial
@@ -98,4 +98,3 @@ function PaintTool.execute(options: SculptSettings)
 end
 
 return PaintTool
-

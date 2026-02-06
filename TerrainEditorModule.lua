@@ -1160,7 +1160,8 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 							isSurface = true
 						else
 							-- Check adjacent cells
-							if occupancies[x - 1][y][z] == 0
+							if
+								occupancies[x - 1][y][z] == 0
 								or occupancies[x + 1][y][z] == 0
 								or occupancies[x][y - 1][z] == 0
 								or occupancies[x][y + 1][z] == 0
@@ -1950,7 +1951,9 @@ function TerrainEditorModule.init(pluginInstance: Plugin, parentGui: GuiObject)
 		ToolId = ToolId,
 		createBrushVisualization = createBrushVisualization,
 		hidePlaneVisualization = hidePlaneVisualization,
-		getTerrainHitRaw = function() return getTerrainHit(true) end,
+		getTerrainHitRaw = function()
+			return getTerrainHit(true)
+		end,
 		ChangeHistoryService = ChangeHistoryService,
 		toggleBrushLock = function()
 			S.brushLocked = not S.brushLocked

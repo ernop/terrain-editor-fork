@@ -130,11 +130,12 @@ Constants.GRID_LINE_WIDTH = 20
 -- The smallest size of the dock widget
 Constants.MIN_WIDGET_SIZE = Vector2.new(
 	Constants.SIDE_PADDING
-	+ Constants.FIRST_COLUMN_WIDTH
-	+ Constants.MIDDLE_PADDING
-	+ Constants.SECOND_COLUMN_WIDTH
-	+ Constants.SIDE_PADDING
-	, 256)
+		+ Constants.FIRST_COLUMN_WIDTH
+		+ Constants.MIDDLE_PADDING
+		+ Constants.SECOND_COLUMN_WIDTH
+		+ Constants.SIDE_PADDING,
+	256
+)
 
 Constants.FILENAME_ELLIPSIZE_MIDDLE_SUFFIX_LENGTH = 7
 
