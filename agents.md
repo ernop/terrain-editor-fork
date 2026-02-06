@@ -143,8 +143,10 @@ Before writing a helper, search for an existing one. Canonical homes:
 | `Src/Util/applyPivot.lua` | Pivot offset calculation |
 | `Src/Util/Theme.lua` | Colors, fonts, sizes for UI |
 | `Src/Util/UIHelpers.lua` | Button creation, sliders, labels |
+| `Src/Util/ShapeIcon.lua` | GUI-based shape icons for brush shapes |
 | `Src/TerrainOperations/SculptOperations.lua` | Per-voxel terrain modification functions |
-| `Src/TerrainOperations/OperationHelper.lua` | SDF math, voxel clamping, material lookup |
+| `Src/TerrainOperations/OperationHelper.lua` | SDF math, voxel clamping, material lookup, `effectiveOccupancy` |
+| `Src/Util/BridgePathGenerator.lua` | Bridge path generation (`generatePath`) |
 
 **Memories:** Don't use memories. Instead, persist everything important to a file. That way I can see and govern them.
 
